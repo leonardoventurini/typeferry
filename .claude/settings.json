@@ -1,0 +1,40 @@
+{
+  "includeCoAuthoredBy": false,
+  "permissions": {
+    "allow": ["*"],
+    "defaultMode": "bypassPermissions"
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "afplay /System/Library/Sounds/Glass.aiff"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/log-bash.sh"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "afplay /System/Library/Sounds/Funk.aiff"
+          }
+        ]
+      }
+    ]
+  }
+}
