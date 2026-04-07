@@ -1,7 +1,7 @@
 import { EventEmitter2 } from 'eventemitter2'
 import isEqual from 'fast-deep-equal'
 
-import { merge } from '@example-app/bifrost/utils/lodash'
+import { merge } from '../utils/lodash'
 
 import { EJSON } from '../ejson'
 import { ClientEvents } from '../utils'

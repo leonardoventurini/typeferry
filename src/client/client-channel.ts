@@ -1,5 +1,5 @@
 import { EventEmitter2 } from 'eventemitter2'
-import { isEmpty } from '@example-app/bifrost/utils/lodash'
+import { isEmpty } from '../utils/lodash'
 
 import type { AnyFunction } from '../utils'
 import { BifrostEvents, createIterator, Methods } from '../utils'

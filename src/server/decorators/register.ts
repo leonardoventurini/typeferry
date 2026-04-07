@@ -7,8 +7,8 @@
  * @module bifrost/server/decorators/register
  */
 
-import type { ClientNode } from '@example-app/bifrost/server/client-node'
-import type { MethodFunction, MethodOptions } from '@example-app/bifrost/server/method'
+import type { ClientNode } from '../client-node'
+import type { MethodFunction, MethodOptions } from '../method'
 
 import type { MethodMeta, NamespaceMeta } from './metadata'
 import { METHOD_META, NAMESPACE_META } from './metadata'

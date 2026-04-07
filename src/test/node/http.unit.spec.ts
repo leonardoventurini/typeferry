@@ -2,7 +2,7 @@ import path from 'path'
 import request from 'supertest'
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { range } from '@example-app/bifrost/utils/lodash'
+import { range } from '../../utils/lodash'
 
 import { Errors } from '../../utils'
 import { TestUtility } from '../test-utility'

@@ -19,14 +19,14 @@ import {
 } from 'vitest'
 import { z } from 'zod'
 
-import type { ClientNode } from '@example-app/bifrost/server/client-node'
-import type { InferNamespace } from '@example-app/bifrost/server/decorators/infer'
+import type { ClientNode } from '../../server/client-node'
+import type { InferNamespace } from '../../server/decorators/infer'
 import {
   METHOD_META,
   NAMESPACE_META,
   PENDING_METHOD_UPDATES,
-} from '@example-app/bifrost/server/decorators/metadata'
-import type { CallOptions } from '@example-app/bifrost/utils'
+} from '../../server/decorators/metadata'
+import type { CallOptions } from '../../utils'
 
 import {
   Cached,
