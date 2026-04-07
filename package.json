@@ -24,6 +24,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:unit": "vitest --config vitest.config.unit.ts --run",
+    "test:coverage": "vitest --config vitest.config.unit.ts --run --coverage",
     "test:integration": "vitest --config vitest.config.integration.ts --run",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix"
@@ -73,6 +74,7 @@
     "@types/supertest": "^6",
     "@types/ua-parser-js": "^0.7.39",
     "@types/ws": "^8",
+    "@vitest/coverage-v8": "^4.1.3",
     "esbuild": "~0.25.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
