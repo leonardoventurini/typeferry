@@ -1,4 +1,4 @@
-import { isPlainObject } from 'bifrost/utils/lodash'
+import { isPlainObject } from '@example-app/bifrost/utils/lodash'
 
 import type { AnyFunction } from './types'
 

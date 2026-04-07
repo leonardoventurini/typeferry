@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 
-import { isEmpty } from 'bifrost/utils/lodash'
+import { isEmpty } from '@example-app/bifrost/utils/lodash'
 
 export function useCircuitBreaker({ parse, params, required, deps }) {
   return useMemo(() => {

@@ -13,7 +13,7 @@
     "target": "ES2022",
     "baseUrl": ".",
     "paths": {
-      "bifrost/*": ["./src/*"]
+      "@example-app/bifrost/*": ["./src/*"]
     },
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,

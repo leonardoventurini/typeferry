@@ -8,7 +8,7 @@
  * @module bifrost/server/decorators/use
  */
 
-import type { AnyFunction } from 'bifrost/utils'
+import type { AnyFunction } from '@example-app/bifrost/utils'
 
 import { getOrCreateMethodMeta, queueMethodUpdate } from './metadata'
 

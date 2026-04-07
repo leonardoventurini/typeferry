@@ -1,5 +1,5 @@
 {
-  "name": "bifrost",
+  "name": "@example-app/bifrost",
   "version": "0.1.0",
   "description": "Type-safe real-time RPC framework for TypeScript",
   "type": "module",

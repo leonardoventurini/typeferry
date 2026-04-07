@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { callMethodProxy } from 'bifrost/client/call-method-proxy'
-import type { Client } from 'bifrost/client/client'
+import { callMethodProxy } from '@example-app/bifrost/client/call-method-proxy'
+import type { Client } from '@example-app/bifrost/client/client'
 
 /** Creates a minimal Client stub with a spy on `call`. */
 function createMockClient(): Client & { call: ReturnType<typeof vi.fn> } {

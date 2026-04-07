@@ -8,8 +8,8 @@
  * @module bifrost/server/decorators/infer
  */
 
-import type { ClientNode } from 'bifrost/server/client-node'
-import type { CallOptions } from 'bifrost/utils'
+import type { ClientNode } from '@example-app/bifrost/server/client-node'
+import type { CallOptions } from '@example-app/bifrost/utils'
 
 /**
  * Extracts `{ params: P; result: R }` from a Bifrost method signature.

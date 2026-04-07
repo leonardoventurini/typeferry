@@ -1,6 +1,6 @@
 import type { EventEmitter2 } from 'eventemitter2'
 
-import { throttle } from 'bifrost/utils/lodash'
+import { throttle } from '@example-app/bifrost/utils/lodash'
 
 export const onceAll = async (emitter: EventEmitter2, events: string[]) => {
   const promises = events.map(

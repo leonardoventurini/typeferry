@@ -1,7 +1,7 @@
 import isEqual from 'fast-deep-equal'
 import qs from 'query-string'
 
-import { isEmpty, isPlainObject, merge } from 'bifrost/utils/lodash'
+import { isEmpty, isPlainObject, merge } from '@example-app/bifrost/utils/lodash'
 
 import type { CallOptions, MethodParams, ServerMethods } from '../utils'
 import {

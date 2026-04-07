@@ -1,7 +1,7 @@
 import perf_hooks from 'perf_hooks'
 import type { z } from 'zod'
 
-import { isEmpty } from 'bifrost/utils/lodash'
+import { isEmpty } from '@example-app/bifrost/utils/lodash'
 
 import { EJSON } from '../ejson'
 import type { AnyFunction, MethodParams as MethodParameters } from '../utils'

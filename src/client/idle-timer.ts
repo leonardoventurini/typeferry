@@ -1,4 +1,4 @@
-import { throttle } from 'bifrost/utils/lodash'
+import { throttle } from '@example-app/bifrost/utils/lodash'
 
 import { ClientEvents, Environment } from '../utils'
 import type { Client } from './client'

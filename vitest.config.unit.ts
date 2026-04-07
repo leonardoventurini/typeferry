@@ -13,7 +13,7 @@ export default defineConfig({
   resolve: {
     conditions: ['module'],
     alias: {
-      'bifrost/': path.resolve(__dirname, 'src') + '/',
+      '@example-app/bifrost/': path.resolve(__dirname, 'src') + '/',
     },
   },
 })

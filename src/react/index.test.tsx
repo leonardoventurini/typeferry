@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { EventEmitter2 } from 'eventemitter2'
-import { omit, pick } from 'bifrost/utils/lodash'
+import { omit, pick } from '@example-app/bifrost/utils/lodash'
 import React from 'react'
 import sinon from 'sinon'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'

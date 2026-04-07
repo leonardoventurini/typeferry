@@ -1,6 +1,6 @@
 import type { z } from 'zod'
 
-import { isEmpty } from 'bifrost/utils/lodash'
+import { isEmpty } from '@example-app/bifrost/utils/lodash'
 
 import { NO_CHANNEL, ServerEvents } from '../utils'
 import { Method } from './method'

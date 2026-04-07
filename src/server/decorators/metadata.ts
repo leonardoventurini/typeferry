@@ -14,7 +14,7 @@
 
 import type { z } from 'zod'
 
-import type { AnyFunction } from 'bifrost/utils'
+import type { AnyFunction } from '@example-app/bifrost/utils'
 
 /** Class-level metadata set by @Namespace, @Protected, @Cached */
 export interface NamespaceMeta {

@@ -2,7 +2,7 @@ import sinon from 'sinon'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 
-import { range } from 'bifrost/utils/lodash'
+import { range } from '@example-app/bifrost/utils/lodash'
 
 import { Client } from '../../client'
 import { BifrostAsyncLocalStorage, ClientNode } from '../../server'
