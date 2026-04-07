@@ -1,6 +1,6 @@
 {
   "name": "@example-app/bifrost",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Type-safe real-time RPC framework for TypeScript",
   "type": "module",
   "sideEffects": false,
@@ -9,22 +9,15 @@
     "src"
   ],
   "exports": {
+    "./*": "./src/*",
     "./client": "./src/client/index.ts",
-    "./client/*": "./src/client/*.ts",
     "./server": "./src/server/index.ts",
-    "./server/*": "./src/server/*.ts",
     "./server/decorators": "./src/server/decorators/index.ts",
-    "./server/decorators/*": "./src/server/decorators/*.ts",
     "./server/transports": "./src/server/transports/index.ts",
-    "./server/transports/*": "./src/server/transports/*.ts",
     "./auth": "./src/auth/index.ts",
-    "./auth/*": "./src/auth/*.ts",
-    "./auth/client/*": "./src/auth/client/*.ts",
-    "./auth/server/*": "./src/auth/server/*.ts",
     "./react": "./src/react/index.ts",
     "./ejson": "./src/ejson/index.ts",
-    "./utils": "./src/utils/index.ts",
-    "./test/*": "./src/test/*.ts"
+    "./utils": "./src/utils/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
