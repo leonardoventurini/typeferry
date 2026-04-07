@@ -1,0 +1,6 @@
+[install.scopes]
+"@example-app" = { url = "https://forgejo.example-app.com/api/packages/leonardoventurini/npm/", token = "$FORGEJO_TOKEN" }
+
+[publish]
+registry = "https://forgejo.example-app.com/api/packages/leonardoventurini/npm/"
+token = "$FORGEJO_TOKEN"
