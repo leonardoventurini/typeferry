@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+concurrency:
+  group: ci-${{ forgejo.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: CI
+    runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
+      REDIS_URL: redis://m3ultra-256g.tail17a045.ts.net:6379
+    steps:
+      - uses: https://data.forgejo.org/actions/checkout@v4
+
+      - name: Install Bun
+        run: |
+          curl -fsSL https://bun.sh/install | bash
+          echo "$HOME/.bun/bin" >> "$FORGEJO_PATH"
+
+      - uses: https://data.forgejo.org/actions/cache@v4
+        with:
+          path: node_modules
+          key: deps-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            deps-${{ runner.os }}-
+
+      - run: bun install --frozen-lockfile
+
+      # TypeScript
+      - name: TypeScript
+        run: bun run typecheck
+
+      # Unit tests
+      - name: Unit Tests
+        run: bun run test:unit
+
+      # Integration tests (Redis required)
+      - name: Integration Tests
+        run: bun run test:integration

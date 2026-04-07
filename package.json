@@ -29,7 +29,7 @@
     "lint:fix": "eslint src/ --fix"
   },
   "publishConfig": {
-    "registry": "http://m3ultra-256g.tail17a045.ts.net:3000/api/packages/leonardoventurini/npm/"
+    "registry": "https://forgejo.example-app.com/api/packages/leonardoventurini/npm/"
   },
   "dependencies": {
     "@lukeed/uuid": "^2.0.1",
