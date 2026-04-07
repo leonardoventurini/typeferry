@@ -1,0 +1,52 @@
+import { describe, expect, it } from 'vitest'
+
+import { TestUtility } from '../test-utility'
+
+describe('Unsubscribe', () => {
+  const test = new TestUtility()
+
+  it('should unsubscribe from an event', async () => {
+    await test.server.addEvent('test:event')
+
+    await test.client.subscribe('test:event')
+
+    const data = await test.client.unsubscribe('test:event')
+
+    expect(data).to.have.property('test:event').that.is.true
+  })
+
+  it('should unsubscribe from multiple events', async () => {
+    await test.server.addEvent('test:event:1')
+    await test.server.addEvent('test:event:2')
+
+    await test.client.subscribe(['test:event:1', 'test:event:2'])
+
+    const data = await test.client.unsubscribe(['test:event:1', 'test:event:2'])
+
+    expect(data).to.have.property('test:event:1').that.is.true
+
+    expect(data).to.have.property('test:event:2').that.is.true
+  })
+
+  it('should unsubscribe from channel', async () => {
+    await test.server.addEvent('test:event')
+
+    await test.client.channel('test:channel').subscribe('test:event')
+
+    // Verify subscribed using isSubscribed helper
+    const clientNode = test.server.allClients.get(test.client.uuid)!
+    const event = test.server.events.get('test:event')!
+    expect(test.server.channel('test:channel').isSubscribed(clientNode, event))
+      .to.be.true
+
+    const data = await test.client
+      .channel('test:channel')
+      .unsubscribe('test:event')
+
+    expect(data).to.have.property('test:event').that.is.true
+
+    // Verify unsubscribed
+    expect(test.server.channel('test:channel').isSubscribed(clientNode, event))
+      .to.be.false
+  })
+})
