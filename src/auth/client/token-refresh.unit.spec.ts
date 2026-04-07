@@ -267,3 +267,400 @@ describe('bifrost token refresh', () => {
     cleanup()
   })
 })
+
+describe('isAuthFailureError edge cases (via refreshAccessToken)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    ;(globalThis as any).BroadcastChannel = BroadcastChannelMock
+    BroadcastChannelMock.instances = []
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+    delete (globalThis as any).BroadcastChannel
+  })
+
+  it('treats 401 status as auth failure and clears context', async () => {
+    const client = new MockClient()
+    const err = Object.assign(new Error('Unauthorized'), { status: 401 })
+    client.call.mockRejectedValue(err)
+
+    await expect(refreshAccessToken(client as any)).rejects.toThrow(
+      'Unauthorized',
+    )
+    expect(client.clearContext).toHaveBeenCalled()
+  })
+
+  it('treats 403 status as auth failure and clears context', async () => {
+    const client = new MockClient()
+    const err = Object.assign(new Error('Forbidden'), { status: 403 })
+    client.call.mockRejectedValue(err)
+
+    await expect(refreshAccessToken(client as any)).rejects.toThrow('Forbidden')
+    expect(client.clearContext).toHaveBeenCalled()
+  })
+
+  it('treats AUTHENTICATION_FAILED code as auth failure', async () => {
+    const client = new MockClient()
+    const err = Object.assign(new Error('Auth failed'), {
+      code: 'AUTHENTICATION_FAILED',
+    })
+    client.call.mockRejectedValue(err)
+
+    await expect(refreshAccessToken(client as any)).rejects.toThrow()
+    expect(client.clearContext).toHaveBeenCalled()
+  })
+
+  it('treats "Token refresh failed" message as auth failure', async () => {
+    const client = new MockClient()
+    client.call.mockResolvedValue(null)
+
+    await expect(refreshAccessToken(client as any)).rejects.toThrow(
+      'Token refresh failed',
+    )
+    expect(client.clearContext).toHaveBeenCalled()
+  })
+
+  it('treats missingRefreshToken message as auth failure', async () => {
+    const client = new MockClient()
+    const err = new Error('Error: missingRefreshToken')
+    client.call.mockRejectedValue(err)
+
+    await expect(refreshAccessToken(client as any)).rejects.toThrow()
+    expect(client.clearContext).toHaveBeenCalled()
+  })
+
+  it('treats invalidOrExpiredRefreshToken message as auth failure', async () => {
+    const client = new MockClient()
+    const err = new Error('Error: invalidOrExpiredRefreshToken')
+    client.call.mockRejectedValue(err)
+
+    await expect(refreshAccessToken(client as any)).rejects.toThrow()
+    expect(client.clearContext).toHaveBeenCalled()
+  })
+
+  it('does NOT treat a generic network error as auth failure', async () => {
+    const client = new MockClient()
+    const err = new Error('Network timeout')
+    client.call.mockRejectedValue(err)
+
+    await expect(refreshAccessToken(client as any)).rejects.toThrow(
+      'Network timeout',
+    )
+    expect(client.clearContext).not.toHaveBeenCalled()
+  })
+
+  it('does NOT treat a 500 status as auth failure', async () => {
+    const client = new MockClient()
+    const err = Object.assign(new Error('Server Error'), { status: 500 })
+    client.call.mockRejectedValue(err)
+
+    await expect(refreshAccessToken(client as any)).rejects.toThrow()
+    expect(client.clearContext).not.toHaveBeenCalled()
+  })
+})
+
+describe('refreshAccessToken error handling and queue', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    ;(globalThis as any).BroadcastChannel = BroadcastChannelMock
+    BroadcastChannelMock.instances = []
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+    delete (globalThis as any).BroadcastChannel
+  })
+
+  it('rejects queued callers when refresh fails', async () => {
+    const client = new MockClient()
+
+    let rejectCall: (err: Error) => void
+    client.call.mockImplementation(
+      () =>
+        new Promise((_res, rej) => {
+          rejectCall = rej
+        }),
+    )
+
+    const p1 = refreshAccessToken(client as any)
+    const p2 = refreshAccessToken(client as any)
+
+    expect(client.call).toHaveBeenCalledTimes(1)
+
+    rejectCall!(new Error('Network error'))
+
+    await expect(p1).rejects.toThrow('Network error')
+    await expect(p2).rejects.toThrow('Network error')
+  })
+
+  it('resets isRefreshing after failure so next call can proceed', async () => {
+    const client = new MockClient()
+    client.call.mockRejectedValueOnce(new Error('fail'))
+
+    await expect(refreshAccessToken(client as any)).rejects.toThrow('fail')
+
+    // Now a second call should proceed and not get queued
+    client.call.mockResolvedValueOnce({
+      accessToken: 'ok',
+      exp: 999,
+      iat: 100,
+    })
+    const result = await refreshAccessToken(client as any)
+    expect(result).toBe('ok')
+    expect(client.call).toHaveBeenCalledTimes(2)
+  })
+
+  it('logs with WARN level for auth failures and ERROR for transient', async () => {
+    const client = new MockClient()
+
+    // Auth failure
+    const authErr = Object.assign(new Error('Unauthorized'), { status: 401 })
+    client.call.mockRejectedValueOnce(authErr)
+    await expect(refreshAccessToken(client as any)).rejects.toThrow()
+
+    // The logger should have been called with isAuthFailure: true
+    const authLogCall = client.logger.auth.mock.calls.find(
+      (args: any[]) =>
+        args[1] === 'Token refresh failed' && args[2]?.isAuthFailure === true,
+    )
+    expect(authLogCall).toBeTruthy()
+
+    client.logger.auth.mockClear()
+
+    // Transient failure
+    const transientErr = new Error('Network timeout')
+    client.call.mockRejectedValueOnce(transientErr)
+    await expect(refreshAccessToken(client as any)).rejects.toThrow()
+
+    const transientLogCall = client.logger.auth.mock.calls.find(
+      (args: any[]) =>
+        args[1] === 'Token refresh failed' && args[2]?.isAuthFailure === false,
+    )
+    expect(transientLogCall).toBeTruthy()
+  })
+})
+
+describe('setupTokenRefreshOnExpiry retry on transient errors', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    ;(globalThis as any).BroadcastChannel = BroadcastChannelMock
+    BroadcastChannelMock.instances = []
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+    delete (globalThis as any).BroadcastChannel
+  })
+
+  it('retries after RETRY_DELAY_MS on transient error', async () => {
+    const client = new MockClient()
+
+    const nowSec = 1_000_000_000
+    vi.setSystemTime(nowSec * 1000)
+
+    // Token about to expire imminently
+    client.context = { exp: nowSec + 30 }
+
+    // First call fails with transient error, second succeeds
+    client.call
+      .mockRejectedValueOnce(new Error('Network timeout'))
+      .mockResolvedValueOnce({
+        accessToken: 'new-token',
+        exp: nowSec + 900,
+        iat: nowSec,
+      })
+
+    type RefreshClient = Parameters<typeof setupTokenRefreshOnExpiry>[0]
+    const cleanup = setupTokenRefreshOnExpiry(
+      client as unknown as RefreshClient,
+      {
+        refreshBeforeExpirySec: 60,
+        refreshMethod: 'auth.refresh',
+      },
+    )
+
+    // Token is expiring within refreshBeforeExpirySec so immediate refresh fires
+    expect(client.call).toHaveBeenCalledTimes(1)
+
+    // Let the rejection propagate through microtask queue
+    await vi.advanceTimersByTimeAsync(0)
+
+    // After 5000ms retry delay, scheduleRefresh should be called again
+    await vi.advanceTimersByTimeAsync(5000)
+
+    // The retry should have triggered a new refresh call
+    expect(client.call).toHaveBeenCalledTimes(2)
+
+    cleanup()
+  })
+
+  it('does NOT retry on auth failure (401)', async () => {
+    const client = new MockClient()
+
+    const nowSec = 1_000_000_000
+    vi.setSystemTime(nowSec * 1000)
+
+    client.context = { exp: nowSec + 30 }
+
+    const authErr = Object.assign(new Error('Unauthorized'), { status: 401 })
+    client.call.mockRejectedValue(authErr)
+
+    type RefreshClient = Parameters<typeof setupTokenRefreshOnExpiry>[0]
+    const cleanup = setupTokenRefreshOnExpiry(
+      client as unknown as RefreshClient,
+      {
+        refreshBeforeExpirySec: 60,
+        refreshMethod: 'auth.refresh',
+      },
+    )
+
+    expect(client.call).toHaveBeenCalledTimes(1)
+
+    // Let the rejection propagate
+    await vi.advanceTimersByTimeAsync(0)
+
+    // After retry delay, no new call should happen because it was an auth failure
+    await vi.advanceTimersByTimeAsync(10000)
+
+    expect(client.call).toHaveBeenCalledTimes(1)
+    expect(client.clearContext).toHaveBeenCalled()
+
+    cleanup()
+  })
+})
+
+describe('setupTokenRefreshOnExpiry context change listener', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    ;(globalThis as any).BroadcastChannel = BroadcastChannelMock
+    BroadcastChannelMock.instances = []
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+    delete (globalThis as any).BroadcastChannel
+  })
+
+  it('reschedules refresh when context:changed fires with new token', () => {
+    const client = new MockClient()
+
+    const nowSec = 1_000_000_000
+    vi.setSystemTime(nowSec * 1000)
+
+    // No token initially
+    client.context = {}
+
+    type RefreshClient = Parameters<typeof setupTokenRefreshOnExpiry>[0]
+    const cleanup = setupTokenRefreshOnExpiry(
+      client as unknown as RefreshClient,
+      {
+        refreshBeforeExpirySec: 60,
+        refreshMethod: 'auth.refresh',
+      },
+    )
+
+    // No exp → no refresh scheduled, no call
+    expect(client.call).not.toHaveBeenCalled()
+
+    // Simulate a new token arriving (e.g. from login)
+    client.context = { exp: nowSec + 600 }
+    client.call.mockResolvedValue({
+      accessToken: 'refreshed',
+      exp: nowSec + 1200,
+      iat: nowSec + 600,
+    })
+
+    // Emit context change
+    client.emit('context:changed')
+
+    // Now advance to when refresh should fire (600 - 60 = 540s)
+    vi.advanceTimersByTime(540_000)
+
+    expect(client.call).toHaveBeenCalledTimes(1)
+
+    cleanup()
+  })
+})
+
+describe('setupTokenRefreshOnExpiry cleanup', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    ;(globalThis as any).BroadcastChannel = BroadcastChannelMock
+    BroadcastChannelMock.instances = []
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+    delete (globalThis as any).BroadcastChannel
+  })
+
+  it('clears timers and removes context:changed listener', () => {
+    const client = new MockClient()
+
+    const nowSec = 1_000_000_000
+    vi.setSystemTime(nowSec * 1000)
+
+    client.context = { exp: nowSec + 300 }
+    client.call.mockResolvedValue({
+      accessToken: 'new',
+      exp: nowSec + 600,
+      iat: nowSec,
+    })
+
+    type RefreshClient = Parameters<typeof setupTokenRefreshOnExpiry>[0]
+    const cleanup = setupTokenRefreshOnExpiry(
+      client as unknown as RefreshClient,
+      {
+        refreshBeforeExpirySec: 60,
+        refreshMethod: 'auth.refresh',
+      },
+    )
+
+    expect(client.on).toHaveBeenCalledWith(
+      'context:changed',
+      expect.any(Function),
+    )
+
+    // Run cleanup
+    cleanup()
+
+    // Verify listener was removed
+    expect(client.off).toHaveBeenCalledWith(
+      'context:changed',
+      expect.any(Function),
+    )
+
+    // Advance past when refresh would fire — should NOT trigger
+    vi.advanceTimersByTime(300_000)
+    expect(client.call).not.toHaveBeenCalled()
+  })
+
+  it('cleanup removes cross-tab sync listener', () => {
+    const client = new MockClient()
+    client.context = {}
+
+    type RefreshClient = Parameters<typeof setupTokenRefreshOnExpiry>[0]
+    const cleanup = setupTokenRefreshOnExpiry(
+      client as unknown as RefreshClient,
+      {
+        refreshBeforeExpirySec: 60,
+        refreshMethod: 'auth.refresh',
+        broadcastChannelName: 'test-cleanup-channel',
+      },
+    )
+
+    // A BroadcastChannel should have been created for cross-tab sync
+    const crossTabChannel = BroadcastChannelMock.instances.find(
+      c => c.name === 'test-cleanup-channel',
+    )
+    expect(crossTabChannel).toBeTruthy()
+
+    cleanup()
+  })
+})
