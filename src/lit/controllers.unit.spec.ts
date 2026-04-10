@@ -182,4 +182,99 @@ describe('Lit controllers', () => {
     expect(channel.subscribe).not.toHaveBeenCalled()
     expect(controller.ready).toBe(false)
   })
+
+  it('rebinds controllers when the provided client changes', async () => {
+    const host = {
+      addController: vi.fn(),
+      requestUpdate: vi.fn(),
+    } as any
+    const firstClient = createClient()
+    const secondClient = createClient()
+    const provider = { client: firstClient }
+    const callback = vi.fn()
+
+    const auth = new BifrostAuthController(host, provider)
+    const localEvent = new BifrostLocalEventController(host, provider, {
+      event: 'ping',
+      channel: 'room-4',
+      callback,
+    })
+
+    auth.hostConnected()
+    localEvent.hostConnected()
+
+    firstClient.authenticated = true
+    firstClient.context = { token: 'first' }
+    firstClient.emit(ClientEvents.CONTEXT_CHANGED)
+    vi.advanceTimersByTime(16)
+    await Promise.resolve()
+
+    expect(auth.context).toEqual({ token: 'first' })
+
+    const firstChannel = firstClient.channel('room-4')
+    firstChannel.emit('ping', 'first')
+    expect(callback).toHaveBeenCalledWith('first')
+
+    provider.client = secondClient
+    secondClient.authenticated = true
+    secondClient.context = { token: 'second' }
+
+    auth.hostUpdate()
+    localEvent.hostUpdate()
+
+    secondClient.emit(ClientEvents.CONTEXT_CHANGED)
+    vi.advanceTimersByTime(16)
+    await Promise.resolve()
+
+    expect(auth.context).toEqual({ token: 'second' })
+
+    const secondChannel = secondClient.channel('room-4')
+    secondChannel.emit('ping', 'second')
+    expect(callback).toHaveBeenCalledWith('second')
+
+    firstClient.context = { token: 'stale' }
+    firstClient.emit(ClientEvents.CONTEXT_CHANGED)
+    firstChannel.emit('ping', 'stale')
+    vi.advanceTimersByTime(16)
+    await Promise.resolve()
+
+    expect(auth.context).toEqual({ token: 'second' })
+    expect(callback).toHaveBeenCalledTimes(2)
+  })
+
+  it('rebinds remote subscriptions when the provided client changes', async () => {
+    const host = {
+      addController: vi.fn(),
+      requestUpdate: vi.fn(),
+    } as any
+    const firstClient = createClient()
+    const secondClient = createClient()
+    const provider = { client: firstClient }
+    const callback = vi.fn()
+
+    const controller = new BifrostSubscribeController(host, provider, {
+      event: 'message',
+      channel: 'room-5',
+      callback,
+    })
+
+    controller.hostConnected()
+    await Promise.resolve()
+
+    const firstChannel = firstClient.channel('room-5')
+    expect(firstChannel.subscribe).toHaveBeenCalledWith('message')
+
+    provider.client = secondClient
+    controller.hostUpdate()
+    await Promise.resolve()
+
+    const secondChannel = secondClient.channel('room-5')
+    expect(secondChannel.subscribe).toHaveBeenCalledWith('message')
+
+    secondChannel.emit('message', 'fresh')
+    firstChannel.emit('message', 'stale')
+
+    expect(callback).toHaveBeenCalledTimes(1)
+    expect(callback).toHaveBeenCalledWith('fresh')
+  })
 })

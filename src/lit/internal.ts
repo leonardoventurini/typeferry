@@ -3,6 +3,8 @@ import type { EventEmitter2 } from 'eventemitter2'
 import type { ReactiveController, ReactiveControllerHost } from 'lit'
 
 import { Client } from '../client'
+import type { AnyFunction } from '../utils'
+import { NO_CHANNEL } from '../utils'
 import { onAllThrottled } from '../utils/events'
 
 export interface BifrostClientProvider {
@@ -53,6 +55,45 @@ export function requireClient(
   }
 
   return client
+}
+
+export type BifrostEventBindingOptions<
+  TCallback extends AnyFunction | null = AnyFunction | null,
+> = {
+  event: string | null
+  channel: string
+  active: boolean
+  callback: TCallback
+}
+
+export function normalizeEventBindingOptions<
+  TCallback extends AnyFunction | null = AnyFunction | null,
+>(options: {
+  event?: string | null
+  channel?: string
+  active?: boolean
+  callback?: TCallback | null
+}): BifrostEventBindingOptions<TCallback> {
+  return {
+    event: options.event ?? null,
+    channel: options.channel ?? NO_CHANNEL,
+    active: options.active ?? true,
+    callback: (options.callback ?? null) as TCallback,
+  }
+}
+
+export function equalEventBindingOptions<
+  TCallback extends AnyFunction | null = AnyFunction | null,
+>(
+  left: BifrostEventBindingOptions<TCallback>,
+  right: BifrostEventBindingOptions<TCallback>,
+): boolean {
+  return (
+    left.event === right.event &&
+    left.channel === right.channel &&
+    left.active === right.active &&
+    left.callback === right.callback
+  )
 }
 
 export abstract class BifrostReactiveController implements ReactiveController {
@@ -116,5 +157,57 @@ export abstract class BifrostReactiveController implements ReactiveController {
 
   protected cloneIfChanged<T>(current: T, next: T): T {
     return isEqual(current, next) ? current : next
+  }
+}
+
+export abstract class BifrostClientBoundController<
+  TClient = Client,
+> extends BifrostReactiveController {
+  protected currentClient: TClient | null = null
+
+  constructor(
+    host: ReactiveControllerHost,
+    protected readonly clientSource: BifrostClientSource,
+  ) {
+    super(host)
+  }
+
+  get client(): TClient | null {
+    return this.currentClient
+  }
+
+  protected resolveClient(message?: string): TClient {
+    return requireClient(this.clientSource, message) as TClient
+  }
+
+  protected bindClient(message?: string): TClient {
+    const client = this.resolveClient(message)
+
+    if (client === this.currentClient) {
+      return client
+    }
+
+    const previousClient = this.currentClient
+    this.beforeClientChange(previousClient, client)
+    this.currentClient = client
+    this.clearCleanups()
+    this.afterClientChange(client, previousClient)
+
+    return client
+  }
+
+  protected beforeClientChange(
+    _previousClient: TClient | null,
+    _nextClient: TClient,
+  ): void {}
+
+  protected afterClientChange(
+    _client: TClient,
+    _previousClient: TClient | null,
+  ): void {}
+
+  hostDisconnected(): void {
+    super.hostDisconnected()
+    this.currentClient = null
   }
 }

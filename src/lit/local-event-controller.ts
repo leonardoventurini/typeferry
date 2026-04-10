@@ -6,8 +6,10 @@ import { NO_CHANNEL } from '../utils'
 
 import {
   type BifrostClientSource,
-  BifrostReactiveController,
-  requireClient,
+  type BifrostEventBindingOptions,
+  BifrostClientBoundController,
+  equalEventBindingOptions,
+  normalizeEventBindingOptions,
 } from './internal'
 
 export type BifrostLocalEventControllerOptions = {
@@ -17,47 +19,27 @@ export type BifrostLocalEventControllerOptions = {
   callback?: AnyFunction | null
 }
 
-export class BifrostLocalEventController extends BifrostReactiveController {
-  private clientSource: BifrostClientSource
-  private currentClient: EventEmitter2 | null = null
+export class BifrostLocalEventController extends BifrostClientBoundController {
+  private currentEmitter: EventEmitter2 | null = null
   private currentEventName: string | null = null
   private currentCallback: AnyFunction | null = null
   private currentActive = true
-  private options: Required<
-    Pick<BifrostLocalEventControllerOptions, 'channel' | 'active'>
-  > &
-    Pick<BifrostLocalEventControllerOptions, 'event' | 'callback'>
+  private options: BifrostEventBindingOptions
 
   constructor(
     host: ReactiveControllerHost,
     client: BifrostClientSource,
     options: BifrostLocalEventControllerOptions,
   ) {
-    super(host)
-    this.clientSource = client
-    this.options = {
-      event: options.event ?? null,
-      channel: options.channel ?? NO_CHANNEL,
-      active: options.active ?? true,
-      callback: options.callback ?? null,
-    }
+    super(host, client)
+    this.options = normalizeEventBindingOptions(options)
     this.attach()
   }
 
   setOptions(options: BifrostLocalEventControllerOptions): void {
-    const next = {
-      event: options.event ?? null,
-      channel: options.channel ?? NO_CHANNEL,
-      active: options.active ?? true,
-      callback: options.callback ?? null,
-    }
+    const next = normalizeEventBindingOptions(options)
 
-    if (
-      this.options.event === next.event &&
-      this.options.channel === next.channel &&
-      this.options.active === next.active &&
-      this.options.callback === next.callback
-    ) {
+    if (equalEventBindingOptions(this.options, next)) {
       return
     }
 
@@ -74,7 +56,7 @@ export class BifrostLocalEventController extends BifrostReactiveController {
   }
 
   private resolveEmitter(): EventEmitter2 {
-    const client = requireClient(this.clientSource)
+    const client = this.bindClient()
 
     if (this.options.channel === NO_CHANNEL) {
       return client
@@ -87,7 +69,7 @@ export class BifrostLocalEventController extends BifrostReactiveController {
     const emitter = this.resolveEmitter()
 
     if (
-      emitter === this.currentClient &&
+      emitter === this.currentEmitter &&
       this.options.event === this.currentEventName &&
       this.options.callback === this.currentCallback &&
       this.options.active === this.currentActive
@@ -98,7 +80,7 @@ export class BifrostLocalEventController extends BifrostReactiveController {
     this.clearCleanups()
 
     if (!this.options.active) {
-      this.currentClient = emitter
+      this.currentEmitter = emitter
       this.currentEventName = this.options.event ?? null
       this.currentCallback = this.options.callback ?? null
       this.currentActive = this.options.active
@@ -110,7 +92,7 @@ export class BifrostLocalEventController extends BifrostReactiveController {
     }
 
     const callback = this.options.callback
-    this.currentClient = emitter
+    this.currentEmitter = emitter
     this.currentEventName = this.options.event
     this.currentCallback = callback
     this.currentActive = this.options.active
@@ -122,7 +104,7 @@ export class BifrostLocalEventController extends BifrostReactiveController {
 
   hostDisconnected(): void {
     super.hostDisconnected()
-    this.currentClient = null
+    this.currentEmitter = null
     this.currentEventName = null
     this.currentCallback = null
     this.currentActive = true

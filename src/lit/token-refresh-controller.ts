@@ -5,8 +5,7 @@ import { ClientEvents } from '../utils'
 
 import {
   type BifrostClientSource,
-  BifrostReactiveController,
-  requireClient,
+  BifrostClientBoundController,
 } from './internal'
 import {
   refreshAccessToken,
@@ -15,9 +14,7 @@ import {
 } from '../auth/client/token-refresh'
 import { isTokenExpired } from '../client/context-manager'
 
-export class BifrostTokenRefreshController extends BifrostReactiveController {
-  private clientSource: BifrostClientSource
-  private currentClient: Client | null = null
+export class BifrostTokenRefreshController extends BifrostClientBoundController {
   private cleanupExpiry: (() => void) | null = null
   private config: Partial<TokenRefreshConfig>
   private beforeReconnectHandler: (() => Promise<void>) | null = null
@@ -27,8 +24,7 @@ export class BifrostTokenRefreshController extends BifrostReactiveController {
     client: BifrostClientSource,
     config: Partial<TokenRefreshConfig> = {},
   ) {
-    super(host)
-    this.clientSource = client
+    super(host, client)
     this.config = config
     this.attach()
   }
@@ -50,7 +46,6 @@ export class BifrostTokenRefreshController extends BifrostReactiveController {
   hostDisconnected(): void {
     this.teardown()
     super.hostDisconnected()
-    this.currentClient = null
   }
 
   private teardown(): void {
@@ -69,14 +64,12 @@ export class BifrostTokenRefreshController extends BifrostReactiveController {
     this.beforeReconnectHandler = null
   }
 
-  private bindClient(client: Client): void {
-    if (client === this.currentClient) return
-
+  protected beforeClientChange(previousClient: Client | null): void {
+    this.currentClient = previousClient
     this.teardown()
-    this.clearCleanups()
+  }
 
-    this.currentClient = client
-
+  protected afterClientChange(client: Client): void {
     this.listenThrottled(
       client,
       [
@@ -87,37 +80,28 @@ export class BifrostTokenRefreshController extends BifrostReactiveController {
       this.sync,
       16,
     )
-
-    this.sync()
   }
 
   private sync = (): void => {
-    const client = requireClient(this.clientSource)
-    this.bindClient(client)
+    const client = this.bindClient()
 
-    if (!this.currentClient) return
-
-    if (!this.currentClient.authenticated) {
+    if (!client.authenticated) {
       this.teardown()
       return
     }
 
     if (!this.cleanupExpiry) {
-      this.cleanupExpiry = setupTokenRefreshOnExpiry(
-        this.currentClient,
-        this.config,
-      )
+      this.cleanupExpiry = setupTokenRefreshOnExpiry(client, this.config)
     }
 
     if (!this.beforeReconnectHandler) {
       this.beforeReconnectHandler = async () => {
-        if (isTokenExpired(this.currentClient!.context)) {
-          await refreshAccessToken(this.currentClient!, this.config)
+        if (isTokenExpired(client.context)) {
+          await refreshAccessToken(client, this.config)
         }
       }
     }
 
-    this.currentClient.visibilityManager.onBeforeReconnect =
-      this.beforeReconnectHandler
+    client.visibilityManager.onBeforeReconnect = this.beforeReconnectHandler
   }
 }

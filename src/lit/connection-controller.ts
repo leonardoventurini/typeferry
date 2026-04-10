@@ -5,14 +5,10 @@ import { ClientEvents } from '../utils'
 
 import {
   type BifrostClientSource,
-  BifrostReactiveController,
-  requireClient,
+  BifrostClientBoundController,
 } from './internal'
 
-export class BifrostConnectionController extends BifrostReactiveController {
-  private clientSource: BifrostClientSource
-  private currentClient: Client | null = null
-
+export class BifrostConnectionController extends BifrostClientBoundController {
   isOffline = true
   isOnline = false
   isConnecting = false
@@ -52,34 +48,21 @@ export class BifrostConnectionController extends BifrostReactiveController {
   }
 
   constructor(host: ReactiveControllerHost, client: BifrostClientSource) {
-    super(host)
-    this.clientSource = client
+    super(host, client)
     this.attach()
-  }
-
-  get client(): Client | null {
-    return this.currentClient
   }
 
   hostConnected(): void {
     this.bindClient()
+    this.syncConnectionState()
   }
 
   hostUpdate(): void {
     this.bindClient()
+    this.syncConnectionState()
   }
 
-  private bindClient(): void {
-    const client = requireClient(this.clientSource)
-
-    if (client === this.currentClient) {
-      this.syncConnectionState()
-      return
-    }
-
-    this.currentClient = client
-    this.clearCleanups()
-
+  protected afterClientChange(client: Client): void {
     this.listenThrottled(
       client,
       [
@@ -93,14 +76,10 @@ export class BifrostConnectionController extends BifrostReactiveController {
 
     this.listen(client, ClientEvents.WEBSOCKET_RECONNECTING, this.markReconnecting)
     this.listen(client, ClientEvents.INITIALIZED, this.markReconnected)
-
-    this.syncConnectionState()
-    this.markReconnected()
   }
 
   hostDisconnected(): void {
     super.hostDisconnected()
-    this.currentClient = null
     this.isOffline = true
     this.isOnline = false
     this.isConnecting = false

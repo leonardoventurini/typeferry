@@ -7,8 +7,10 @@ import { NO_CHANNEL } from '../utils'
 
 import {
   type BifrostClientSource,
-  BifrostReactiveController,
-  requireClient,
+  type BifrostEventBindingOptions,
+  BifrostClientBoundController,
+  equalEventBindingOptions,
+  normalizeEventBindingOptions,
 } from './internal'
 
 export type BifrostSubscribeControllerOptions = {
@@ -20,20 +22,17 @@ export type BifrostSubscribeControllerOptions = {
 
 const UNSUBSCRIBE_DELAY_MS = 1000
 
-export class BifrostSubscribeController extends BifrostReactiveController {
-  private clientSource: BifrostClientSource
-  private currentClient: EventEmitter2 & {
-    channel(name: string): ClientChannel | null
-  } | null = null
+type BifrostSubscribeClient = EventEmitter2 & {
+  channel(name: string): ClientChannel | null
+}
+
+export class BifrostSubscribeController extends BifrostClientBoundController<BifrostSubscribeClient> {
   private currentEventName: string | null = null
   private currentChannelName: string | null = null
   private currentCallback: AnyFunction | null = null
   private currentActive = true
 
-  private options: Required<Pick<BifrostSubscribeControllerOptions, 'channel' | 'active'>> &
-    Pick<BifrostSubscribeControllerOptions, 'event' | 'callback'>
-
-  private currentChannel: ClientChannel | null = null
+  private options: BifrostEventBindingOptions
   private unsubscribeTimer: ReturnType<typeof setTimeout> | null = null
   ready = false
 
@@ -42,31 +41,15 @@ export class BifrostSubscribeController extends BifrostReactiveController {
     client: BifrostClientSource,
     options: BifrostSubscribeControllerOptions,
   ) {
-    super(host)
-    this.clientSource = client
-    this.options = {
-      event: options.event ?? null,
-      channel: options.channel ?? NO_CHANNEL,
-      active: options.active ?? true,
-      callback: options.callback ?? null,
-    }
+    super(host, client)
+    this.options = normalizeEventBindingOptions(options)
     this.attach()
   }
 
   setOptions(options: BifrostSubscribeControllerOptions): void {
-    const next = {
-      event: options.event ?? null,
-      channel: options.channel ?? NO_CHANNEL,
-      active: options.active ?? true,
-      callback: options.callback ?? null,
-    }
+    const next = normalizeEventBindingOptions(options)
 
-    if (
-      this.options.event === next.event &&
-      this.options.channel === next.channel &&
-      this.options.active === next.active &&
-      this.options.callback === next.callback
-    ) {
+    if (equalEventBindingOptions(this.options, next)) {
       return
     }
 
@@ -80,14 +63,6 @@ export class BifrostSubscribeController extends BifrostReactiveController {
 
   hostUpdate(): void {
     this.bindSubscription()
-  }
-
-  private resolveClient(): EventEmitter2 & {
-    channel(name: string): ClientChannel | null
-  } {
-    return requireClient(this.clientSource) as EventEmitter2 & {
-      channel(name: string): ClientChannel | null
-    }
   }
 
   private clearPendingUnsubscribe(): void {
@@ -125,10 +100,10 @@ export class BifrostSubscribeController extends BifrostReactiveController {
     const channelName = this.options.channel ?? NO_CHANNEL
     const callback = this.options.callback ?? null
 
-    const client = this.resolveClient()
+    const nextClient = this.resolveClient()
 
     if (
-      client === this.currentClient &&
+      nextClient === this.currentClient &&
       eventName === this.currentEventName &&
       channelName === this.currentChannelName &&
       callback === this.currentCallback &&
@@ -136,6 +111,9 @@ export class BifrostSubscribeController extends BifrostReactiveController {
     ) {
       return
     }
+
+    const client =
+      nextClient === this.currentClient ? nextClient : this.bindClient()
 
     this.clearPendingUnsubscribe()
     this.clearCleanups()
@@ -167,7 +145,6 @@ export class BifrostSubscribeController extends BifrostReactiveController {
       throw new Error('channel name is required')
     }
 
-    this.currentChannel = channel
     this.currentClient = client
     this.currentEventName = eventName
     this.currentChannelName = channelName
@@ -203,12 +180,10 @@ export class BifrostSubscribeController extends BifrostReactiveController {
   hostDisconnected(): void {
     this.clearPendingUnsubscribe()
     super.hostDisconnected()
-    this.currentClient = null
     this.currentEventName = null
     this.currentChannelName = null
     this.currentCallback = null
     this.currentActive = true
-    this.currentChannel = null
     this.ready = false
   }
 }

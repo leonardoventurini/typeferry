@@ -7,8 +7,7 @@ import { BifrostEvents, ClientEvents, NO_CHANNEL } from '../utils'
 
 import {
   type BifrostClientSource,
-  BifrostReactiveController,
-  requireClient,
+  BifrostClientBoundController,
 } from './internal'
 import {
   createCaller,
@@ -29,11 +28,7 @@ type RebindKey = {
   maxAge: number
 }
 
-export class BifrostMethodController extends BifrostReactiveController {
-  private clientSource: BifrostClientSource
-  private currentClient: Client | null = null
-  private currentEmitter: EventEmitter2 | null = null
-  private currentChannel: ClientChannel | null = null
+export class BifrostMethodController extends BifrostClientBoundController {
   private currentBindKey: RebindKey | null = null
   private options: NormalizedMethodControllerOptions
   private caller: ReturnType<typeof createCaller> | null = null
@@ -84,15 +79,10 @@ export class BifrostMethodController extends BifrostReactiveController {
     client: BifrostClientSource,
     options: BifrostMethodControllerOptions,
   ) {
-    super(host)
-    this.clientSource = client
+    super(host, client)
     this.options = normalizeMethodControllerOptions(options)
     this.syncDerivedState()
     this.attach()
-  }
-
-  get client(): Client | null {
-    return this.currentClient
   }
 
   get error(): unknown {
@@ -198,9 +188,6 @@ export class BifrostMethodController extends BifrostReactiveController {
     this.flushRefreshQueue()
     super.hostDisconnected()
 
-    this.currentClient = null
-    this.currentEmitter = null
-    this.currentChannel = null
     this.currentBindKey = null
     this.caller = null
     this._error = null
@@ -294,17 +281,6 @@ export class BifrostMethodController extends BifrostReactiveController {
     }
   }
 
-  private bindClient(): Client {
-    const client = requireClient(this.clientSource)
-
-    if (client === this.currentClient) {
-      return client
-    }
-
-    this.currentClient = client
-    return client
-  }
-
   private rebindSubscriptions(nextBindKey?: RebindKey): void {
     if (typeof this.options.method !== 'string' || !this.options.method) {
       throw new Error('Method name is required.')
@@ -322,8 +298,6 @@ export class BifrostMethodController extends BifrostReactiveController {
     this.clearCleanups()
 
     this.currentBindKey = bindKey
-    this.currentEmitter = null
-    this.currentChannel = null
 
     this.listen(client, ClientEvents.INITIALIZING, this.handleInitializing)
     this.listen(client, ClientEvents.INITIALIZED, this.handleInitialized)
@@ -338,8 +312,7 @@ export class BifrostMethodController extends BifrostReactiveController {
       throw new Error('channel name is required')
     }
 
-    this.currentEmitter = emitter
-    this.currentChannel =
+    const channel =
       emitter === client
         ? (client.channel() as ClientChannel | null)
         : (emitter as ClientChannel)
@@ -348,7 +321,6 @@ export class BifrostMethodController extends BifrostReactiveController {
       this.listen(emitter, this.options.event, this.handleLocalEvent)
     }
 
-    const channel = this.currentChannel
     if (!channel) return
 
     channel.on(BifrostEvents.METHOD_REFRESH, this.handleRemoteMethodRefresh)

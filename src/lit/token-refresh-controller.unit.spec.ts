@@ -82,4 +82,32 @@ describe('BifrostTokenRefreshController', () => {
 
     expect(client.visibilityManager.onBeforeReconnect).toBeNull()
   })
+
+  it('moves reconnect hooks when the client source changes', () => {
+    const host = {
+      addController: vi.fn(),
+      requestUpdate: vi.fn(),
+    } as any
+    const firstClient = createClient({ authenticated: true })
+    const secondClient = createClient({ authenticated: true })
+    const provider = { client: firstClient }
+
+    const controller = new BifrostTokenRefreshController(host, provider, {
+      refreshMethod: 'auth.refresh',
+    })
+
+    controller.hostConnected()
+
+    expect(firstClient.visibilityManager.onBeforeReconnect).toBeInstanceOf(
+      Function,
+    )
+
+    provider.client = secondClient
+    controller.hostUpdate()
+
+    expect(firstClient.visibilityManager.onBeforeReconnect).toBeNull()
+    expect(secondClient.visibilityManager.onBeforeReconnect).toBeInstanceOf(
+      Function,
+    )
+  })
 })
