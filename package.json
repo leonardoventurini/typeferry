@@ -11,6 +11,7 @@
   "exports": {
     "./*": "./src/*",
     "./client": "./src/client/index.ts",
+    "./lit": "./src/lit/index.ts",
     "./server": "./src/server/index.ts",
     "./server/decorators": "./src/server/decorators/index.ts",
     "./server/transports": "./src/server/transports/index.ts",
@@ -57,10 +58,14 @@
     "zod": "^4.0.5"
   },
   "peerDependencies": {
+    "lit": ">=3",
     "react": ">=18",
     "@react-oauth/google": ">=0.12"
   },
   "peerDependenciesMeta": {
+    "lit": {
+      "optional": true
+    },
     "react": {
       "optional": true
     },
@@ -85,6 +90,7 @@
     "@vitest/coverage-v8": "^4.1.3",
     "esbuild": "~0.25.0",
     "jsdom": "^29.0.2",
+    "lit": "^3.3.2",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "sinon": "^18.0.0",
