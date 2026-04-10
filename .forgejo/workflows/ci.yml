@@ -45,3 +45,24 @@ jobs:
       # Integration tests (Redis required)
       - name: Integration Tests
         run: bun run test:integration
+
+      # Browser tests
+      - uses: https://data.forgejo.org/actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+
+      - run: bunx playwright install --with-deps
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+
+      - run: bunx playwright install-deps
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+
+      - name: Browser Tests
+        run: bun run test:browser
+        timeout-minutes: 10
+        env:
+          CI: true
