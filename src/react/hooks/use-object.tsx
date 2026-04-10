@@ -3,14 +3,17 @@ import isEqual from 'fast-deep-equal'
 import { useEffect, useRef, useState } from 'react'
 
 export function useLastChangedTimestamp(obj) {
-  const [timestamp, setTimestamp] = useState(Date.now())
+  const [timestamp, setTimestamp] = useState(() => Date.now())
 
   const previousObj = useRef(obj)
+  const lastTimestamp = useRef(timestamp)
 
   useEffect(() => {
     if (!isEqual(previousObj.current, obj)) {
       previousObj.current = obj
-      setTimestamp(Date.now())
+      const nextTimestamp = Math.max(Date.now(), lastTimestamp.current + 1)
+      lastTimestamp.current = nextTimestamp
+      setTimestamp(nextTimestamp)
     }
   }, [obj])
 

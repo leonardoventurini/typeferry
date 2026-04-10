@@ -6,7 +6,7 @@ export default defineConfig({
     target: 'es2022',
   },
   test: {
-    include: ['src/**/*.integration.spec.ts'],
+    include: ['src/**/*.integration.spec.ts', 'src/**/*.test.tsx'],
     testTimeout: 30000,
     fileParallelism: false,
   },

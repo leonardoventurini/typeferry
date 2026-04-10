@@ -1,8 +1,10 @@
+// @vitest-environment jsdom
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { EventEmitter2 } from 'eventemitter2'
 import { omit, pick } from '../utils/lodash'
 import React from 'react'
 import sinon from 'sinon'
+import NodeWebSocket from 'ws'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { TestUtility } from '../test/test-utility'
@@ -20,6 +22,24 @@ import {
 
 // eslint-disable-next-line @typescript-eslint/no-empty-function
 const noop = (): void => {}
+
+const originalWebSocket = globalThis.WebSocket
+
+beforeEach(() => {
+  Object.defineProperty(globalThis, 'WebSocket', {
+    configurable: true,
+    value: NodeWebSocket,
+    writable: true,
+  })
+})
+
+afterEach(() => {
+  Object.defineProperty(globalThis, 'WebSocket', {
+    configurable: true,
+    value: originalWebSocket,
+    writable: true,
+  })
+})
 
 describe('React Hooks', () => {
   const test = new TestUtility()
@@ -72,7 +92,6 @@ describe('React Hooks', () => {
           authenticated: true,
           context: {
             token: 'foo',
-            initialized: true,
           },
         })
       })
@@ -88,6 +107,7 @@ describe('React Hooks', () => {
           isOnline: true,
           isOffline: false,
           isConnecting: false,
+          isReconnecting: false,
         })
       })
 
@@ -100,6 +120,7 @@ describe('React Hooks', () => {
           isOnline: false,
           isOffline: true,
           isConnecting: false,
+          isReconnecting: false,
         })
       })
 
@@ -112,6 +133,7 @@ describe('React Hooks', () => {
           isOnline: true,
           isOffline: false,
           isConnecting: false,
+          isReconnecting: false,
         })
       })
     })
@@ -128,6 +150,7 @@ describe('React Hooks', () => {
         isOnline: false,
         isOffline: true,
         isConnecting: false,
+        isReconnecting: false,
       })
 
       await test.client.connect()
@@ -140,6 +163,7 @@ describe('React Hooks', () => {
         isOnline: true,
         isOffline: false,
         isConnecting: false,
+        isReconnecting: false,
       })
     })
   })
@@ -368,6 +392,10 @@ describe('React Hooks', () => {
         },
         { wrapper },
       )
+
+      await waitFor(() => {
+        expect(emitter.listenerCount('test1')).to.be.greaterThan(0)
+      })
 
       emitter.emit('test1', 42)
       emitter.emit('test1', 42)

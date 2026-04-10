@@ -265,6 +265,19 @@ describe('throttle', () => {
     expect(fn).not.toHaveBeenCalled()
   })
 
+  it('fires trailing call when leading is false', () => {
+    const fn = vi.fn()
+    const throttled = throttle(fn, 100, { leading: false })
+
+    throttled('first')
+    expect(fn).not.toHaveBeenCalled()
+
+    vi.advanceTimersByTime(100)
+
+    expect(fn).toHaveBeenCalledTimes(1)
+    expect(fn).toHaveBeenLastCalledWith('first')
+  })
+
   it('respects trailing: false option', () => {
     const fn = vi.fn()
     const throttled = throttle(fn, 100, { trailing: false })

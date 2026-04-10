@@ -77,7 +77,18 @@ export function throttle<A extends unknown[], R>(
         timer = null
       }
       if (leading) invoke(args)
-      else lastArgs = args
+      else {
+        lastArgs = args
+        if (trailing) {
+          timer = setTimeout(() => {
+            timer = null
+            if (lastArgs) {
+              invoke(lastArgs)
+              lastArgs = null
+            }
+          }, wait)
+        }
+      }
     } else {
       lastArgs = args
       if (!timer && trailing) {
