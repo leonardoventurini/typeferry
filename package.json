@@ -1,28 +1,66 @@
 {
   "name": "@example-app/bifrost",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "description": "Type-safe real-time RPC framework for TypeScript",
   "type": "module",
   "sideEffects": false,
   "license": "UNLICENSED",
   "files": [
-    "src"
+    "dist"
   ],
   "exports": {
-    "./*": "./src/*",
-    "./client": "./src/client/index.ts",
-    "./lit": "./src/lit/index.ts",
-    "./server": "./src/server/index.ts",
-    "./server/decorators": "./src/server/decorators/index.ts",
-    "./server/transports": "./src/server/transports/index.ts",
-    "./auth": "./src/auth/index.ts",
-    "./auth/server/oauth": "./src/auth/server/oauth/index.ts",
-    "./auth/client/oauth": "./src/auth/client/oauth/index.ts",
-    "./react": "./src/react/index.ts",
-    "./ejson": "./src/ejson/index.ts",
-    "./utils": "./src/utils/index.ts"
+    "./client": {
+      "types": "./dist/client/index.d.ts",
+      "import": "./dist/client/index.js"
+    },
+    "./lit": {
+      "types": "./dist/lit/index.d.ts",
+      "import": "./dist/lit/index.js"
+    },
+    "./server": {
+      "types": "./dist/server/index.d.ts",
+      "import": "./dist/server/index.js"
+    },
+    "./server/decorators": {
+      "types": "./dist/server/decorators/index.d.ts",
+      "import": "./dist/server/decorators/index.js"
+    },
+    "./server/transports": {
+      "types": "./dist/server/transports/index.d.ts",
+      "import": "./dist/server/transports/index.js"
+    },
+    "./auth": {
+      "types": "./dist/auth/index.d.ts",
+      "import": "./dist/auth/index.js"
+    },
+    "./auth/server/oauth": {
+      "types": "./dist/auth/server/oauth/index.d.ts",
+      "import": "./dist/auth/server/oauth/index.js"
+    },
+    "./auth/client/oauth": {
+      "types": "./dist/auth/client/oauth/index.d.ts",
+      "import": "./dist/auth/client/oauth/index.js"
+    },
+    "./react": {
+      "types": "./dist/react/index.d.ts",
+      "import": "./dist/react/index.js"
+    },
+    "./ejson": {
+      "types": "./dist/ejson/index.d.ts",
+      "import": "./dist/ejson/index.js"
+    },
+    "./utils": {
+      "types": "./dist/utils/index.d.ts",
+      "import": "./dist/utils/index.js"
+    },
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "import": "./dist/*.js"
+    }
   },
   "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json && node scripts/prepare-dist.mjs",
+    "prepublishOnly": "bun run build",
     "typecheck": "tsc --noEmit",
     "test": "bun run test:unit && bun run test:integration && bun run test:browser",
     "test:watch": "bun run test:unit:watch",

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false,
+    "noEmit": false,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "tsBuildInfoFile": "./node_modules/.cache/tsbuildinfo.build"
+  },
+  "include": ["src/**/*"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/test/**/*",
+    "src/**/*.unit.spec.ts",
+    "src/**/*.unit.spec.tsx",
+    "src/**/*.integration.spec.ts",
+    "src/**/*.integration.spec.tsx",
+    "src/**/*.browser.spec.ts",
+    "src/**/*.browser.spec.tsx",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx"
+  ]
+}

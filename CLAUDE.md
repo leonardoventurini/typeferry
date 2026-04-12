@@ -19,8 +19,8 @@
 
 # Architecture
 
-- **Publishing direction is built ESM, not long-term source-first.** Source-first publishing exposed CommonJS interop failures (`base64-js`, `json-stable-stringify`, `eventemitter2`, `query-string`) in browser consumers. Treat direct `src/*` exports as legacy behavior to migrate away from, not the desired package contract.
-- **Publish artifacts should live in `dist/`.** The package contract should eventually be compiled JavaScript plus declarations in `dist/`, with `package.json` exports targeting built files so consumers do not need custom TS/Vite aliases into `node_modules/@example-app/bifrost/src`.
+- **This package now publishes built ESM from `dist/`.** Browser consumers should import compiled package exports, not Bifrost source files from `node_modules`.
+- **`src/*` is implementation, `dist/*` is contract.** Keep build output declaration-aware and ESM-safe so consumers do not need custom TS/Vite aliases into `node_modules/@example-app/bifrost/src`.
 - **Core runtime lives in `src/client` and `src/server`.** The main architectural center is the `Client` / `ClientSocket` / `ClientHttp` side on the client and the `Server` / `ClientNode` / transport side on the server.
 - **Framework adapters are thin layers over the core.** `src/react` and `src/lit` should stay adapter-focused and reuse the core client/runtime instead of reimplementing transport or auth logic.
 - **Shared protocol and serialization live in `src/utils` and `src/ejson`.** Message shapes, event constants, throttling/helpers, and EJSON conversion are used across both client and server.
@@ -39,5 +39,5 @@
 - **The local `throttle` helper has important semantics.** `leading: false` must still schedule the trailing invocation; if throttled event behavior looks odd, inspect `src/utils/lodash.ts` before blaming the hook layer.
 - **CI must install browser dependencies explicitly.** Forgejo CI now runs browser tests and uses Playwright cache/install steps; if browser coverage changes, keep `.forgejo/workflows/ci.yml` in sync.
 - **Publishing is immutable per version.** Forgejo npm rejects republishing an existing version, so bump `package.json` before retrying a failed publish of an already-existing release.
-- **Source-first publishing has become a browser compatibility hazard.** When debugging browser boot failures in ExampleApp, first suspect raw-source dependency interop before patching individual libraries one by one.
-- **Once the publish build lands, update consumers too.** ExampleApp should drop its `node_modules/@example-app/bifrost/src` TypeScript paths and Vite aliases after Bifrost exports built files from `dist/`.
+- **Built publish output is part of the release surface now.** Verify `bun run build` before publishing, and treat broken `dist` imports as release blockers.
+- **Consumers should not need source aliases anymore.** If ExampleApp still needs `node_modules/@example-app/bifrost/src` aliases after a publish, treat that as a packaging regression.
