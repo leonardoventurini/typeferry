@@ -16,3 +16,28 @@
 - **Use architecture tools when in doubt.** `pagerank` and `leiden` help identify key files, hotspots, and module boundaries. `dead_code_detection` is useful when cleaning up or removing code.
 - **Keep Cortex fresh.** After editing files, refresh the index with `ingest_files` for the changed paths so later work sees the latest code.
 - **Prefer the smallest useful query.** Reach for the most specific Cortex tool that answers the question, and fall back to direct file reads only when the graph does not have enough context.
+
+# Architecture
+
+- **Publishing direction is built ESM, not long-term source-first.** Source-first publishing exposed CommonJS interop failures (`base64-js`, `json-stable-stringify`, `eventemitter2`, `query-string`) in browser consumers. Treat direct `src/*` exports as legacy behavior to migrate away from, not the desired package contract.
+- **Publish artifacts should live in `dist/`.** The package contract should eventually be compiled JavaScript plus declarations in `dist/`, with `package.json` exports targeting built files so consumers do not need custom TS/Vite aliases into `node_modules/@example-app/bifrost/src`.
+- **Core runtime lives in `src/client` and `src/server`.** The main architectural center is the `Client` / `ClientSocket` / `ClientHttp` side on the client and the `Server` / `ClientNode` / transport side on the server.
+- **Framework adapters are thin layers over the core.** `src/react` and `src/lit` should stay adapter-focused and reuse the core client/runtime instead of reimplementing transport or auth logic.
+- **Shared protocol and serialization live in `src/utils` and `src/ejson`.** Message shapes, event constants, throttling/helpers, and EJSON conversion are used across both client and server.
+- **Auth is a separate slice.** `src/auth/client` and `src/auth/server` contain token/session, cookie, OAuth, and cross-tab refresh logic and should remain decoupled from transport details where possible.
+- **Server extensibility is split by concern.** Decorators and registration live in `src/server/decorators`, RPC/event primitives live in `src/server/method*` and `src/server/event*`, and transport implementations live in `src/server/transports`.
+- **Tests are part of the architecture, not an afterthought.** `src/test/test-utility.ts` is the shared server/client harness for higher-level integration coverage, and many behavior guarantees are easiest to understand by reading the tests alongside the runtime code.
+
+# Critical learnings
+
+- **Use the split test runners.** `bun run test` now chains `test:unit`, `test:integration`, and `test:browser`; do not collapse back to a single plain `vitest run`.
+- **Browser tests need the browser config.** `*.browser.spec.ts(x)` files belong in `vitest.config.browser.ts` and run through Playwright-backed Vitest Browser, not Node/jsdom by accident.
+- **Integration tests are intentionally separate.** `vitest.config.integration.ts` covers `src/**/*.integration.spec.ts` and the higher-level React integration file `src/react/index.test.tsx`.
+- **React integration tests that talk to the real server need a Node WebSocket.** `src/react/index.test.tsx` runs in jsdom for hooks, but swaps in the `ws` implementation so the client can connect to the test server.
+- **`useConnectionState` includes `isReconnecting`.** Older tests and assumptions that only check `isOnline`, `isOffline`, and `isConnecting` are stale.
+- **`useObject` change detection must not rely on millisecond precision alone.** Same-millisecond deep changes can happen in tests and real code, so monotonic change tokens matter.
+- **The local `throttle` helper has important semantics.** `leading: false` must still schedule the trailing invocation; if throttled event behavior looks odd, inspect `src/utils/lodash.ts` before blaming the hook layer.
+- **CI must install browser dependencies explicitly.** Forgejo CI now runs browser tests and uses Playwright cache/install steps; if browser coverage changes, keep `.forgejo/workflows/ci.yml` in sync.
+- **Publishing is immutable per version.** Forgejo npm rejects republishing an existing version, so bump `package.json` before retrying a failed publish of an already-existing release.
+- **Source-first publishing has become a browser compatibility hazard.** When debugging browser boot failures in ExampleApp, first suspect raw-source dependency interop before patching individual libraries one by one.
+- **Once the publish build lands, update consumers too.** ExampleApp should drop its `node_modules/@example-app/bifrost/src` TypeScript paths and Vite aliases after Bifrost exports built files from `dist/`.
