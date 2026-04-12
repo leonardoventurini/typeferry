@@ -1,4 +1,4 @@
-import { EventEmitter2 } from 'eventemitter2'
+import EventEmitter2 from 'eventemitter2'
 import { RateLimiter } from 'limiter'
 
 import { MessageType, Presentation, ServerEvents } from '../utils'

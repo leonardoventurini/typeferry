@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react'
-import { EventEmitter2 } from 'eventemitter2'
+import EventEmitter2 from 'eventemitter2'
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 

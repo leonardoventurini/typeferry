@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { EventEmitter2 } from 'eventemitter2'
+import EventEmitter2 from 'eventemitter2'
 
 import { createIterator } from './iterator'
 

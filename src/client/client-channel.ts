@@ -1,4 +1,4 @@
-import { EventEmitter2 } from 'eventemitter2'
+import EventEmitter2 from 'eventemitter2'
 import { isEmpty } from '../utils/lodash'
 
 import type { AnyFunction } from '../utils'

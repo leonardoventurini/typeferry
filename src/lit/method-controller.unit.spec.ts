@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { EventEmitter2 } from 'eventemitter2'
+import EventEmitter2 from 'eventemitter2'
 import {
   afterEach,
   beforeEach,

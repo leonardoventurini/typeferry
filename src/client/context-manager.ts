@@ -1,4 +1,4 @@
-import { EventEmitter2 } from 'eventemitter2'
+import EventEmitter2 from 'eventemitter2'
 import isEqual from 'fast-deep-equal'
 
 import { merge } from '../utils/lodash'
