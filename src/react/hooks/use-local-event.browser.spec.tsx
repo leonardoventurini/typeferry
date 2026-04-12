@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react'
-import EventEmitter2 from 'eventemitter2'
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import EventEmitter2 from '../../utils/event-emitter'
 
 type MockClient = EventEmitter2 & { channel: (name: string) => EventEmitter2 }
 

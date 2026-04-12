@@ -1,5 +1,3 @@
-import EventEmitter2 from 'eventemitter2'
-
 import {
   BIFROST_WS_PATH,
   ClientEvents,
@@ -10,6 +8,7 @@ import {
   isPingMessage,
   isRpcResponse,
 } from '../utils'
+import EventEmitter2 from '../utils/event-emitter'
 import type { Client, WebSocketOptions } from './client'
 import { LogLevel } from './logger'
 

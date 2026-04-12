@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-import EventEmitter2 from 'eventemitter2'
 import {
   afterEach,
   beforeEach,
@@ -10,6 +9,7 @@ import {
 } from 'vitest'
 
 import { BifrostEvents, NO_CHANNEL } from '../utils'
+import EventEmitter2 from '../utils/event-emitter'
 import { BifrostMethodController } from './method-controller'
 
 function createChannel(name: string) {

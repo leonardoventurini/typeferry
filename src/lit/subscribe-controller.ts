@@ -1,9 +1,9 @@
-import type { EventEmitter2 } from 'eventemitter2'
 import type { ReactiveControllerHost } from 'lit'
 
 import type { ClientChannel } from '../client'
 import type { AnyFunction } from '../utils'
 import { NO_CHANNEL } from '../utils'
+import type EventEmitter2 from '../utils/event-emitter'
 
 import {
   type BifrostClientSource,

@@ -1,9 +1,9 @@
 import isEqual from 'fast-deep-equal'
-import type { EventEmitter2 } from 'eventemitter2'
 import type { ReactiveControllerHost } from 'lit'
 
 import type { Client, ClientChannel } from '../client'
 import { BifrostEvents, ClientEvents, NO_CHANNEL } from '../utils'
+import type EventEmitter2 from '../utils/event-emitter'
 
 import {
   type BifrostClientSource,

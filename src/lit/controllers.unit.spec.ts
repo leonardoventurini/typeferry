@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-import EventEmitter2 from 'eventemitter2'
 import {
   afterEach,
   beforeEach,
@@ -10,6 +9,7 @@ import {
 } from 'vitest'
 
 import { BifrostEvents, ClientEvents, NO_CHANNEL } from '../utils'
+import EventEmitter2 from '../utils/event-emitter'
 import { BifrostAuthController } from './auth-controller'
 import { BifrostConnectionController } from './connection-controller'
 import { BifrostLocalEventController } from './local-event-controller'

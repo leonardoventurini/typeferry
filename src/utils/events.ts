@@ -1,6 +1,5 @@
-import type { EventEmitter2 } from 'eventemitter2'
-
 import { throttle } from './lodash'
+import type EventEmitter2 from './event-emitter'
 
 export const onceAll = async (emitter: EventEmitter2, events: string[]) => {
   const promises = events.map(

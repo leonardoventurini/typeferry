@@ -1,7 +1,7 @@
-import EventEmitter2 from 'eventemitter2'
 import { RateLimiter } from 'limiter'
 
 import { MessageType, Presentation, ServerEvents } from '../utils'
+import EventEmitter2 from '../utils/event-emitter'
 import type { BifrostRequest, BifrostResponse } from './request-types'
 import type { RateLimit, Server } from './server'
 import type { BifrostSocket } from './types'

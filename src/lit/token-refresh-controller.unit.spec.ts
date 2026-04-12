@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-import EventEmitter2 from 'eventemitter2'
 import {
   afterEach,
   beforeEach,
@@ -10,6 +9,7 @@ import {
 } from 'vitest'
 
 import { ClientEvents, NO_CHANNEL } from '../utils'
+import EventEmitter2 from '../utils/event-emitter'
 
 vi.mock('../auth/client/token-refresh', () => ({
   refreshAccessToken: vi.fn().mockResolvedValue(null),

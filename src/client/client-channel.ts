@@ -1,5 +1,5 @@
-import EventEmitter2 from 'eventemitter2'
 import { isEmpty } from '../utils/lodash'
+import EventEmitter2 from '../utils/event-emitter'
 
 import type { AnyFunction } from '../utils'
 import { BifrostEvents, createIterator, Methods } from '../utils'
@@ -12,7 +12,7 @@ export class ClientChannel extends EventEmitter2 {
   events: Set<string> = new Set()
 
   // Built-in from EventEmitter2
-  _events?: Record<string, AnyFunction[]>
+  declare _events?: Record<string, AnyFunction | AnyFunction[]>
 
   constructor(name: string) {
     super({

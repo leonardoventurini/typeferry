@@ -1,6 +1,5 @@
-import EventEmitter2 from 'eventemitter2'
-
 import { BifrostEvents, ServerEvents } from '../utils'
+import EventEmitter2 from '../utils/event-emitter'
 import type { ClientNode } from './client-node'
 import type { EventOptions } from './event'
 import { Event } from './event'

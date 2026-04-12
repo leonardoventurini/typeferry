@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import { act, renderHook, waitFor } from '@testing-library/react'
-import EventEmitter2 from 'eventemitter2'
 import { omit, pick } from '../utils/lodash'
 import React from 'react'
 import sinon from 'sinon'
@@ -9,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { TestUtility } from '../test/test-utility'
 import { sleep } from '../utils'
+import EventEmitter2 from '../utils/event-emitter'
 import {
   ClientProvider,
   useAuth,

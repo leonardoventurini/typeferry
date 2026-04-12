@@ -1,9 +1,9 @@
 import useCreation from 'ahooks/lib/useCreation'
 import type { ThrottleOptions } from 'ahooks/lib/useThrottle/throttleOptions'
-import type { EventEmitter2 } from 'eventemitter2'
 import { useEffect } from 'react'
 
 import { onAllThrottled } from '../../utils'
+import type EventEmitter2 from '../../utils/event-emitter'
 
 export function useThrottledEvents(
   emitter: EventEmitter2,

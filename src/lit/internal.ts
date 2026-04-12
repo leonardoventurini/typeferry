@@ -1,10 +1,10 @@
 import isEqual from 'fast-deep-equal'
-import type { EventEmitter2 } from 'eventemitter2'
 import type { ReactiveController, ReactiveControllerHost } from 'lit'
 
 import { Client } from '../client'
 import type { AnyFunction } from '../utils'
 import { NO_CHANNEL } from '../utils'
+import type EventEmitter2 from '../utils/event-emitter'
 import { onAllThrottled } from '../utils/events'
 
 export interface BifrostClientProvider {

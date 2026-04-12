@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import EventEmitter2 from 'eventemitter2'
+import EventEmitter2 from './event-emitter'
 
 import { onAllThrottled, onceAll, waitForAll } from './events'
 

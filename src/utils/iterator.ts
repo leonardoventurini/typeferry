@@ -1,4 +1,4 @@
-import type { EventEmitter2 } from 'eventemitter2'
+import type EventEmitter2 from './event-emitter'
 
 export function createIterator(emitter: EventEmitter2, event: string) {
   let done = false
