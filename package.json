@@ -1,6 +1,6 @@
 {
   "name": "@example-app/bifrost",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "Type-safe real-time RPC framework for TypeScript",
   "type": "module",
   "sideEffects": false,
@@ -48,7 +48,6 @@
     "express-rate-limit": "^8.3.2",
     "fast-deep-equal": "^3.1.3",
     "hono": "^4.12.10",
-    "json-stable-stringify": "^1.3.0",
     "jsonwebtoken": "^9.0.2",
     "limiter": "^2.1.0",
     "memoizee": "^0.4.15",

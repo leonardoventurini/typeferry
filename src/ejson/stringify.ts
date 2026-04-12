@@ -1,6 +1,5 @@
-import stableStringify from 'json-stable-stringify'
-
 import { EJSON } from './index'
+import { stableStringify } from './stable-stringify'
 
 export type StringifyOptions = {
   indent?: boolean | number | string
@@ -16,9 +15,7 @@ export const stringify = (item: any, options?: StringifyOptions) => {
       : ((options?.indent as number | string) ?? undefined)
 
   if (options?.canonical) {
-    return stableStringify(json, {
-      space,
-    })
+    return stableStringify(json, space)
   }
 
   return options?.indent
