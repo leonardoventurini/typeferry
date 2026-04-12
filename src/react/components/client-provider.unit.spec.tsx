@@ -15,8 +15,8 @@ const mockUseCreation = vi.hoisted(() => {
   })
 })
 
-vi.mock('ahooks/lib/useCreation', () => ({
-  default: mockUseCreation,
+vi.mock('../hooks/use-creation', () => ({
+  useCreation: mockUseCreation,
 }))
 
 vi.mock('../../client', () => ({

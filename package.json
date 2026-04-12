@@ -1,6 +1,6 @@
 {
   "name": "@example-app/bifrost",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "description": "Type-safe real-time RPC framework for TypeScript",
   "type": "module",
   "sideEffects": false,
@@ -79,7 +79,6 @@
   },
   "dependencies": {
     "@lukeed/uuid": "^2.0.1",
-    "ahooks": "^3.9.7",
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "express-rate-limit": "^8.3.2",

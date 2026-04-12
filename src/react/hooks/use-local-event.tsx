@@ -1,9 +1,8 @@
-import useCreation from 'ahooks/lib/useCreation'
-
 import { useCallback, useEffect } from 'react'
 
 import { NO_CHANNEL } from '../../utils'
 import { useClient } from './use-client'
+import { useCreation } from './use-creation'
 import { useSubscribe } from './use-subscribe'
 
 /** Parameters for local event subscription — string shorthand or object config. */

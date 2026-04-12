@@ -1,6 +1,7 @@
-import useCreation from 'ahooks/lib/useCreation'
 import isEqual from 'fast-deep-equal'
 import { useEffect, useRef, useState } from 'react'
+
+import { useCreation } from './use-creation'
 
 export function useLastChangedTimestamp(obj) {
   const [timestamp, setTimestamp] = useState(() => Date.now())
