@@ -7,7 +7,6 @@
       "dependencies": {
         "@lukeed/uuid": "^2.0.1",
         "ahooks": "^3.9.7",
-        "base64-js": "^1.5.1",
         "cors": "^2.8.6",
         "eventemitter2": "^6.4.9",
         "express": "^5.2.1",

@@ -1,5 +1,4 @@
-import { fromByteArray, toByteArray } from 'base64-js'
-
+import { decodeBase64, encodeBase64 } from './base64'
 import { customTypes } from './custom-types'
 import { EJSON } from './index'
 import { hasOwn, isInfOrNaN, keysOf, lengthOf } from './utils'
@@ -83,10 +82,10 @@ export const builtinConverters = [
       )
     },
     toJSONValue(obj) {
-      return { $binary: fromByteArray(obj) }
+      return { $binary: encodeBase64(obj) }
     },
     fromJSONValue(obj) {
-      return toByteArray(obj.$binary)
+      return decodeBase64(obj.$binary)
     },
   },
   {
