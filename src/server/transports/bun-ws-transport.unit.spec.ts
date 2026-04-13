@@ -577,7 +577,7 @@ describe('BunWebSocketTransport', () => {
       const mockNode = new ClientNode(server as any)
       ws.data.node = mockNode
 
-      handlers.close!(ws)
+      handlers.close!(ws, 1000, 'normal closure')
 
       expect(transport.rooms.leaveAll).toHaveBeenCalledWith(ws)
       expect(mockNode.close).toHaveBeenCalled()
@@ -589,7 +589,7 @@ describe('BunWebSocketTransport', () => {
       const ws = createMockWs()
       ws.data.node = null
 
-      handlers.close!(ws)
+      handlers.close!(ws, 1000, 'normal closure')
 
       expect(transport.rooms.leaveAll).not.toHaveBeenCalled()
       expect(server.deleteClient).not.toHaveBeenCalled()

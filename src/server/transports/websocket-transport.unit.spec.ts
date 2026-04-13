@@ -77,7 +77,7 @@ function createMockServer(overrides: Record<string, any> = {}) {
   } as any
 }
 
-function createMockWs(readyState = SocketState.OPEN): any {
+function createMockWs(readyState: number = SocketState.OPEN): any {
   return {
     readyState,
     on: vi.fn(),

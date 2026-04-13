@@ -369,9 +369,7 @@ describe('newBinary', () => {
     const origArrayBuffer = globalThis.ArrayBuffer
 
     // Temporarily remove Uint8Array and ArrayBuffer
-    // @ts-expect-error
     globalThis.Uint8Array = undefined
-    // @ts-expect-error
     globalThis.ArrayBuffer = undefined
 
     try {

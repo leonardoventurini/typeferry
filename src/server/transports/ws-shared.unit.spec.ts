@@ -25,7 +25,7 @@ import {
 // Mock factories
 // ---------------------------------------------------------------------------
 
-function createMockSocket(readyState = SocketState.OPEN) {
+function createMockSocket(readyState: number = SocketState.OPEN) {
   return { readyState, send: vi.fn() }
 }
 
