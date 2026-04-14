@@ -37,6 +37,16 @@ Do not define the goal as:
 - identical TypeScript authoring experience
 - reimplementation of React/Lit integration
 
+## Current Implementation Landing Zone
+
+The first reusable Rust implementation now lives inside the SolidScript
+workspace rather than inline in `solidscript-server`:
+
+- `crates/bifrost-protocol`
+- `crates/bifrost-runtime`
+
+That split is the required precursor to any future `bifrost-rs` repository.
+
 ## Source Of Truth
 
 The current protocol contract is defined by runtime behavior in these files:
