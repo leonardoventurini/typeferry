@@ -13,7 +13,7 @@ concurrency:
 jobs:
   ci:
     name: CI
-    runs-on: ubuntu-latest
+    runs-on: arm64
     env:
       NODE_OPTIONS: --max-old-space-size=4096
       REDIS_URL: redis://m3ultra-256g.tail17a045.ts.net:6379
