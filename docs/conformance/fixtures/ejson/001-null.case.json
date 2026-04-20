@@ -1,0 +1,5 @@
+{
+  "name": "null round-trips as literal JSON null",
+  "value": {"__kind": "null"},
+  "encoded": "null"
+}

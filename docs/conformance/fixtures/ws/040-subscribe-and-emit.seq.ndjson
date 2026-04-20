@@ -1,0 +1,8 @@
+{"op":"setup","events":[{"name":"ping.tick"}]}
+{"op":"connect","query":{}}
+{"op":"expect_server_frame","frame":{"t":"auth","authenticated":false}}
+{"op":"send","frame":{"t":"rpc","id":"sub","method":"rpc:on","params":{"events":["ping.tick"],"channel":"room-a"}}}
+{"op":"expect_server_frame","frame":{"t":"rpc:res","id":"sub","result":{"ping.tick":true}}}
+{"op":"server_emit","channel":"room-a","event":"ping.tick","params":{"n":1}}
+{"op":"expect_server_frame","frame":{"t":"event","event":"ping.tick","channel":"room-a","params":{"n":1}}}
+{"op":"disconnect"}

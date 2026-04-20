@@ -1,0 +1,6 @@
+{"op":"setup","methods":[{"name":"secret","handler":"return_const:x","protected":true}]}
+{"op":"connect","query":{}}
+{"op":"expect_server_frame","frame":{"t":"auth","authenticated":false}}
+{"op":"send","frame":{"t":"rpc","id":"r1","method":"secret"}}
+{"op":"expect_server_frame","frame":{"t":"rpc:res","id":"r1","error":"Method Forbidden"}}
+{"op":"disconnect"}

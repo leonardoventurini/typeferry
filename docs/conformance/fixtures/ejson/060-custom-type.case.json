@@ -1,0 +1,18 @@
+{
+  "name": "registered custom type emits $type/$value",
+  "value": {
+    "__kind": "custom",
+    "type": "address",
+    "inner": {
+      "__kind": "object",
+      "entries": [
+        ["street", {"__kind": "string", "value": "1 Main"}],
+        ["city", {"__kind": "string", "value": "Springfield"}]
+      ]
+    }
+  },
+  "encoded": "{\"$type\":\"address\",\"$value\":{\"street\":\"1 Main\",\"city\":\"Springfield\"}}",
+  "register": {
+    "custom_types": ["address"]
+  }
+}

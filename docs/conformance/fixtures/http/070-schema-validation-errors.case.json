@@ -1,0 +1,31 @@
+{
+  "name": "schema failure includes errors[] list and Invalid Params prefix",
+  "setup": {
+    "methods": [
+      {
+        "name": "v",
+        "handler": "return_const:ok",
+        "schema": {
+          "reject_all": true,
+          "issues": [
+            {"path": ["a"], "message": "required"},
+            {"path": ["b", "c"], "message": "too short"}
+          ]
+        }
+      }
+    ]
+  },
+  "request": {
+    "headers": {"content-type": "text/plain"},
+    "body": "{\"context\":{},\"payload\":{\"method\":\"v\"}}"
+  },
+  "response": {
+    "status": 200,
+    "decoded": {
+      "type": "error",
+      "message": "Invalid Params: a: required, b.c: too short",
+      "method": "v",
+      "errors": ["a: required", "b.c: too short"]
+    }
+  }
+}

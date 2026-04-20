@@ -1,0 +1,10 @@
+{
+  "name": "plain object shaped like $date is wrapped in $escape",
+  "value": {
+    "__kind": "object",
+    "entries": [
+      ["$date", {"__kind": "int", "value": 123}]
+    ]
+  },
+  "encoded": "{\"$escape\":{\"$date\":123}}"
+}

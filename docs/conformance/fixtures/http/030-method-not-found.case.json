@@ -1,0 +1,17 @@
+{
+  "name": "unregistered method → Method Not Found with method echo",
+  "setup": {},
+  "request": {
+    "headers": {"content-type": "text/plain"},
+    "body": "{\"context\":{},\"payload\":{\"method\":\"nope\",\"uuid\":\"c1\"}}"
+  },
+  "response": {
+    "status": 200,
+    "decoded": {
+      "type": "error",
+      "message": "Method Not Found",
+      "uuid": "c1",
+      "method": "nope"
+    }
+  }
+}

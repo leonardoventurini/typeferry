@@ -1,0 +1,15 @@
+{
+  "name": "missing payload → Invalid Request error envelope",
+  "setup": {},
+  "request": {
+    "headers": {"content-type": "text/plain"},
+    "body": "{\"context\":{}}"
+  },
+  "response": {
+    "status": 200,
+    "decoded": {
+      "type": "error",
+      "message": "Invalid Request"
+    }
+  }
+}

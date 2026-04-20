@@ -1,0 +1,8 @@
+{
+  "name": "non-ASCII strings survive as raw UTF-8 (not \\uXXXX)",
+  "value": {
+    "__kind": "string",
+    "value": "café ☕ 漢"
+  },
+  "encoded": "\"café ☕ 漢\""
+}

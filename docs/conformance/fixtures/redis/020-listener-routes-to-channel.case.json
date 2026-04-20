@@ -1,0 +1,11 @@
+{
+  "name": "inbound Redis message is propagated to the matching ServerChannel",
+  "direction": "inbound",
+  "incoming_payload": "{\"event\":\"chat.message\",\"channel\":\"room-a\",\"message\":\"{\\\"t\\\":\\\"event\\\",\\\"uuid\\\":\\\"evt-2\\\",\\\"event\\\":\\\"chat.message\\\",\\\"channel\\\":\\\"room-a\\\",\\\"params\\\":{\\\"text\\\":\\\"hi\\\"}}\",\"excludeUuid\":\"peer-1\"}",
+  "expected_propagate_call": {
+    "channel": "room-a",
+    "event": "chat.message",
+    "payload": "{\"t\":\"event\",\"uuid\":\"evt-2\",\"event\":\"chat.message\",\"channel\":\"room-a\",\"params\":{\"text\":\"hi\"}}",
+    "exclude_uuid": "peer-1"
+  }
+}

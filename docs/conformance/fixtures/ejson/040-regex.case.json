@@ -1,0 +1,5 @@
+{
+  "name": "RegExp preserves source and flags",
+  "value": {"__kind": "regex", "source": "^foo.*$", "flags": "gi"},
+  "encoded": "{\"$regexp\":\"^foo.*$\",\"$flags\":\"gi\"}"
+}

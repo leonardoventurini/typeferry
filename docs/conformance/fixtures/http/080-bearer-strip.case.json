@@ -1,0 +1,24 @@
+{
+  "name": "x-api-key Bearer prefix is stripped before auth",
+  "setup": {
+    "auth": {"accept_token": "tok-123", "user": {"_id": "u1"}},
+    "methods": [
+      {"name": "who", "handler": "return_user_id", "protected": true}
+    ]
+  },
+  "request": {
+    "headers": {
+      "content-type": "text/plain",
+      "x-api-key": "Bearer tok-123"
+    },
+    "body": "{\"context\":{},\"payload\":{\"method\":\"who\"}}"
+  },
+  "response": {
+    "status": 200,
+    "decoded": {
+      "type": "result",
+      "method": "who",
+      "result": "u1"
+    }
+  }
+}

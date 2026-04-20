@@ -1,0 +1,11 @@
+{
+  "name": "plain object shaped like $regexp/$flags is wrapped in $escape",
+  "value": {
+    "__kind": "object",
+    "entries": [
+      ["$regexp", {"__kind": "string", "value": "x"}],
+      ["$flags", {"__kind": "string", "value": "i"}]
+    ]
+  },
+  "encoded": "{\"$escape\":{\"$regexp\":\"x\",\"$flags\":\"i\"}}"
+}

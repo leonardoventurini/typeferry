@@ -1,0 +1,11 @@
+{
+  "name": "plain ASCII strings round-trip",
+  "value": {
+    "__kind": "object",
+    "entries": [
+      ["name", {"__kind": "string", "value": "Alice"}],
+      ["role", {"__kind": "string", "value": "admin"}]
+    ]
+  },
+  "encoded": "{\"name\":\"Alice\",\"role\":\"admin\"}"
+}

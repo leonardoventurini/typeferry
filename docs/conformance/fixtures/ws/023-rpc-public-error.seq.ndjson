@@ -1,0 +1,6 @@
+{"op":"setup","methods":[{"name":"boom","handler":"raise_public:nope"}]}
+{"op":"connect","query":{}}
+{"op":"expect_server_frame","frame":{"t":"auth","authenticated":false}}
+{"op":"send","frame":{"t":"rpc","id":"r1","method":"boom"}}
+{"op":"expect_server_frame","frame":{"t":"rpc:res","id":"r1","error":"nope"}}
+{"op":"disconnect"}

@@ -1,0 +1,21 @@
+{
+  "name": "PublicError message flows through verbatim",
+  "setup": {
+    "methods": [
+      {"name": "boom", "handler": "raise_public:intentional failure"}
+    ]
+  },
+  "request": {
+    "headers": {"content-type": "text/plain"},
+    "body": "{\"context\":{},\"payload\":{\"method\":\"boom\",\"uuid\":\"c1\"}}"
+  },
+  "response": {
+    "status": 200,
+    "decoded": {
+      "type": "error",
+      "message": "intentional failure",
+      "uuid": "c1",
+      "method": "boom"
+    }
+  }
+}

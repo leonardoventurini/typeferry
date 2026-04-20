@@ -1,0 +1,4 @@
+{"op":"setup","auth":{"accept_token":"good","user":{"_id":"u1"}}}
+{"op":"connect","query":{"token":"good"}}
+{"op":"expect_server_frame","frame":{"t":"auth","authenticated":true}}
+{"op":"disconnect"}

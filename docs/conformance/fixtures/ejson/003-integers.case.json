@@ -1,0 +1,14 @@
+{
+  "name": "integers round-trip without trailing .0",
+  "value": {
+    "__kind": "array",
+    "items": [
+      {"__kind": "int", "value": 0},
+      {"__kind": "int", "value": 1},
+      {"__kind": "int", "value": -1},
+      {"__kind": "int", "value": 2147483647},
+      {"__kind": "int", "value": -2147483648}
+    ]
+  },
+  "encoded": "[0,1,-1,2147483647,-2147483648]"
+}

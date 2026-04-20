@@ -1,0 +1,6 @@
+{"op":"setup","methods":[{"name":"track","handler":"return_const:ignored"}]}
+{"op":"connect","query":{}}
+{"op":"expect_server_frame","frame":{"t":"auth","authenticated":false}}
+{"op":"send","frame":{"t":"rpc:void","method":"track","params":{"k":"v"}}}
+{"op":"expect_no_server_frame","within_ms":100}
+{"op":"disconnect"}

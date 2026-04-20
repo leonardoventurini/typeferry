@@ -1,0 +1,14 @@
+{
+  "name": "publish envelope without exclude_uuid",
+  "publish": {
+    "event": "ping.tick",
+    "channel": "room-a",
+    "message": "{\"t\":\"event\",\"uuid\":\"abc\",\"event\":\"ping.tick\",\"channel\":\"room-a\",\"params\":{\"n\":1}}"
+  },
+  "expected_redis_channel": "events",
+  "expected_payload_decoded": {
+    "event": "ping.tick",
+    "channel": "room-a",
+    "message": "{\"t\":\"event\",\"uuid\":\"abc\",\"event\":\"ping.tick\",\"channel\":\"room-a\",\"params\":{\"n\":1}}"
+  }
+}

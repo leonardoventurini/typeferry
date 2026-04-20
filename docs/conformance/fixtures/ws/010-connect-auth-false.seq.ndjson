@@ -1,0 +1,4 @@
+{"op":"setup"}
+{"op":"connect","query":{}}
+{"op":"expect_server_frame","frame":{"t":"auth","authenticated":false}}
+{"op":"disconnect"}

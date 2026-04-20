@@ -1,0 +1,5 @@
+{
+  "name": "PNG magic bytes round-trip through base64",
+  "value": {"__kind": "binary", "base64": "iVBORw0KGgo="},
+  "encoded": "{\"$binary\":\"iVBORw0KGgo=\"}"
+}

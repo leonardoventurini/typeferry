@@ -1,0 +1,11 @@
+{
+  "name": "booleans round-trip",
+  "value": {
+    "__kind": "array",
+    "items": [
+      {"__kind": "bool", "value": true},
+      {"__kind": "bool", "value": false}
+    ]
+  },
+  "encoded": "[true,false]"
+}

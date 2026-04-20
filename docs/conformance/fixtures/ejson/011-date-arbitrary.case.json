@@ -1,0 +1,5 @@
+{
+  "name": "Date with millisecond precision round-trips",
+  "value": {"__kind": "date", "millis": 1717243845123},
+  "encoded": "{\"$date\":1717243845123}"
+}

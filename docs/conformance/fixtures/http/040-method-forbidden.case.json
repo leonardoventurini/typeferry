@@ -1,0 +1,20 @@
+{
+  "name": "protected method without auth → Method Forbidden",
+  "setup": {
+    "methods": [
+      {"name": "secret", "handler": "return_const:secret", "protected": true}
+    ]
+  },
+  "request": {
+    "headers": {"content-type": "text/plain"},
+    "body": "{\"context\":{},\"payload\":{\"method\":\"secret\"}}"
+  },
+  "response": {
+    "status": 200,
+    "decoded": {
+      "type": "error",
+      "message": "Method Forbidden",
+      "method": "secret"
+    }
+  }
+}

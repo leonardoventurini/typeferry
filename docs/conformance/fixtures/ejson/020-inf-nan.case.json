@@ -1,0 +1,12 @@
+{
+  "name": "NaN / +Inf / -Inf encode as the $InfNaN tag form",
+  "value": {
+    "__kind": "array",
+    "items": [
+      {"__kind": "inf_nan", "sign": 0},
+      {"__kind": "inf_nan", "sign": 1},
+      {"__kind": "inf_nan", "sign": -1}
+    ]
+  },
+  "encoded": "[{\"$InfNaN\":0},{\"$InfNaN\":1},{\"$InfNaN\":-1}]"
+}

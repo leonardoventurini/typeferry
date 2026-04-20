@@ -1,0 +1,6 @@
+{"op":"setup"}
+{"op":"connect","query":{}}
+{"op":"expect_server_frame","frame":{"t":"auth","authenticated":false}}
+{"op":"send","frame":{"t":"rpc","id":"r1","method":"nope"}}
+{"op":"expect_server_frame","frame":{"t":"rpc:res","id":"r1","error":"Method Not Found"}}
+{"op":"disconnect"}

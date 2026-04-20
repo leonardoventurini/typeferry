@@ -1,0 +1,16 @@
+{
+  "name": "publish envelope includes excludeUuid when provided",
+  "publish": {
+    "event": "chat.message",
+    "channel": "room-a",
+    "message": "{\"t\":\"event\",\"uuid\":\"evt-1\",\"event\":\"chat.message\",\"channel\":\"room-a\",\"params\":{\"text\":\"hi\"}}",
+    "exclude_uuid": "orig-1"
+  },
+  "expected_redis_channel": "events",
+  "expected_payload_decoded": {
+    "event": "chat.message",
+    "channel": "room-a",
+    "message": "{\"t\":\"event\",\"uuid\":\"evt-1\",\"event\":\"chat.message\",\"channel\":\"room-a\",\"params\":{\"text\":\"hi\"}}",
+    "excludeUuid": "orig-1"
+  }
+}

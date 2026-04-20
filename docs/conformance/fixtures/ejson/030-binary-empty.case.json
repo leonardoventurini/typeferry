@@ -1,0 +1,5 @@
+{
+  "name": "empty binary encodes as {\"$binary\":\"\"}",
+  "value": {"__kind": "binary", "base64": ""},
+  "encoded": "{\"$binary\":\"\"}"
+}

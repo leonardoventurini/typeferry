@@ -1,0 +1,5 @@
+{
+  "name": "Date at the Unix epoch encodes as {\"$date\":0}",
+  "value": {"__kind": "date", "millis": 0},
+  "encoded": "{\"$date\":0}"
+}

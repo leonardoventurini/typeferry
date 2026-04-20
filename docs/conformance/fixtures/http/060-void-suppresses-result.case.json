@@ -1,0 +1,16 @@
+{
+  "name": "void:true suppresses success body",
+  "setup": {
+    "methods": [
+      {"name": "ping", "handler": "return_const:pong"}
+    ]
+  },
+  "request": {
+    "headers": {"content-type": "text/plain"},
+    "body": "{\"context\":{},\"payload\":{\"method\":\"ping\",\"void\":true}}"
+  },
+  "response": {
+    "status": 200,
+    "body": ""
+  }
+}

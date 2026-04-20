@@ -1,0 +1,16 @@
+{
+  "name": "void:true suppresses error body even when handler raises PublicError",
+  "setup": {
+    "methods": [
+      {"name": "silent_boom", "handler": "raise_public:should not surface"}
+    ]
+  },
+  "request": {
+    "headers": {"content-type": "text/plain"},
+    "body": "{\"context\":{},\"payload\":{\"method\":\"silent_boom\",\"void\":true}}"
+  },
+  "response": {
+    "status": 200,
+    "body": ""
+  }
+}

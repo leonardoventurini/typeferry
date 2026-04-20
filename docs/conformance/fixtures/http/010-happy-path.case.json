@@ -1,0 +1,21 @@
+{
+  "name": "RPC happy path returns type:result envelope",
+  "setup": {
+    "methods": [
+      {"name": "add", "handler": "add_two_integers", "protected": false}
+    ]
+  },
+  "request": {
+    "headers": {"content-type": "text/plain"},
+    "body": "{\"context\":{},\"payload\":{\"method\":\"add\",\"params\":{\"a\":2,\"b\":3},\"uuid\":\"call-1\"}}"
+  },
+  "response": {
+    "status": 200,
+    "decoded": {
+      "type": "result",
+      "uuid": "call-1",
+      "method": "add",
+      "result": 5
+    }
+  }
+}

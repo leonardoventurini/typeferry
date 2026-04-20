@@ -1,0 +1,19 @@
+{
+  "name": "nested mix of Date + Binary + Inf inside object + array",
+  "value": {
+    "__kind": "object",
+    "entries": [
+      ["created_at", {"__kind": "date", "millis": 1704067200000}],
+      ["avatar", {"__kind": "binary", "base64": "AQID"}],
+      ["scores", {
+        "__kind": "array",
+        "items": [
+          {"__kind": "int", "value": 1},
+          {"__kind": "int", "value": 2},
+          {"__kind": "inf_nan", "sign": 1}
+        ]
+      }]
+    ]
+  },
+  "encoded": "{\"created_at\":{\"$date\":1704067200000},\"avatar\":{\"$binary\":\"AQID\"},\"scores\":[1,2,{\"$InfNaN\":1}]}"
+}
