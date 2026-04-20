@@ -9,6 +9,7 @@ members = [
     "crates/bifrost-redis",
     "crates/bifrost-auth",
     "crates/bifrost-macros",
+    "crates/bifrost-conformance-server",
 ]
 
 [workspace.package]

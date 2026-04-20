@@ -21,6 +21,6 @@ pub use event::{Event, EventOptions};
 pub use method::{BoxResult, Method, MethodOptions, Middleware, RpcFuture, RpcHandler};
 pub use room_registry::RoomRegistry;
 pub use schema::{SchemaValidator, ValidationIssue, ValidationResult};
-pub use server::{Server, ServerOptions};
+pub use server::{AuthFn, Server, ServerOptions};
 pub use server_channel::ServerChannel;
 pub use socket::{BifrostSocket, SocketState};

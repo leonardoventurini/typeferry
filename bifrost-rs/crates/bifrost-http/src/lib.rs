@@ -85,7 +85,22 @@ async fn handle_rpc(
     if let (Some(token), Some(obj)) = (token, ctx_json.as_object_mut()) {
         obj.insert("token".into(), Value::String(token));
     }
-    node.set_context(ctx_json);
+
+    // Run the auth callback (if configured). Truthy result flips
+    // `authenticated` and becomes the node context — matches TS/Python.
+    let auth_result = server.run_auth(node.clone(), ctx_json).await;
+    let is_truthy = matches!(
+        &auth_result,
+        Value::Object(_)
+            | Value::Array(_)
+            | Value::String(_)
+            | Value::Number(_)
+            | Value::Bool(true)
+    );
+    if is_truthy {
+        node.set_authenticated(true);
+    }
+    node.set_context(auth_result);
 
     if method.is_protected && !node.is_authenticated() {
         return error_response(METHOD_FORBIDDEN, uuid, Some(&method_name), is_void);

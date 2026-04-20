@@ -7,10 +7,19 @@ use crate::method::{Method, MethodOptions, RpcHandler};
 use crate::room_registry::RoomRegistry;
 use crate::server_channel::ServerChannel;
 use bifrost_protocol::NO_CHANNEL;
+use futures::future::BoxFuture;
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, RwLock};
 use uuid::Uuid;
+
+/// Auth callback — receives the partially-built ClientNode and the
+/// context JSON assembled from the request body + token header.
+/// Returns a truthy `Value::Object` (the user context) on success,
+/// `Value::Null` / `Value::Bool(false)` on failure.
+pub type AuthFn = Arc<
+    dyn Fn(Arc<ClientNode>, Value) -> BoxFuture<'static, Value> + Send + Sync,
+>;
 
 #[derive(Clone)]
 pub struct ServerOptions {
@@ -39,6 +48,7 @@ pub struct Server {
     pub clients_by_user_id: RwLock<HashMap<String, HashSet<String>>>,
     pub rooms: Arc<RwLock<Option<Arc<RoomRegistry>>>>,
     pub is_auth_enabled: RwLock<bool>,
+    pub auth_fn: RwLock<Option<AuthFn>>,
 }
 
 impl Server {
@@ -53,6 +63,7 @@ impl Server {
             clients_by_user_id: RwLock::new(HashMap::new()),
             rooms: Arc::new(RwLock::new(None)),
             is_auth_enabled: RwLock::new(false),
+            auth_fn: RwLock::new(None),
         });
 
         // Install the NO_CHANNEL anchor so consumers can retrieve it via
@@ -73,6 +84,30 @@ impl Server {
 
     pub fn attach_room_registry(&self, rooms: Arc<RoomRegistry>) {
         *self.rooms.write().expect("rooms poisoned") = Some(rooms);
+    }
+
+    /// Register an auth callback. Calling this also flips
+    /// `is_auth_enabled` so the WS transport knows to run auth on
+    /// connect rather than sending `{authenticated: false}` blindly.
+    pub fn set_auth(&self, auth: AuthFn) {
+        *self.auth_fn.write().expect("auth_fn poisoned") = Some(auth);
+        *self.is_auth_enabled.write().expect("is_auth_enabled poisoned") = true;
+    }
+
+    /// Invoke the registered auth callback, if any. Returns the auth
+    /// result (truthy dict on success, null/false on failure). Returns
+    /// `Value::Null` when no auth function is installed.
+    pub async fn run_auth(&self, node: Arc<ClientNode>, context: Value) -> Value {
+        let fn_opt = self
+            .auth_fn
+            .read()
+            .expect("auth_fn poisoned")
+            .as_ref()
+            .cloned();
+        match fn_opt {
+            Some(auth) => auth(node, context).await,
+            None => Value::Null,
+        }
     }
 
     pub fn add_method(&self, name: &str, handler: RpcHandler, opts: MethodOptions) {

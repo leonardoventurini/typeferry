@@ -7,7 +7,7 @@
 
 use async_trait::async_trait;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
-use axum::extract::State;
+use axum::extract::{Query, State};
 use axum::response::Response;
 use axum::routing::get;
 use axum::Router;
@@ -40,23 +40,65 @@ pub fn router(server: Arc<Server>) -> Router {
         .with_state(server)
 }
 
+#[derive(Debug, Default, serde::Deserialize)]
+struct UpgradeQuery {
+    #[serde(default)]
+    token: Option<String>,
+    #[serde(default)]
+    uuid: Option<String>,
+    #[serde(default)]
+    meta: Option<String>,
+}
+
 async fn upgrade(
     ws: WebSocketUpgrade,
     State(server): State<Arc<Server>>,
+    Query(query): Query<UpgradeQuery>,
 ) -> Response {
-    ws.on_upgrade(move |socket| handle_connection(server, socket))
+    ws.on_upgrade(move |socket| handle_connection(server, socket, query))
 }
 
-async fn handle_connection(server: Arc<Server>, socket: WebSocket) {
+async fn handle_connection(
+    server: Arc<Server>,
+    socket: WebSocket,
+    query: UpgradeQuery,
+) {
     let (sink, mut stream) = socket.split();
     let adapter: Arc<AxumSocket> = AxumSocket::new(sink);
 
     let node = ClientNode::new(Some(adapter.clone() as Arc<dyn BifrostSocket>));
+    if let Some(client_uuid) = query.uuid.as_deref()
+        && !client_uuid.is_empty()
+    {
+        node.set_id(client_uuid);
+    }
     server.add_client(node.clone());
 
-    // Emit the auth frame (authenticated=false; full auth integration
-    // is handled by the auth crate in downstream implementations).
-    node.emit_auth_result(false).await;
+    // Run auth if a token was passed; otherwise emit `authenticated:false`
+    // immediately per PROTOCOL.md §2.2.2.
+    if let Some(token) = query.token.as_deref()
+        && !token.is_empty()
+    {
+        let mut ctx = serde_json::Map::new();
+        ctx.insert("token".into(), serde_json::Value::String(token.to_string()));
+        let auth_result = server
+            .run_auth(node.clone(), serde_json::Value::Object(ctx))
+            .await;
+        let is_truthy = matches!(
+            &auth_result,
+            serde_json::Value::Object(_)
+                | serde_json::Value::Array(_)
+                | serde_json::Value::String(_)
+                | serde_json::Value::Number(_)
+                | serde_json::Value::Bool(true)
+        );
+        if is_truthy {
+            node.set_authenticated(true);
+            node.set_context(auth_result);
+        }
+    }
+    let _ = query.meta; // currently ignored on the Rust side
+    node.emit_auth_result(node.is_authenticated()).await;
 
     // Ping loop.
     let pong_flag = Arc::new(AtomicBool::new(true));

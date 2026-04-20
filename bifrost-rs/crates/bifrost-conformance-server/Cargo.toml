@@ -1,0 +1,21 @@
+[package]
+name = "bifrost-conformance-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Cross-language conformance server — exposes a fixed Bifrost surface so other languages' clients can drive it end-to-end"
+publish = false
+
+[[bin]]
+name = "bifrost-conformance-server"
+path = "src/main.rs"
+
+[dependencies]
+bifrost-ejson = { path = "../bifrost-ejson" }
+bifrost-runtime = { path = "../bifrost-runtime" }
+bifrost-http = { path = "../bifrost-http" }
+bifrost-ws = { path = "../bifrost-ws" }
+axum = { workspace = true }
+tokio = { workspace = true }
+serde_json = { workspace = true }
+futures = { workspace = true }
