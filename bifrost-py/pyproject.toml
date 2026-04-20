@@ -70,3 +70,7 @@ python_version = "3.12"
 strict = true
 packages = ["bifrost"]
 mypy_path = "src"
+
+[[tool.mypy.overrides]]
+module = ["pydantic", "pydantic.*"]
+ignore_missing_imports = true
