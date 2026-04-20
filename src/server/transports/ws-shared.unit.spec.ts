@@ -462,7 +462,7 @@ describe('handleRpc', () => {
     expect(decoded.result).toEqual({ hello: 'world' })
   })
 
-  it('handles PublicError by sending its message', async () => {
+  it('handles PublicError by sending its message without internal error telemetry', async () => {
     const node = createMockNode()
     const method = createMockMethod({
       exec: vi.fn().mockRejectedValue(new PublicError('User-facing error')),
@@ -478,10 +478,10 @@ describe('handleRpc', () => {
     ) as any
     expect(decoded.error).toBe('User-facing error')
 
-    // Should also emit METHOD_ERROR on server
-    expect(server.emit).toHaveBeenCalledWith(
+    expect(errorSpy).not.toHaveBeenCalled()
+    expect(server.emit).not.toHaveBeenCalledWith(
       ServerEvents.METHOD_ERROR,
-      expect.objectContaining({ method: 'm' }),
+      expect.anything(),
     )
   })
 

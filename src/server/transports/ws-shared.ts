@@ -130,6 +130,10 @@ function handleRpcError(
   method: string,
   params: unknown,
 ): void {
+  if (error instanceof PublicError) {
+    return sendResponse(node, id, undefined, error.message)
+  }
+
   console.error(error)
 
   server.emit(ServerEvents.METHOD_ERROR, {
@@ -141,10 +145,6 @@ function handleRpcError(
     remoteAddress: node.remoteAddress,
     userAgent: node.userAgent,
   })
-
-  if (error instanceof PublicError) {
-    return sendResponse(node, id, undefined, error.message)
-  }
 
   if (error instanceof SchemaValidationError) {
     return sendResponse(node, id, undefined, error.message, error.errors)

@@ -442,7 +442,7 @@ describe('HttpTransport', () => {
       expect(decoded.message).toBe(Errors.METHOD_FORBIDDEN)
     })
 
-    it('handles PublicError in catch block', async () => {
+    it('handles PublicError in catch block without internal error telemetry', async () => {
       const method = {
         isProtected: false,
         exec: vi.fn().mockRejectedValue(new PublicError('public error msg')),
@@ -467,6 +467,11 @@ describe('HttpTransport', () => {
 
       const decoded = Presentation.decode<any>(res.send.mock.calls[0][0])
       expect(decoded.message).toBe('public error msg')
+      expect(spy).not.toHaveBeenCalled()
+      expect(server.emit).not.toHaveBeenCalledWith(
+        ServerEvents.METHOD_ERROR,
+        expect.anything(),
+      )
 
       spy.mockRestore()
     })

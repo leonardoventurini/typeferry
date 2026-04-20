@@ -292,6 +292,12 @@ export class BunHonoTransport {
     payload: Record<string, unknown>,
     clientNode: ClientNode,
   ): Response {
+    if (error instanceof PublicError) {
+      if (payload.void) return c.text('', 200)
+
+      return this.rpcError(c, error.message, payload.uuid)
+    }
+
     console.error(error)
 
     this.server.emit(ServerEvents.METHOD_ERROR, {
@@ -305,10 +311,6 @@ export class BunHonoTransport {
     })
 
     if (payload.void) return c.text('', 200)
-
-    if (error instanceof PublicError) {
-      return this.rpcError(c, error.message, payload.uuid)
-    }
 
     if (error instanceof SchemaValidationError) {
       const p: Record<string, unknown> = {

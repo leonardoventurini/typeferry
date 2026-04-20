@@ -425,7 +425,7 @@ describe('BunHonoTransport', () => {
       server.auth.mockReturnValue(false)
     })
 
-    it('handles PublicError by returning its message', async () => {
+    it('handles PublicError without internal error telemetry', async () => {
       server.getMethod.mockReturnValue({
         isProtected: false,
         exec: vi.fn().mockRejectedValue(new PublicError('User-facing error')),
@@ -443,9 +443,10 @@ describe('BunHonoTransport', () => {
       expect(ctx.text).toHaveBeenCalledWith(
         expect.stringContaining('User-facing error'),
       )
-      expect(server.emit).toHaveBeenCalledWith(
+      expect(consoleSpy).not.toHaveBeenCalled()
+      expect(server.emit).not.toHaveBeenCalledWith(
         ServerEvents.METHOD_ERROR,
-        expect.objectContaining({ method: 'fail' }),
+        expect.anything(),
       )
       consoleSpy.mockRestore()
     })

@@ -125,6 +125,12 @@ export class HttpTransport {
       userAgent?: string
     },
   ) {
+    if (error instanceof PublicError) {
+      if (isVoid) return
+
+      return this.sendError(res, error.message, uuid)
+    }
+
     console.error(error)
 
     if (context?.method) {
@@ -140,10 +146,6 @@ export class HttpTransport {
     }
 
     if (isVoid) return
-
-    if (error instanceof PublicError) {
-      return this.sendError(res, error.message, uuid)
-    }
 
     if (error instanceof SchemaValidationError) {
       return this.sendError(res, error.message, {
