@@ -136,6 +136,7 @@ dependencies = [
  "bifrost-protocol",
  "bifrost-runtime",
  "futures",
+ "http-body-util",
  "serde",
  "serde_json",
  "tokio",

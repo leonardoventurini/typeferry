@@ -92,16 +92,10 @@ impl RedisTransport {
         message: &str,
         exclude_uuid: Option<&str>,
     ) -> Result<(), redis::RedisError> {
-        let channel_name = if channel.is_empty() { NO_CHANNEL } else { channel };
-        let payload = json!({
-            "event": event,
-            "channel": channel_name,
-            "message": message,
-            "excludeUuid": exclude_uuid,
-        });
+        let payload = build_publish_envelope(event, channel, message, exclude_uuid);
         if let Some(conn) = self.publisher.lock().await.as_mut() {
             let _: i64 = conn
-                .publish(REDIS_EVENTS_CHANNEL, payload.to_string())
+                .publish(REDIS_EVENTS_CHANNEL, payload)
                 .await?;
         }
         Ok(())
@@ -113,4 +107,62 @@ impl RedisTransport {
         }
         *self.publisher.lock().await = None;
     }
+}
+
+/// Build the exact JSON text published to Redis for an event.
+///
+/// Extracted as a pure function so it can be unit-tested without a
+/// running Redis instance — and so alternate transports can reuse the
+/// wire shape.
+pub fn build_publish_envelope(
+    event: &str,
+    channel: &str,
+    message: &str,
+    exclude_uuid: Option<&str>,
+) -> String {
+    let channel_name = if channel.is_empty() { NO_CHANNEL } else { channel };
+    let mut obj = serde_json::Map::new();
+    obj.insert("event".into(), Value::String(event.into()));
+    obj.insert("channel".into(), Value::String(channel_name.into()));
+    obj.insert("message".into(), Value::String(message.into()));
+    if let Some(uuid) = exclude_uuid {
+        obj.insert("excludeUuid".into(), Value::String(uuid.into()));
+    }
+    serde_json::to_string(&Value::Object(obj))
+        .expect("publish envelope serializable")
+}
+
+/// Decode an inbound Redis message and return the fields needed to
+/// route it to `ServerChannel::propagate`. Returns None when the
+/// payload is malformed or missing required fields.
+///
+/// Shape mirrors the Python and TS ports exactly so a TS-produced
+/// message propagates identically on a Rust listener.
+pub fn decode_inbound(
+    payload: &str,
+) -> Option<DecodedInbound> {
+    let decoded: Value = serde_json::from_str(payload).ok()?;
+    let event = decoded.get("event")?.as_str()?.to_string();
+    let channel = decoded
+        .get("channel")
+        .and_then(|v| v.as_str())
+        .unwrap_or(NO_CHANNEL)
+        .to_string();
+    let message = decoded.get("message")?.as_str()?.to_string();
+    let exclude_uuid = decoded
+        .get("excludeUuid")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+    if event.is_empty() || message.is_empty() {
+        return None;
+    }
+    Some(DecodedInbound { event, channel, message, exclude_uuid })
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DecodedInbound {
+    pub event: String,
+    pub channel: String,
+    pub message: String,
+    pub exclude_uuid: Option<String>,
 }

@@ -85,10 +85,11 @@ async fn handle_connection(server: Arc<Server>, socket: WebSocket) {
         }
     });
 
+    let dyn_socket: Arc<dyn BifrostSocket> = adapter.clone();
     while let Some(Ok(msg)) = stream.next().await {
         match msg {
             Message::Text(text) => {
-                dispatch_frame(&server, &node, &adapter, &pong_flag, &text).await;
+                dispatch_frame(&server, &node, &dyn_socket, &pong_flag, &text).await;
             }
             Message::Close(_) => break,
             _ => {}
@@ -104,11 +105,13 @@ async fn handle_connection(server: Arc<Server>, socket: WebSocket) {
     server.delete_client(&node);
 }
 
-async fn dispatch_frame(
+/// Dispatch one decoded frame against the runtime. Public so test
+/// harnesses can drive the dispatch path with a mock socket.
+pub async fn dispatch_frame(
     server: &Arc<Server>,
     node: &Arc<ClientNode>,
-    socket: &Arc<AxumSocket>,
-    pong_flag: &Arc<AtomicBool>,
+    socket: &Arc<dyn BifrostSocket>,
+    pong_flag: &AtomicBool,
     text: &str,
 ) {
     let decoded = match serde_json::from_str::<Value>(text) {
@@ -157,7 +160,7 @@ async fn dispatch_frame(
 async fn handle_rpc(
     server: &Arc<Server>,
     node: &Arc<ClientNode>,
-    socket: &Arc<AxumSocket>,
+    socket: &Arc<dyn BifrostSocket>,
     id: String,
     method: String,
     params: Value,
@@ -196,7 +199,7 @@ async fn handle_rpc(
 }
 
 async fn send_rpc_error(
-    socket: &Arc<AxumSocket>,
+    socket: &Arc<dyn BifrostSocket>,
     id: &str,
     message: &str,
     errors: Option<Vec<String>>,

@@ -16,3 +16,5 @@ uuid = { workspace = true }
 tracing = { workspace = true }
 futures = { workspace = true }
 async-trait = "0.1"
+
+[dev-dependencies]
