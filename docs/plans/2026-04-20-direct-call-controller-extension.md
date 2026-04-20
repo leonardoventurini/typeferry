@@ -27,6 +27,31 @@ Bifrost is the correct home for the reusable layer because it already owns:
 
 Bifrost should not own application-specific friend lists, conversations, or UI. The extension should own call mechanics and provide typed seams where the app supplies domain policy.
 
+## Assumption Validation Pass
+
+These assumptions were checked against the current Bifrost repository before
+this revision:
+
+- `bifrost-ts/tsconfig.build.json` already includes `src/**/*`, so adding
+  `src/calls/**` does not require a tsconfig include change.
+- `bun run typecheck` currently succeeds in `bifrost-ts/`, so the package is
+  in a clean TypeScript baseline for this plan.
+- `bun run test:unit -- src/lit/internal.unit.spec.ts` runs only the filtered
+  test file and passes, so the command style used throughout this plan is
+  valid for targeted verification.
+- `Client.channel(name)` returns `ClientChannel | Client | null`; it returns
+  `null` for invalid/falsy names. The Bifrost transport must guard that case
+  instead of assuming a channel object.
+- Existing Lit controllers that bind a client extend
+  `BifrostClientBoundController` and call `bindClient()` from
+  `hostConnected()`/`hostUpdate()`. The DirectCall Lit adapter must follow that
+  pattern; `afterClientChange()` will not run unless the adapter binds.
+- Bifrost server channels warn for unregistered events. The server helper or
+  documentation must include direct-call event registration guidance.
+- The generic server helper cannot prove application authorization by itself.
+  Authorization tests must use a concrete example namespace with app-supplied
+  `authorizeSession`/`getSessionPeerId` callbacks.
+
 ## Product Requirements
 
 The extension must support these behaviors:
@@ -109,18 +134,22 @@ const controller = new DirectCallController({
 })
 ```
 
-Lit consumers use:
+Lit consumers use the same constructor shape as Bifrost's other
+client-bound Lit controllers: host, client source, then controller options.
 
 ```ts
 import { BifrostDirectCallController } from '@example-app/bifrost/lit'
 
 class CallPanel extends LitElement {
-  private readonly calls = new BifrostDirectCallController(this, {
-    client: () => this.client,
-    peerId: () => this.peerId,
-    contextId: () => this.conversationId,
-    transport: this.transportOptions,
-  })
+  private readonly calls = new BifrostDirectCallController(
+    this,
+    () => this.client,
+    {
+      contextId: () => this.conversationId,
+      peerId: () => this.peerId,
+      transport: this.transportOptions,
+    },
+  )
 }
 ```
 
@@ -417,7 +446,9 @@ The controller implements perfect negotiation internally:
 - answerer is polite
 - `makingOffer` guards local offer creation
 - collisions are ignored only by the impolite peer
-- rollback is used only if the browser supports the current description type
+- polite collision handling must be covered by tests; use the browser's
+  `setRemoteDescription(offer)` collision behavior where supported, and only
+  add explicit rollback if a target browser test proves it is necessary
 - ICE candidates received before `remoteDescription` are queued
 - camera changes call `replaceTrack` on the reserved video sender
 - the video transceiver is reserved before the initial offer
@@ -428,9 +459,9 @@ The initial setup sequence must be:
 
 ```ts
 const session = await transport.start({ contextId, peerId })
+// createPeerConnection reserves the video transceiver before any offer.
 const connection = createPeerConnection(session, { polite: false })
 await attachLocalAudio(connection)
-reserveVideoTransceiver(connection)
 await sendOffer(connection, session)
 ```
 
@@ -476,6 +507,7 @@ Create or modify these files:
 - Create `bifrost-ts/src/calls/direct-call-controller.unit.spec.ts` for state-machine and fake WebRTC tests.
 - Create `bifrost-ts/src/calls/bifrost-transport.unit.spec.ts` for transport method/event wiring.
 - Create `bifrost-ts/src/calls/server.ts` for generic server helper types and schemas.
+- Create `bifrost-ts/src/calls/server.unit.spec.ts` for schemas and event helper tests.
 - Create `bifrost-ts/src/calls/server.integration.spec.ts` for route/auth helper tests.
 - Create `bifrost-ts/src/lit/direct-call-controller.ts` for the Lit wrapper.
 - Modify `bifrost-ts/src/lit/index.ts` to export the Lit wrapper.
@@ -632,36 +664,38 @@ export interface DirectCallControllerOptions {
   ) => Promise<MediaStream>
 }
 
-const initialState: DirectCallState = {
-  activeSession: null,
-  cameraStatus: 'off',
-  diagnostics: {
-    answerCount: 0,
-    candidateCount: 0,
-    connectionState: null,
-    iceConnectionState: null,
-    lastErrorAt: null,
-    lastNegotiationAt: null,
-    lastSignalAt: null,
-    offerCount: 0,
-    pendingIceCandidateCount: 0,
-    pendingSignalCount: 0,
-    signalingState: null,
-  },
-  error: null,
-  incomingSession: null,
-  localAudioStream: null,
-  localVideoStream: null,
-  muted: false,
-  remoteStream: null,
-  status: 'idle',
+export function createInitialDirectCallState(): DirectCallState {
+  return {
+    activeSession: null,
+    cameraStatus: 'off',
+    diagnostics: {
+      answerCount: 0,
+      candidateCount: 0,
+      connectionState: null,
+      iceConnectionState: null,
+      lastErrorAt: null,
+      lastNegotiationAt: null,
+      lastSignalAt: null,
+      offerCount: 0,
+      pendingIceCandidateCount: 0,
+      pendingSignalCount: 0,
+      signalingState: null,
+    },
+    error: null,
+    incomingSession: null,
+    localAudioStream: null,
+    localVideoStream: null,
+    muted: false,
+    remoteStream: null,
+    status: 'idle',
+  }
 }
 
 export class DirectCallController {
   private readonly transport: DirectCallSignalingTransport
   private readonly listeners = new Set<DirectCallStateListener>()
   private unsubscribe: (() => void) | null = null
-  private currentState: DirectCallState = initialState
+  private currentState: DirectCallState = createInitialDirectCallState()
 
   constructor(options: DirectCallControllerOptions) {
     this.transport = options.transport
@@ -698,14 +732,7 @@ export class DirectCallController {
   }
 
   private reset(_reason: string): void {
-    this.setState({
-      activeSession: null,
-      incomingSession: null,
-      localAudioStream: null,
-      localVideoStream: null,
-      remoteStream: null,
-      status: 'idle',
-    })
+    this.setState(createInitialDirectCallState())
   }
 }
 ```
@@ -769,29 +796,48 @@ it('sends an initial offer during startCall without waiting for negotiationneede
 ```
 
 ```ts
-it('publishes a new remote stream snapshot when a later video track arrives', () => {
+it('publishes a new remote stream snapshot when a later video track arrives', async () => {
   const transport = createTransport()
+  vi.mocked(transport.start).mockResolvedValue({
+    callId: 'call-1',
+    contextId: 'conversation-1',
+    callerId: 'user-1',
+    recipientId: 'user-2',
+    createdAt: new Date('2026-04-20T12:00:00.000Z'),
+  })
+  const connection = new FakePeerConnection()
   const controller = new DirectCallController({
-    getPeerConnection: () => new FakePeerConnection() as unknown as RTCPeerConnection,
+    contextId: 'conversation-1',
+    getPeerConnection: () => connection as unknown as RTCPeerConnection,
+    getUserMedia: async () => createAudioStream(),
+    peerId: 'user-2',
     transport,
   })
   const states: DirectCallState[] = []
   controller.subscribe(state => states.push(state))
 
+  await controller.startCall()
   const peerStream = new MediaStream()
-  controller.testOnlyHandleRemoteTrack(peerStream, createAudioTrack())
+  connection.ontrack?.({
+    streams: [peerStream],
+    track: createAudioTrack(),
+  } as unknown as RTCTrackEvent)
   const first = controller.state.remoteStream
 
   const videoTrack = createVideoTrack()
   peerStream.addTrack(videoTrack)
-  controller.testOnlyHandleRemoteTrack(peerStream, videoTrack)
+  connection.ontrack?.({
+    streams: [peerStream],
+    track: videoTrack,
+  } as unknown as RTCTrackEvent)
 
   expect(controller.state.remoteStream).not.toBe(first)
   expect(controller.state.remoteStream?.getVideoTracks()).toContain(videoTrack)
 })
 ```
 
-The `testOnlyHandleRemoteTrack` helper may be an internal exported test helper instead of a public method. Do not expose it from `@example-app/bifrost/calls`.
+Prefer exercising remote track behavior through the fake peer connection's
+`ontrack` callback rather than adding public controller methods for tests.
 
 - [ ] **Step 2: Implement WebRTC conversion helpers**
 
@@ -961,7 +1007,7 @@ Expected: all tests pass.
 - [ ] **Step 1: Define transport options**
 
 ```ts
-import type { Client } from '../client'
+import type { Client, ClientChannel } from '../client'
 
 export interface BifrostDirectCallTransportEvents {
   incoming: string
@@ -996,10 +1042,22 @@ export function createBifrostDirectCallTransport(
 ): DirectCallSignalingTransport {
   const getClient = (): Client =>
     typeof options.client === 'function' ? options.client() : options.client
+  const events = [
+    options.events.incoming,
+    options.events.answered,
+    options.events.declined,
+    options.events.ended,
+    options.events.signal,
+  ]
+  const hasListeners = (channel: ClientChannel, event: string): boolean => {
+    const listeners = channel._events?.[event]
+    return Array.isArray(listeners) ? listeners.length > 0 : !!listeners
+  }
 
   return {
     selfId: options.selfId,
-    start: params => getClient().call(options.methods.start, params),
+    start: params =>
+      getClient().call(options.methods.start, params) as Promise<DirectCallSession>,
     answer: async params => {
       await getClient().call(options.methods.answer, params)
     },
@@ -1017,19 +1075,14 @@ export function createBifrostDirectCallTransport(
       if (!selfId) return () => undefined
 
       const channel = getClient().channel(options.getUserChannel(selfId))
+      if (!channel) return () => undefined
       channel.on(options.events.incoming, handlers.incoming)
       channel.on(options.events.answered, handlers.answered)
       channel.on(options.events.declined, handlers.declined)
       channel.on(options.events.ended, handlers.ended)
       channel.on(options.events.signal, handlers.signal)
 
-      void channel.subscribe([
-        options.events.incoming,
-        options.events.answered,
-        options.events.declined,
-        options.events.ended,
-        options.events.signal,
-      ])
+      void channel.subscribe(events)
 
       return () => {
         channel.off(options.events.incoming, handlers.incoming)
@@ -1037,13 +1090,11 @@ export function createBifrostDirectCallTransport(
         channel.off(options.events.declined, handlers.declined)
         channel.off(options.events.ended, handlers.ended)
         channel.off(options.events.signal, handlers.signal)
-        void channel.unsubscribe([
-          options.events.incoming,
-          options.events.answered,
-          options.events.declined,
-          options.events.ended,
-          options.events.signal,
-        ])
+
+        const unusedEvents = events.filter(event => !hasListeners(channel, event))
+        if (unusedEvents.length > 0) {
+          void channel.unsubscribe(unusedEvents)
+        }
       }
     },
   }
@@ -1052,21 +1103,29 @@ export function createBifrostDirectCallTransport(
 
 - [ ] **Step 3: Test method and event wiring**
 
-Test that `start`, `answer`, `decline`, `end`, and `signal` call the configured method names with unchanged params, and that `subscribe` binds all five configured event names to the configured channel.
+Test that `start`, `answer`, `decline`, `end`, and `signal` call the
+configured method names with unchanged params, that `subscribe` binds all five
+configured event names to the configured channel, that a `null` channel is a
+no-op unsubscribe, and that one controller unsubscribing does not remove server
+subscriptions while another local listener for the same event remains.
 
 ## Task 5: Generic Server Helper
 
 **Files:**
 - Create: `bifrost-ts/src/calls/server.ts`
+- Create: `bifrost-ts/src/calls/server.unit.spec.ts`
 - Create: `bifrost-ts/src/calls/server.integration.spec.ts`
 
 **Execution:**
 - Owner: `worker`
 - Support: `reviewer`
 - Risk: `high`
-- Verification: `cd bifrost-ts && bun run test:integration -- src/calls/server.integration.spec.ts`
+- Verification: `cd bifrost-ts && bun run test:unit -- src/calls/server.unit.spec.ts && bun run test:integration -- src/calls/server.integration.spec.ts`
 
-Server helpers must not assume conversations or friends. They provide schemas and an embeddable router class.
+Server helpers must not assume conversations or friends. They provide schemas,
+event registration helpers, and example-safe emit helpers. The concrete
+namespace still belongs to the application because the application owns session
+storage and authorization policy.
 
 ```ts
 export interface DirectCallServerContext<TClient, TSession> {
@@ -1084,6 +1143,27 @@ export interface DirectCallServerContext<TClient, TSession> {
 The helper should expose utility functions rather than force decorator magic:
 
 ```ts
+export interface DirectCallServerEvents {
+  incoming: string
+  answered: string
+  declined: string
+  ended: string
+  signal: string
+}
+
+export function registerDirectCallEvents(
+  server: { channel: (name: string) => { addEvent: (event: string) => void } },
+  channelName: string,
+  events: DirectCallServerEvents,
+): void {
+  const channel = server.channel(channelName)
+  channel.addEvent(events.incoming)
+  channel.addEvent(events.answered)
+  channel.addEvent(events.declined)
+  channel.addEvent(events.ended)
+  channel.addEvent(events.signal)
+}
+
 export function emitDirectCallSession(
   server: { channel: (name: string) => { emit: (event: string, value: unknown) => void } },
   channel: string,
@@ -1121,10 +1201,15 @@ class DirectCallMethods {
 
 Tests must prove:
 
+- schema unit tests accept valid SDP/candidate payloads and reject malformed
+  payloads
+- `registerDirectCallEvents` registers all five configured event names on the
+  supplied channel
 - outsider clients cannot answer, signal, or end sessions they are not authorized to access
 - signal payloads are emitted only to the resolved peer
 - app-supplied `getUserChannel` is honored
-- schemas reject malformed SDP and candidate payloads
+- the integration test defines a tiny example namespace using the helper
+  callbacks; do not test authorization against the helper alone
 
 ## Task 6: Lit Adapter
 
@@ -1142,11 +1227,14 @@ Tests must prove:
 Implement `BifrostDirectCallController` as a thin `ReactiveController`:
 
 ```ts
-export class BifrostDirectCallController
-  extends BifrostClientBoundController
-  implements DirectCallState
-{
+export interface BifrostDirectCallLitOptions
+  extends Omit<DirectCallControllerOptions, 'transport'> {
+  transport: Omit<BifrostDirectCallTransportOptions, 'client'>
+}
+
+export class BifrostDirectCallController extends BifrostClientBoundController {
   private controller: DirectCallController | null = null
+  private unsubscribeState: (() => void) | null = null
   private snapshot: DirectCallState = createInitialDirectCallState()
 
   constructor(
@@ -1156,6 +1244,10 @@ export class BifrostDirectCallController
   ) {
     super(host, client)
     this.attach()
+  }
+
+  get state(): DirectCallState {
+    return this.snapshot
   }
 
   get status(): DirectCallStatus {
@@ -1170,8 +1262,21 @@ export class BifrostDirectCallController
     return this.requireController().toggleCamera()
   }
 
+  hostConnected(): void {
+    this.bindClient()
+  }
+
+  hostUpdate(): void {
+    this.bindClient()
+  }
+
+  hostDisconnected(): void {
+    this.disposeController()
+    super.hostDisconnected()
+  }
+
   protected afterClientChange(): void {
-    this.controller?.dispose()
+    this.disposeController()
     this.controller = new DirectCallController({
       ...this.options,
       transport: createBifrostDirectCallTransport({
@@ -1179,10 +1284,24 @@ export class BifrostDirectCallController
         client: () => this.resolveClient(),
       }),
     })
-    this.controller.subscribe(state => {
+    this.unsubscribeState = this.controller.subscribe(state => {
       this.snapshot = state
       this.requestUpdate()
     })
+  }
+
+  private requireController(): DirectCallController {
+    if (!this.controller) this.bindClient()
+    if (!this.controller) throw new Error('DirectCallController not ready')
+    return this.controller
+  }
+
+  private disposeController(): void {
+    this.unsubscribeState?.()
+    this.unsubscribeState = null
+    this.controller?.dispose()
+    this.controller = null
+    this.snapshot = createInitialDirectCallState()
   }
 }
 ```
@@ -1208,11 +1327,18 @@ Tests must prove:
 - Risk: `medium`
 - Verification: `cd bifrost-ts && bun run test:unit -- src/react/hooks/use-direct-call.unit.spec.tsx`
 
-Implement a hook that creates exactly one core controller per stable transport/options identity and subscribes via `useSyncExternalStore`:
+Implement a hook that creates exactly one core controller per stable
+transport/options identity and subscribes via `useSyncExternalStore`. Because
+React callers often allocate option objects inline, the hook must either require
+a stable `controllerKey` or normalize primitive option fields into an internal
+key. Prefer an explicit `controllerKey` for call contexts.
 
 ```ts
 export function useDirectCall(options: UseDirectCallOptions): DirectCallControllerView {
   const client = useClient()
+  const controllerKey =
+    options.controllerKey ??
+    `${options.contextId ?? ''}:${options.peerId ?? ''}:${options.transportKey ?? 'default'}`
   const controller = useMemo(
     () =>
       new DirectCallController({
@@ -1222,7 +1348,7 @@ export function useDirectCall(options: UseDirectCallOptions): DirectCallControll
           client,
         }),
       }),
-    [client, options.contextId, options.peerId, options.transport],
+    [client, controllerKey],
   )
 
   useEffect(() => () => controller.dispose(), [controller])
@@ -1248,9 +1374,15 @@ export function useDirectCall(options: UseDirectCallOptions): DirectCallControll
 Tests must prove:
 
 - rerenders do not create a new controller when options are stable
+- rerenders with an inline options object do not recreate the controller when
+  `controllerKey` is unchanged
+- changing `controllerKey` disposes the previous controller and creates the next
+  controller
+- changing `transportKey` recreates the controller when method names, event
+  names, channel derivation, or ICE configuration change
 - unmount calls `dispose`
 - state updates propagate to hook consumers
-- unstable object options are documented as caller responsibility or normalized internally with a stable key
+- changing the Bifrost client disposes and recreates the controller
 
 ## Task 8: Browser-Level Media Tests
 
@@ -1413,3 +1545,14 @@ Risk review:
 Revision applied:
 
 - The original instinct to put all server behavior behind generated decorators was rejected. Bifrost can provide schemas and helpers, but applications must retain domain authorization and session ownership.
+- The Lit adapter sketch was revised to match the current
+  `BifrostClientBoundController` lifecycle; it now binds in
+  `hostConnected()`/`hostUpdate()` and exposes `state` instead of pretending to
+  implement every `DirectCallState` field.
+- The Bifrost transport sketch now accounts for `Client.channel()` returning
+  `null` and unsubscribes only from events with no remaining local listeners.
+- The remote-track regression test now drives the fake peer connection's
+  `ontrack` callback rather than adding public test-only controller methods.
+- The React adapter now requires a stable `controllerKey`/`transportKey`
+  boundary so inline options do not accidentally recreate live peer
+  connections.
