@@ -10,6 +10,7 @@ members = [
     "crates/bifrost-auth",
     "crates/bifrost-macros",
     "crates/bifrost-conformance-server",
+    "crates/bifrost-conformance",
 ]
 
 [workspace.package]
@@ -24,7 +25,7 @@ authors = ["Leonardo Venturini"]
 # opt in via their own Cargo.toml.
 tokio = { version = "1.47", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+serde_json = { version = "1.0", features = ["preserve_order"] }
 thiserror = "2.0"
 futures = "0.3"
 tracing = "0.1"
@@ -32,6 +33,7 @@ anyhow = "1.0"
 uuid = { version = "1.13", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 base64 = "0.22"
+indexmap = { version = "2", features = ["serde"] }
 axum = "0.8"
 tower = "0.5"
 tower-http = { version = "0.6", features = ["cors"] }

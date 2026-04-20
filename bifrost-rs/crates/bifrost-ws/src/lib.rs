@@ -107,7 +107,7 @@ async fn handle_connection(
     let ping_task = tokio::spawn(async move {
         let interval = Duration::from_millis(PING_INTERVAL_MS);
         let payload = Presentation::encode(&EjsonValue::Object({
-            let mut m = std::collections::BTreeMap::new();
+            let mut m = bifrost_ejson::value::EjsonMap::new();
             m.insert(
                 "t".into(),
                 EjsonValue::String(MessageType::Ping.as_str().into()),

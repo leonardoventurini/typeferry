@@ -1,0 +1,26 @@
+[package]
+name = "bifrost-conformance"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Replay shared docs/conformance fixtures against the Rust runtime"
+publish = false
+
+[dependencies]
+bifrost-ejson = { path = "../bifrost-ejson" }
+bifrost-protocol = { path = "../bifrost-protocol" }
+bifrost-runtime = { path = "../bifrost-runtime" }
+bifrost-http = { path = "../bifrost-http" }
+bifrost-ws = { path = "../bifrost-ws" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+futures = { workspace = true }
+tokio = { workspace = true }
+
+[dev-dependencies]
+axum = { workspace = true }
+tower = { workspace = true, features = ["util"] }
+http-body-util = "0.1"
+tokio-tungstenite = { workspace = true }
+url = "2"

@@ -4,7 +4,14 @@
 //! typed binary without help).
 
 use chrono::{DateTime, Utc};
-use std::collections::BTreeMap;
+use indexmap::IndexMap;
+
+/// Insertion-order-preserving map used for `EjsonValue::Object` so the
+/// encoder emits keys in the order they were inserted — matching the
+/// TS / Python wire output. Switching to `BTreeMap` would alphabetize
+/// keys and break byte-level wire parity for any object whose keys
+/// aren't already sorted.
+pub type EjsonMap = IndexMap<String, EjsonValue>;
 
 /// A value that can be converted to/from an EJSON-tagged
 /// `serde_json::Value`.
@@ -16,7 +23,7 @@ pub enum EjsonValue {
     Float(f64),
     String(String),
     Array(Vec<EjsonValue>),
-    Object(BTreeMap<String, EjsonValue>),
+    Object(EjsonMap),
     /// JS `Date` — always treated as UTC (JS Date has no timezone).
     Date(DateTime<Utc>),
     /// JS `Uint8Array` / Node `Buffer`.

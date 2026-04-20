@@ -140,7 +140,7 @@ fn decode_object(map: &Map<String, Value>) -> EjsonValue {
             return decoded;
         }
     }
-    let mut out = std::collections::BTreeMap::new();
+    let mut out = crate::value::EjsonMap::new();
     for (k, v) in map {
         out.insert(k.clone(), from_json_value(v));
     }
@@ -180,7 +180,7 @@ fn decode_tag(map: &Map<String, Value>) -> Option<EjsonValue> {
     if let Some(inner) = map.get("$escape").and_then(|v| v.as_object())
         && map.len() == 1
     {
-        let mut out = std::collections::BTreeMap::new();
+        let mut out = crate::value::EjsonMap::new();
         for (k, v) in inner {
             out.insert(k.clone(), from_json_value(v));
         }
@@ -198,7 +198,7 @@ fn decode_tag(map: &Map<String, Value>) -> Option<EjsonValue> {
     None
 }
 
-fn looks_like_tag_form(map: &std::collections::BTreeMap<String, EjsonValue>) -> bool {
+fn looks_like_tag_form(map: &crate::value::EjsonMap) -> bool {
     if map.len() > 2 || map.is_empty() {
         return false;
     }

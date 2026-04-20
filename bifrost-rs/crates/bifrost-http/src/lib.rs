@@ -60,7 +60,9 @@ async fn handle_rpc(
     let is_void = matches!(payload.get("void"), Some(EjsonValue::Bool(true)));
 
     let Some(method) = server.get_method(&method_name) else {
-        return error_response(METHOD_NOT_FOUND, uuid, Some(&method_name), is_void);
+        // METHOD_NOT_FOUND envelope carries `method` only (no uuid),
+        // matching TS sendError behaviour.
+        return error_response(METHOD_NOT_FOUND, None, Some(&method_name), is_void);
     };
 
     // Build the client node with headers + auth context.
@@ -103,7 +105,8 @@ async fn handle_rpc(
     node.set_context(auth_result);
 
     if method.is_protected && !node.is_authenticated() {
-        return error_response(METHOD_FORBIDDEN, uuid, Some(&method_name), is_void);
+        // METHOD_FORBIDDEN envelope carries `method` only (no uuid).
+        return error_response(METHOD_FORBIDDEN, None, Some(&method_name), is_void);
     }
 
     let params_json = payload
@@ -113,26 +116,41 @@ async fn handle_rpc(
 
     let outcome = method.exec(params_json, node).await;
 
-    if is_void {
-        return empty_200();
-    }
-
     match outcome {
+        // Per PROTOCOL.md §2.1.3, void suppresses error responses ONLY;
+        // success bodies still return.
         Ok(result) => success_response(&method_name, uuid.as_deref(), &result),
+
+        // PublicError envelope carries `uuid`, no `method` — matches TS sendError.
         Err(BifrostError::Public(public)) => {
-            error_response(&public.message, uuid, Some(&method_name), false)
+            if is_void {
+                return empty_200();
+            }
+            error_response(&public.message, uuid, None, false)
         }
+
+        // SchemaValidationError envelope carries `uuid` + `errors`, no `method`.
         Err(BifrostError::Schema(err)) => {
-            let body = serde_json::json!({
-                "type": PayloadType::Error,
-                "message": err.message,
-                "uuid": uuid,
-                "method": method_name,
-                "errors": err.errors,
-            });
-            json_response(&body)
+            if is_void {
+                return empty_200();
+            }
+            let mut body = serde_json::Map::new();
+            body.insert("type".into(), Value::String("error".into()));
+            body.insert("message".into(), Value::String(err.message.clone()));
+            if let Some(u) = uuid.as_ref() {
+                body.insert("uuid".into(), Value::String(u.clone()));
+            }
+            body.insert("errors".into(), serde_json::to_value(&err.errors).unwrap());
+            json_response(&Value::Object(body))
         }
-        Err(_) => error_response(INTERNAL_ERROR, uuid, Some(&method_name), false),
+
+        // Unknown errors → INTERNAL_ERROR with uuid only.
+        Err(_) => {
+            if is_void {
+                return empty_200();
+            }
+            error_response(INTERNAL_ERROR, uuid, None, false)
+        }
     }
 }
 
@@ -145,13 +163,16 @@ fn empty_200() -> Response {
 }
 
 fn success_response(method: &str, uuid: Option<&str>, result: &Value) -> Response {
-    let body = json!({
-        "type": PayloadType::Result,
-        "uuid": uuid,
-        "method": method,
-        "result": result,
-    });
-    json_response(&body)
+    // Build the envelope manually so a missing uuid is OMITTED rather
+    // than serialized as null — matches TS / Python wire output.
+    let mut body = serde_json::Map::new();
+    body.insert("type".into(), Value::String("result".into()));
+    body.insert("method".into(), Value::String(method.to_string()));
+    body.insert("result".into(), result.clone());
+    if let Some(u) = uuid {
+        body.insert("uuid".into(), Value::String(u.to_string()));
+    }
+    json_response(&Value::Object(body))
 }
 
 fn error_response(
@@ -163,17 +184,16 @@ fn error_response(
     if is_void {
         return empty_200();
     }
-    let mut body = json!({
-        "type": PayloadType::Error,
-        "message": message,
-    });
+    let mut body = serde_json::Map::new();
+    body.insert("type".into(), Value::String("error".into()));
+    body.insert("message".into(), Value::String(message.to_string()));
     if let Some(u) = uuid {
-        body["uuid"] = Value::String(u);
+        body.insert("uuid".into(), Value::String(u));
     }
     if let Some(m) = method {
-        body["method"] = Value::String(m.to_string());
+        body.insert("method".into(), Value::String(m.to_string()));
     }
-    json_response(&body)
+    json_response(&Value::Object(body))
 }
 
 fn json_response(body: &Value) -> Response {

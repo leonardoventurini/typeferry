@@ -6,7 +6,7 @@ use super::*;
 use crate::base64::{decode, encode};
 use crate::value::{EjsonValue, InfNaNSign};
 use chrono::{TimeZone, Utc};
-use std::collections::BTreeMap;
+use crate::value::EjsonMap as BTreeMap;
 
 #[test]
 fn base64_round_trip_matches_mime_alphabet() {

@@ -85,8 +85,9 @@ async fn method_not_found_echoes_method_name() {
     )
     .await;
     assert_eq!(body["message"], "Method Not Found");
-    assert_eq!(body["uuid"], "c1");
+    // METHOD_NOT_FOUND envelope carries `method`, no `uuid` (TS parity).
     assert_eq!(body["method"], "nope");
+    assert_eq!(body.get("uuid"), None);
 }
 
 #[tokio::test]
@@ -137,7 +138,9 @@ async fn public_error_passes_through() {
 }
 
 #[tokio::test]
-async fn void_call_suppresses_result_body() {
+async fn void_does_not_suppress_success_body() {
+    // Per PROTOCOL.md §2.1.3 / TS+Python parity: void on HTTP suppresses
+    // error responses ONLY. Success bodies still return.
     let server = build_server();
     let handler = Arc::new(|_n: Arc<ClientNode>, _p: Value| {
         async move { Ok(json!("ignored")) }.boxed()
@@ -151,8 +154,8 @@ async fn void_call_suppresses_result_body() {
     )
     .await;
     assert_eq!(status, StatusCode::OK);
-    // Empty body decoded to Null.
-    assert_eq!(body, Value::Null);
+    assert_eq!(body["type"], "result");
+    assert_eq!(body["result"], "ignored");
 }
 
 #[tokio::test]
