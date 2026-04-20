@@ -5,6 +5,7 @@
 
 pub mod client_node;
 pub mod context;
+pub(crate) mod default_methods;
 pub mod error;
 pub mod event;
 pub mod method;

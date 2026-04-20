@@ -148,4 +148,37 @@ describeIf('JS client ↔ Rust server (cross-language integration)', () => {
       await client.close()
     }
   })
+
+  it('subscribes via rpc:on and receives a server-emitted event', async () => {
+    const client = await newClient()
+    try {
+      const channel = client.channel('room-rs')
+      const received: any[] = []
+      const seen = new Promise<void>(resolve => {
+        channel.on('ping.tick', (payload: any) => {
+          received.push(payload)
+          resolve()
+        })
+      })
+      await channel.subscribe('ping.tick')
+
+      await client.call('emit_ping', {
+        channel: 'room-rs',
+        params: { n: 7 },
+      })
+
+      // Wait up to 2s for the event to land.
+      await Promise.race([
+        seen,
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('event never arrived')), 2000),
+        ),
+      ])
+      expect(received).toEqual([{ n: 7 }])
+
+      await channel.unsubscribe('ping.tick')
+    } finally {
+      await client.close()
+    }
+  })
 })

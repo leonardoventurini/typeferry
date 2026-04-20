@@ -9,7 +9,8 @@ use std::sync::Arc;
 
 use axum::Router;
 use bifrost_runtime::{
-    BoxResult, ClientNode, MethodOptions, Server, ServerOptions,
+    BoxResult, ClientNode, EventOptions, MethodOptions, Server, ServerOptions,
+    event::Event,
 };
 use futures::FutureExt as _;
 use serde_json::{Value, json};
@@ -80,6 +81,49 @@ async fn main() -> std::io::Result<()> {
             ..Default::default()
         },
     );
+
+    // Declare a public event the JS client can subscribe to.
+    server.add_event(Event::new("ping.tick", EventOptions::default()));
+
+    // emit_ping: server-side helper that fires `ping.tick` on the
+    // requested channel with the supplied params, so the cross-lang
+    // test can prove a subscribe + emit round-trip end-to-end.
+    {
+        let server_for_emit = server.clone();
+        server.add_method(
+            "emit_ping",
+            Arc::new(move |_node, params: Value| {
+                let server = server_for_emit.clone();
+                async move {
+                    let channel = params
+                        .get("channel")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    let body = params
+                        .get("params")
+                        .cloned()
+                        .unwrap_or(Value::Null);
+                    if let Some(event) = server
+                        .events
+                        .read()
+                        .ok()
+                        .and_then(|m| m.get("ping.tick").cloned())
+                    {
+                        let (payload, exclude) =
+                            event.encode_payload(&channel, &body);
+                        server
+                            .channel(&channel)
+                            .propagate("ping.tick", &payload, exclude.and_then(|_| None))
+                            .await;
+                    }
+                    Ok::<Value, _>(json!(true)) as BoxResult
+                }
+                .boxed()
+            }),
+            MethodOptions::default(),
+        );
+    }
 
     // Combine the HTTP + WS routers under one axum Router.
     let http = bifrost_http::router(server.clone());

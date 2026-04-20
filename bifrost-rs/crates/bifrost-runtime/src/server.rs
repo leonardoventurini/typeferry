@@ -79,6 +79,9 @@ impl Server {
             .expect("channels poisoned")
             .insert(NO_CHANNEL.to_string(), anchor);
 
+        // Auto-register the protocol's default methods. PROTOCOL.md §7.
+        crate::default_methods::register(&server);
+
         server
     }
 
