@@ -16,7 +16,7 @@ quote = "1"
 syn = { version = "2", features = ["full"] }
 
 [dev-dependencies]
-bifrost-runtime = { path = "../bifrost-runtime" }
+bifrost-runtime = { workspace = true }
 tokio = { workspace = true }
 serde_json = { workspace = true }
 futures = { workspace = true }

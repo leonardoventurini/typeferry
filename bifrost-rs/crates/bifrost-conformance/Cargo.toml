@@ -7,11 +7,11 @@ description = "Replay shared docs/conformance fixtures against the Rust runtime"
 publish = false
 
 [dependencies]
-bifrost-ejson = { path = "../bifrost-ejson" }
-bifrost-protocol = { path = "../bifrost-protocol" }
-bifrost-runtime = { path = "../bifrost-runtime" }
-bifrost-http = { path = "../bifrost-http" }
-bifrost-ws = { path = "../bifrost-ws" }
+bifrost-ejson = { workspace = true }
+bifrost-protocol = { workspace = true }
+bifrost-runtime = { workspace = true }
+bifrost-http = { workspace = true }
+bifrost-ws = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 chrono = { workspace = true }

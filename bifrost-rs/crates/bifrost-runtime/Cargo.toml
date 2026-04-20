@@ -8,8 +8,8 @@ publish.workspace = true
 description = "Server runtime: methods, events, rooms, context, client nodes"
 
 [dependencies]
-bifrost-ejson = { path = "../bifrost-ejson" }
-bifrost-protocol = { path = "../bifrost-protocol" }
+bifrost-ejson = { workspace = true }
+bifrost-protocol = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

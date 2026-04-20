@@ -10,14 +10,14 @@ keywords = ["rpc", "websocket", "ejson", "axum", "realtime"]
 categories = ["network-programming", "web-programming", "asynchronous"]
 
 [dependencies]
-bifrost-protocol = { path = "../bifrost-protocol", version = "0.0.1" }
-bifrost-ejson    = { path = "../bifrost-ejson",    version = "0.0.1" }
-bifrost-runtime  = { path = "../bifrost-runtime",  version = "0.0.1" }
-bifrost-http     = { path = "../bifrost-http",     version = "0.0.1", optional = true }
-bifrost-ws       = { path = "../bifrost-ws",       version = "0.0.1", optional = true }
-bifrost-redis    = { path = "../bifrost-redis",    version = "0.0.1", optional = true }
-bifrost-auth     = { path = "../bifrost-auth",     version = "0.0.1", optional = true }
-bifrost-macros   = { path = "../bifrost-macros",   version = "0.0.1", optional = true }
+bifrost-protocol = { workspace = true }
+bifrost-ejson = { workspace = true }
+bifrost-runtime = { workspace = true }
+bifrost-http = { workspace = true, optional = true }
+bifrost-ws = { workspace = true, optional = true }
+bifrost-redis = { workspace = true, optional = true }
+bifrost-auth = { workspace = true, optional = true }
+bifrost-macros = { workspace = true, optional = true }
 
 [features]
 default = ["http", "ws", "macros"]

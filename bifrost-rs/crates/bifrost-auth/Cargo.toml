@@ -8,7 +8,7 @@ publish.workspace = true
 description = "JWT, cookies, sessions, OAuth for Bifrost"
 
 [dependencies]
-bifrost-protocol = { path = "../bifrost-protocol" }
+bifrost-protocol = { workspace = true }
 jsonwebtoken = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

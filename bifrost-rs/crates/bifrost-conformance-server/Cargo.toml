@@ -11,10 +11,10 @@ name = "bifrost-conformance-server"
 path = "src/main.rs"
 
 [dependencies]
-bifrost-ejson = { path = "../bifrost-ejson" }
-bifrost-runtime = { path = "../bifrost-runtime" }
-bifrost-http = { path = "../bifrost-http" }
-bifrost-ws = { path = "../bifrost-ws" }
+bifrost-ejson = { workspace = true }
+bifrost-runtime = { workspace = true }
+bifrost-http = { workspace = true }
+bifrost-ws = { workspace = true }
 axum = { workspace = true }
 tokio = { workspace = true }
 serde_json = { workspace = true }

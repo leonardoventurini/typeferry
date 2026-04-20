@@ -8,9 +8,9 @@ publish.workspace = true
 description = "Redis multi-instance transport for Bifrost"
 
 [dependencies]
-bifrost-ejson = { path = "../bifrost-ejson" }
-bifrost-protocol = { path = "../bifrost-protocol" }
-bifrost-runtime = { path = "../bifrost-runtime" }
+bifrost-ejson = { workspace = true }
+bifrost-protocol = { workspace = true }
+bifrost-runtime = { workspace = true }
 redis = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
