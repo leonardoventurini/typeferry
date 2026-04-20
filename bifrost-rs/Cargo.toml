@@ -1,0 +1,39 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/bifrost-ejson",
+    "crates/bifrost-protocol",
+    "crates/bifrost-runtime",
+    "crates/bifrost-http",
+    "crates/bifrost-ws",
+    "crates/bifrost-redis",
+    "crates/bifrost-auth",
+]
+
+[workspace.package]
+version = "0.0.1"
+edition = "2024"
+license = "UNLICENSED"
+repository = "https://github.com/example-app/bifrost"
+authors = ["Leonardo Venturini"]
+
+[workspace.dependencies]
+# Shared runtime dependencies. Pin conservatively; individual crates
+# opt in via their own Cargo.toml.
+tokio = { version = "1.47", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0"
+futures = "0.3"
+tracing = "0.1"
+anyhow = "1.0"
+uuid = { version = "1.13", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+base64 = "0.22"
+axum = "0.8"
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors"] }
+tokio-tungstenite = "0.27"
+redis = { version = "0.32", features = ["tokio-comp"] }
+jsonwebtoken = "9.3"
+reqwest = { version = "0.12", features = ["json"] }

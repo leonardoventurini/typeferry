@@ -1,0 +1,18 @@
+[package]
+name = "bifrost-runtime"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Server runtime: methods, events, rooms, context, client nodes"
+
+[dependencies]
+bifrost-ejson = { path = "../bifrost-ejson" }
+bifrost-protocol = { path = "../bifrost-protocol" }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+tracing = { workspace = true }
+futures = { workspace = true }
+async-trait = "0.1"

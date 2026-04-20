@@ -1,0 +1,266 @@
+//! WebSocket transport — `/bifrost-ws` upgrade on axum.
+//!
+//! Implements PROTOCOL.md §2.2. Ships the auth frame after connect,
+//! starts a 25 s application-level ping loop, dispatches `rpc` /
+//! `rpc:void` via [`bifrost_runtime`], tracks pongs, and cleans up
+//! rooms on disconnect.
+
+use async_trait::async_trait;
+use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
+use axum::extract::State;
+use axum::response::Response;
+use axum::routing::get;
+use axum::Router;
+use bifrost_ejson::{EjsonValue, Presentation};
+use bifrost_protocol::{
+    BIFROST_WS_PATH, MessageType, PING_INTERVAL_MS,
+    errors::{INTERNAL_ERROR, METHOD_FORBIDDEN, METHOD_NOT_FOUND},
+};
+use bifrost_runtime::{
+    BifrostError, BifrostSocket, ClientNode, RoomRegistry, Server,
+};
+use futures::stream::SplitSink;
+use futures::{SinkExt, StreamExt};
+use serde_json::{json, Value};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{Arc, RwLock};
+use std::time::Duration;
+use tokio::sync::Mutex;
+
+static SOCKET_ID_COUNTER: AtomicU64 = AtomicU64::new(1);
+
+/// Attach the WebSocket route onto an axum router.
+pub fn router(server: Arc<Server>) -> Router {
+    // Ensure the room registry is wired up on the server exactly once.
+    let rooms = Arc::new(RoomRegistry::new());
+    server.attach_room_registry(rooms.clone());
+
+    Router::new()
+        .route(BIFROST_WS_PATH, get(upgrade))
+        .with_state(server)
+}
+
+async fn upgrade(
+    ws: WebSocketUpgrade,
+    State(server): State<Arc<Server>>,
+) -> Response {
+    ws.on_upgrade(move |socket| handle_connection(server, socket))
+}
+
+async fn handle_connection(server: Arc<Server>, socket: WebSocket) {
+    let (sink, mut stream) = socket.split();
+    let adapter: Arc<AxumSocket> = AxumSocket::new(sink);
+
+    let node = ClientNode::new(Some(adapter.clone() as Arc<dyn BifrostSocket>));
+    server.add_client(node.clone());
+
+    // Emit the auth frame (authenticated=false; full auth integration
+    // is handled by the auth crate in downstream implementations).
+    node.emit_auth_result(false).await;
+
+    // Ping loop.
+    let pong_flag = Arc::new(AtomicBool::new(true));
+    let ping_socket = adapter.clone();
+    let ping_flag = pong_flag.clone();
+    let ping_task = tokio::spawn(async move {
+        let interval = Duration::from_millis(PING_INTERVAL_MS);
+        let payload = Presentation::encode(&EjsonValue::Object({
+            let mut m = std::collections::BTreeMap::new();
+            m.insert(
+                "t".into(),
+                EjsonValue::String(MessageType::Ping.as_str().into()),
+            );
+            m
+        }));
+        loop {
+            tokio::time::sleep(interval).await;
+            if !ping_flag.swap(false, Ordering::Relaxed) {
+                ping_socket.close().await;
+                return;
+            }
+            if ping_socket.ready_state() != bifrost_runtime::SocketState::OPEN {
+                return;
+            }
+            ping_socket.send(payload.clone()).await;
+        }
+    });
+
+    while let Some(Ok(msg)) = stream.next().await {
+        match msg {
+            Message::Text(text) => {
+                dispatch_frame(&server, &node, &adapter, &pong_flag, &text).await;
+            }
+            Message::Close(_) => break,
+            _ => {}
+        }
+    }
+
+    ping_task.abort();
+    adapter.mark_closed();
+    if let Some(rooms) = server.rooms.read().ok().and_then(|opt| opt.clone()) {
+        rooms.leave_all(&*adapter);
+    }
+    node.close().await;
+    server.delete_client(&node);
+}
+
+async fn dispatch_frame(
+    server: &Arc<Server>,
+    node: &Arc<ClientNode>,
+    socket: &Arc<AxumSocket>,
+    pong_flag: &Arc<AtomicBool>,
+    text: &str,
+) {
+    let decoded = match serde_json::from_str::<Value>(text) {
+        Ok(v) => v,
+        Err(_) => return,
+    };
+    let Some(obj) = decoded.as_object() else {
+        return;
+    };
+    let Some(kind) = obj.get("t").and_then(|v| v.as_str()) else {
+        return;
+    };
+
+    match kind {
+        "rpc" => {
+            let id = obj.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let method = obj
+                .get("method")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let params = obj.get("params").cloned().unwrap_or(Value::Null);
+
+            handle_rpc(server, node, socket, id, method, params).await;
+        }
+        "rpc:void" => {
+            let method = obj
+                .get("method")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let params = obj.get("params").cloned().unwrap_or(Value::Null);
+            if let Some(m) = server.get_method(&method)
+                && (!m.is_protected || node.is_authenticated())
+            {
+                let _ = m.exec(params, node.clone()).await;
+            }
+        }
+        "pong" => {
+            pong_flag.store(true, Ordering::Relaxed);
+        }
+        _ => {}
+    }
+}
+
+async fn handle_rpc(
+    server: &Arc<Server>,
+    node: &Arc<ClientNode>,
+    socket: &Arc<AxumSocket>,
+    id: String,
+    method: String,
+    params: Value,
+) {
+    let m = match server.get_method(&method) {
+        Some(m) => m,
+        None => {
+            send_rpc_error(socket, &id, METHOD_NOT_FOUND, None).await;
+            return;
+        }
+    };
+    if m.is_protected && !node.is_authenticated() {
+        send_rpc_error(socket, &id, METHOD_FORBIDDEN, None).await;
+        return;
+    }
+
+    match m.exec(params, node.clone()).await {
+        Ok(result) => {
+            let payload = json!({
+                "t": MessageType::RpcResponse.as_str(),
+                "id": id,
+                "result": result,
+            });
+            socket.send(payload.to_string()).await;
+        }
+        Err(BifrostError::Public(err)) => {
+            send_rpc_error(socket, &id, &err.message, None).await;
+        }
+        Err(BifrostError::Schema(err)) => {
+            send_rpc_error(socket, &id, &err.message, Some(err.errors)).await;
+        }
+        Err(_) => {
+            send_rpc_error(socket, &id, INTERNAL_ERROR, None).await;
+        }
+    }
+}
+
+async fn send_rpc_error(
+    socket: &Arc<AxumSocket>,
+    id: &str,
+    message: &str,
+    errors: Option<Vec<String>>,
+) {
+    let mut payload = json!({
+        "t": MessageType::RpcResponse.as_str(),
+        "id": id,
+        "error": message,
+    });
+    if let Some(errs) = errors {
+        payload["errors"] = json!(errs);
+    }
+    socket.send(payload.to_string()).await;
+}
+
+// ---------------------------------------------------------------------------
+// axum WebSocket adapter implementing BifrostSocket.
+// ---------------------------------------------------------------------------
+
+pub struct AxumSocket {
+    id: u64,
+    sink: Mutex<Option<SplitSink<WebSocket, Message>>>,
+    state: RwLock<u8>,
+}
+
+impl AxumSocket {
+    fn new(sink: SplitSink<WebSocket, Message>) -> Arc<Self> {
+        Arc::new(Self {
+            id: SOCKET_ID_COUNTER.fetch_add(1, Ordering::Relaxed),
+            sink: Mutex::new(Some(sink)),
+            state: RwLock::new(bifrost_runtime::SocketState::OPEN),
+        })
+    }
+
+    fn mark_closed(&self) {
+        *self.state.write().expect("state poisoned") =
+            bifrost_runtime::SocketState::CLOSED;
+    }
+}
+
+#[async_trait]
+impl BifrostSocket for AxumSocket {
+    fn ready_state(&self) -> u8 {
+        *self.state.read().expect("state poisoned")
+    }
+
+    async fn send(&self, data: String) {
+        let mut guard = self.sink.lock().await;
+        if let Some(sink) = guard.as_mut()
+            && sink.send(Message::Text(data.into())).await.is_err()
+        {
+            self.mark_closed();
+        }
+    }
+
+    async fn close(&self) {
+        self.mark_closed();
+        let mut guard = self.sink.lock().await;
+        if let Some(mut sink) = guard.take() {
+            let _ = sink.close().await;
+        }
+    }
+
+    fn id(&self) -> u64 {
+        self.id
+    }
+}

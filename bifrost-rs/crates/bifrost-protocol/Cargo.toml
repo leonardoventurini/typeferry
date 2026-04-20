@@ -1,0 +1,10 @@
+[package]
+name = "bifrost-protocol"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Wire protocol constants, enums, and message envelopes for Bifrost"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }

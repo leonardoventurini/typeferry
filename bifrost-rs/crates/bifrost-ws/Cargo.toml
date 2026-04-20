@@ -1,0 +1,17 @@
+[package]
+name = "bifrost-ws"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "WebSocket transport for Bifrost"
+
+[dependencies]
+bifrost-ejson = { path = "../bifrost-ejson" }
+bifrost-protocol = { path = "../bifrost-protocol" }
+bifrost-runtime = { path = "../bifrost-runtime" }
+axum = { workspace = true, features = ["ws"] }
+tokio = { workspace = true }
+tracing = { workspace = true }
+futures = { workspace = true }
+async-trait = "0.1"
+serde_json = { workspace = true }
