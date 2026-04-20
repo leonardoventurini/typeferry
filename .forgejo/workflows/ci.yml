@@ -11,9 +11,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  ci:
-    name: CI
+  ci-ts:
+    name: CI (bifrost-ts)
     runs-on: arm64
+    defaults:
+      run:
+        working-directory: bifrost-ts
     env:
       NODE_OPTIONS: --max-old-space-size=4096
       REDIS_URL: redis://m3ultra-256g.tail17a045.ts.net:6379
@@ -27,8 +30,8 @@ jobs:
 
       - uses: https://data.forgejo.org/actions/cache@v4
         with:
-          path: node_modules
-          key: deps-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          path: bifrost-ts/node_modules
+          key: deps-${{ runner.os }}-${{ hashFiles('bifrost-ts/bun.lock') }}
           restore-keys: |
             deps-${{ runner.os }}-
 
@@ -51,7 +54,7 @@ jobs:
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          key: playwright-${{ runner.os }}-${{ hashFiles('bifrost-ts/bun.lock') }}
           restore-keys: |
             playwright-${{ runner.os }}-
 
