@@ -1,0 +1,7 @@
+"""bifrost — Python port of the Bifrost real-time RPC framework.
+
+Server-side feature parity with `@example-app/bifrost`. See `PROTOCOL.md`
+at repo root for the normative wire-protocol spec.
+"""
+
+__version__ = "0.0.1"

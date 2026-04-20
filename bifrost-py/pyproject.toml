@@ -1,0 +1,72 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "example-app-bifrost"
+version = "0.0.1"
+description = "Python port of the Bifrost real-time RPC framework — server-side feature parity with @example-app/bifrost"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "UNLICENSED" }
+authors = [{ name = "Leonardo Venturini" }]
+dependencies = [
+  # Runtime stack is layered in as each phase lands. The initial EJSON
+  # and protocol-message layers depend only on the stdlib.
+]
+
+[project.optional-dependencies]
+http = [
+  "starlette>=0.47",
+  "uvicorn[standard]>=0.37",
+]
+ws = [
+  # Starlette provides WS primitives; uvicorn's 'standard' extras include
+  # websockets for ASGI WebSocket transport.
+]
+redis = [
+  "redis>=5.2",
+]
+auth = [
+  "pyjwt>=2.10",
+  "ua-parser>=1.0",
+  "authlib>=1.6",
+  "google-auth>=2.38",
+]
+schema = [
+  "pydantic>=2.11",
+]
+all = [
+  "example-app-bifrost[http,ws,redis,auth,schema]",
+]
+dev = [
+  "pytest>=8.3",
+  "pytest-asyncio>=0.25",
+  "httpx>=0.28",
+  "websockets>=13.1",
+  "ruff>=0.9",
+  "mypy>=1.15",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/bifrost"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = ["-ra", "--strict-markers"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["bifrost"]
+mypy_path = "src"
