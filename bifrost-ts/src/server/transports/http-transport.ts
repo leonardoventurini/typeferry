@@ -126,7 +126,7 @@ export class HttpTransport {
     },
   ) {
     if (error instanceof PublicError) {
-      if (isVoid) return
+      if (isVoid) return res.status(200).end()
 
       return this.sendError(res, error.message, uuid)
     }
@@ -145,7 +145,7 @@ export class HttpTransport {
       })
     }
 
-    if (isVoid) return
+    if (isVoid) return res.status(200).end()
 
     if (error instanceof SchemaValidationError) {
       return this.sendError(res, error.message, {

@@ -123,49 +123,56 @@ class HttpTransport:
 
         method_name = payload.get("method")
         if not isinstance(method_name, str) or not method_name:
-            return self._error(Errors.METHOD_NOT_FOUND.value, uuid, method_name, is_void)
+            # METHOD_NOT_FOUND: TS envelope carries method, no uuid.
+            return self._error(Errors.METHOD_NOT_FOUND.value, None, method_name, is_void)
 
         method = self.server.get_method(method_name)
         if method is None:
-            return self._error(Errors.METHOD_NOT_FOUND.value, uuid, method_name, is_void)
+            return self._error(Errors.METHOD_NOT_FOUND.value, None, method_name, is_void)
 
         node = await self._build_client_node(request, transport.get("context"))
 
         if method.is_protected and not node.authenticated:
-            return self._error(Errors.METHOD_FORBIDDEN.value, uuid, method_name, is_void)
+            # METHOD_FORBIDDEN: TS envelope carries method, no uuid.
+            return self._error(Errors.METHOD_FORBIDDEN.value, None, method_name, is_void)
 
         try:
             result = await method.exec(payload.get("params"), node)
         except PublicError as err:
-            return self._error(err.message, uuid, method_name, is_void)
+            # PublicError: TS envelope carries uuid, no method.
+            return self._error(err.message, uuid, None, is_void)
         except SchemaValidationError as err:
             if is_void:
                 return _empty_200()
+            # SchemaValidationError: TS envelope carries uuid + errors, no method.
             return self._error(
-                err.message, uuid, method_name, is_void, errors=err.errors
+                err.message, uuid, None, is_void, errors=err.errors
             )
         except Exception:
             # Unknown errors MUST NOT leak server internals; log and emit
-            # INTERNAL_ERROR per PROTOCOL.md §9.
+            # INTERNAL_ERROR per PROTOCOL.md §9. TS envelope carries uuid only.
             import logging
 
             logging.getLogger(__name__).exception(
                 "Bifrost method %s raised", method_name
             )
             return self._error(
-                Errors.INTERNAL_ERROR.value, uuid, method_name, is_void
+                Errors.INTERNAL_ERROR.value, uuid, None, is_void
             )
 
-        if is_void:
-            return _empty_200()
-
+        # Per PROTOCOL.md §2.1.3 / TS parity: void suppresses error
+        # responses, NOT success responses. The success body is always
+        # returned (callers that truly want silence should use the WS
+        # transport's rpc:void, which IS fully silent).
+        body: dict[str, Any] = {
+            "type": PayloadType.RESULT.value,
+            "method": method_name,
+            "result": result,
+        }
+        if uuid is not None:
+            body["uuid"] = uuid
         return _ejson_response(
-            {
-                "type": PayloadType.RESULT.value,
-                "uuid": uuid,
-                "method": method_name,
-                "result": result,
-            },
+            body,
             headers=self._drain_response_headers(node),
         )
 

@@ -10,7 +10,6 @@
     "decoded": {
       "type": "error",
       "message": "Method Not Found",
-      "uuid": "c1",
       "method": "nope"
     }
   }

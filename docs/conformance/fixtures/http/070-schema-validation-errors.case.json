@@ -24,7 +24,6 @@
     "decoded": {
       "type": "error",
       "message": "Invalid Params: a: required, b.c: too short",
-      "method": "v",
       "errors": ["a: required", "b.c: too short"]
     }
   }

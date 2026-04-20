@@ -135,8 +135,9 @@ Sources: `src/server/transports/http-transport.ts:108-111,150-154,215-217`,
 
 If the request had `payload.void === true`, the server MUST suppress
 error responses entirely (empty body, status 200 on `bun-hono-transport`
-at line 296; no body on Express transport). Successful void responses
-also omit the result envelope.
+at line 296; no body on Express transport). **Successful void responses
+DO still carry the result envelope** — full request-silence is a
+WebSocket-only guarantee via `rpc:void` frames (section 5.1.2).
 
 #### 2.1.4 Headers
 

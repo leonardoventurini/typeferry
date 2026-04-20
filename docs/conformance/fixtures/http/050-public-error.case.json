@@ -14,8 +14,7 @@
     "decoded": {
       "type": "error",
       "message": "intentional failure",
-      "uuid": "c1",
-      "method": "boom"
+      "uuid": "c1"
     }
   }
 }

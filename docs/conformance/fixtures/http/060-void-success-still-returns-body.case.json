@@ -1,5 +1,5 @@
 {
-  "name": "void:true suppresses success body",
+  "name": "void:true preserves the success body (TS + Python parity)",
   "setup": {
     "methods": [
       {"name": "ping", "handler": "return_const:pong"}
@@ -11,6 +11,10 @@
   },
   "response": {
     "status": 200,
-    "body": ""
+    "decoded": {
+      "type": "result",
+      "method": "ping",
+      "result": "pong"
+    }
   }
 }

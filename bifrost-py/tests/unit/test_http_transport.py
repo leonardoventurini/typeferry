@@ -82,8 +82,9 @@ async def test_method_not_found() -> None:
     decoded = Presentation.decode(response.text)
     assert decoded["type"] == PayloadType.ERROR.value
     assert decoded["message"] == Errors.METHOD_NOT_FOUND.value
-    assert decoded["uuid"] == "u1"
+    # METHOD_NOT_FOUND echoes the requested method, no uuid (TS parity).
     assert decoded["method"] == "nope"
+    assert "uuid" not in decoded
 
 
 @pytest.mark.asyncio
@@ -237,18 +238,24 @@ async def test_void_suppresses_error_response() -> None:
 
 
 @pytest.mark.asyncio
-async def test_void_suppresses_result_body() -> None:
+async def test_void_does_not_suppress_success_body() -> None:
+    """Per PROTOCOL.md / TS parity: void on HTTP suppresses error
+    responses only — success bodies still return. Full silence is a
+    WebSocket-only guarantee (rpc:void frame)."""
+
     server, client = _build()
 
     async def ok(_node: Any, _params: Any) -> str:
-        return "ignored"
+        return "ignored-by-caller"
 
     server.add_method("ok", ok)
 
     response = await _post(
         client, {"context": {}, "payload": {"method": "ok", "void": True}}
     )
-    assert response.text == ""
+    decoded = Presentation.decode(response.text)
+    assert decoded["type"] == PayloadType.RESULT.value
+    assert decoded["result"] == "ignored-by-caller"
 
 
 @pytest.mark.asyncio

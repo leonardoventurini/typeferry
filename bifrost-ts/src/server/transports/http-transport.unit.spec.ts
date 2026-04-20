@@ -549,7 +549,7 @@ describe('HttpTransport', () => {
       spy.mockRestore()
     })
 
-    it('does not send response for void calls that error', async () => {
+    it('does not send a body for void calls that error but closes the response', async () => {
       const method = {
         isProtected: false,
         exec: vi.fn().mockRejectedValue(new Error('void error')),
@@ -572,12 +572,20 @@ describe('HttpTransport', () => {
         }),
         headers: {},
       } as any
-      const res = { send: vi.fn() } as any
+      const end = vi.fn()
+      const res = {
+        send: vi.fn(),
+        status: vi.fn().mockReturnValue({ end }),
+      } as any
 
       await transport.requestHandler(req, res)
 
-      // res.send should NOT be called for void methods that error
+      // Void methods that error MUST NOT leak a response body but MUST
+      // close the HTTP connection (status(200).end()) so the client's
+      // fetch resolves instead of hanging.
       expect(res.send).not.toHaveBeenCalled()
+      expect(res.status).toHaveBeenCalledWith(200)
+      expect(end).toHaveBeenCalled()
 
       spy.mockRestore()
     })
