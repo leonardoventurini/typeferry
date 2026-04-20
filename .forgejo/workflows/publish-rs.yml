@@ -40,30 +40,46 @@ jobs:
     defaults:
       run:
         working-directory: bifrost-rs
+    env:
+      # Job-scoped CARGO_HOME so we don't trample the developer's
+      # local ~/.cargo on the self-hosted runner.
+      CARGO_HOME: ${{ forgejo.workspace }}/.ci-cargo
     steps:
       - uses: https://data.forgejo.org/actions/checkout@v4
 
-      - name: Install Rust toolchain
+      - name: Ensure Rust toolchain is on PATH
+        # Self-hosted runner: the user already has cargo installed
+        # under their home. We invoke that cargo binary but redirect
+        # registry config + credentials into our job-scoped CARGO_HOME.
         run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal
-          echo "$HOME/.cargo/bin" >> "$FORGEJO_PATH"
+          if command -v cargo >/dev/null 2>&1; then
+            cargo --version
+          elif [ -x "$HOME/.cargo/bin/cargo" ]; then
+            echo "$HOME/.cargo/bin" >> "$FORGEJO_PATH"
+            "$HOME/.cargo/bin/cargo" --version
+          else
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+              | sh -s -- -y --default-toolchain stable --profile minimal
+            echo "$HOME/.cargo/bin" >> "$FORGEJO_PATH"
+          fi
 
-      - name: Configure Forgejo Cargo registry
+      - name: Configure Forgejo Cargo registry (job-scoped)
         env:
           FORGEJO_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
         run: |
-          mkdir -p ~/.cargo
-          cat > ~/.cargo/config.toml <<EOF
+          mkdir -p "$CARGO_HOME"
+          cat > "$CARGO_HOME/config.toml" <<EOF
           [registries.forgejo]
           index = "$REGISTRY_INDEX"
 
           [net]
           git-fetch-with-cli = true
           EOF
-          cat > ~/.cargo/credentials.toml <<EOF
+          cat > "$CARGO_HOME/credentials.toml" <<EOF
           [registries.forgejo]
           token = "Bearer $FORGEJO_TOKEN"
           EOF
+          chmod 600 "$CARGO_HOME/credentials.toml"
 
       - name: Initialize Cargo registry index (no-op if already present)
         env:

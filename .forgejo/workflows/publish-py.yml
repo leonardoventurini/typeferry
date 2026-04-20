@@ -31,18 +31,30 @@ jobs:
     steps:
       - uses: https://data.forgejo.org/actions/checkout@v4
 
-      - uses: https://data.forgejo.org/actions/setup-python@v5
-        with:
-          python-version: '3.13'
+      - name: Resolve system Python 3.13
+        # The self-hosted arm64 runner has Python 3.13 from Homebrew.
+        # We avoid setup-python@v5 because it tries to install into
+        # /Users/runner, which the runner user can't write to.
+        run: |
+          if command -v python3.13 >/dev/null 2>&1; then
+            python_bin=$(command -v python3.13)
+          else
+            python_bin=$(command -v python3)
+          fi
+          echo "PYTHON=$python_bin" >> "$FORGEJO_ENV"
+          $python_bin --version
 
-      - name: Install build tooling
-        run: python -m pip install --quiet build twine
+      - name: Install build tooling into an isolated venv
+        run: |
+          $PYTHON -m venv .ci-venv
+          .ci-venv/bin/pip install --quiet --upgrade pip
+          .ci-venv/bin/pip install --quiet build twine
 
       - name: Build sdist + wheel
-        run: python -m build
+        run: .ci-venv/bin/python -m build
 
       - name: Publish to Forgejo PyPI
         # --skip-existing makes the upload idempotent: re-runs without a
         # version bump succeed quietly instead of failing on the
         # registry's immutable-version constraint.
-        run: python -m twine upload --skip-existing dist/*
+        run: .ci-venv/bin/python -m twine upload --skip-existing dist/*
