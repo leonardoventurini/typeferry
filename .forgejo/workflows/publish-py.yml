@@ -50,11 +50,40 @@ jobs:
           ../.ci-venv-py/bin/pip install --quiet --upgrade pip
           ../.ci-venv-py/bin/pip install --quiet build twine
 
+      - name: Resolve target version
+        id: version
+        run: |
+          version=$(../.ci-venv-py/bin/python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          name=$(../.ci-venv-py/bin/python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['name'])")
+          echo "version=$version" >> "$FORGEJO_OUTPUT"
+          echo "name=$name" >> "$FORGEJO_OUTPUT"
+
+      - name: Skip if version already published
+        # Forgejo's PyPI registry does NOT support twine's
+        # --skip-existing. Probe the simple index ourselves and
+        # short-circuit when the wheel for this version is listed.
+        id: gate
+        env:
+          FORGEJO_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
+        run: |
+          name="${{ steps.version.outputs.name }}"
+          version="${{ steps.version.outputs.version }}"
+          # PyPI normalizes underscores to dashes; the project uses
+          # dashes already, but normalize defensively.
+          slug=$(echo "$name" | tr '_' '-' | tr '[:upper:]' '[:lower:]')
+          url="https://forgejo.example-app.com/api/packages/leonardoventurini/pypi/simple/$slug/"
+          body=$(curl -s -H "Authorization: token $FORGEJO_TOKEN" "$url" || true)
+          if printf '%s' "$body" | grep -Eq "${slug//-/[-_]}-${version}(\.tar\.gz|-)"; then
+            echo "already_published=true" >> "$FORGEJO_OUTPUT"
+            echo "$slug@$version is already on Forgejo PyPI; skipping."
+          else
+            echo "already_published=false" >> "$FORGEJO_OUTPUT"
+          fi
+
       - name: Build sdist + wheel
+        if: steps.gate.outputs.already_published == 'false'
         run: ../.ci-venv-py/bin/python -m build
 
       - name: Publish to Forgejo PyPI
-        # --skip-existing makes the upload idempotent: re-runs without a
-        # version bump succeed quietly instead of failing on the
-        # registry's immutable-version constraint.
-        run: ../.ci-venv-py/bin/python -m twine upload --skip-existing dist/*
+        if: steps.gate.outputs.already_published == 'false'
+        run: ../.ci-venv-py/bin/python -m twine upload dist/*
