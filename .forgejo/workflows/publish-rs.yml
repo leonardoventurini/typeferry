@@ -95,13 +95,19 @@ jobs:
             https://forgejo.example-app.com/api/packages/leonardoventurini/cargo/_init || true
 
       - name: Build workspace
-        run: $CARGO build --workspace --all-features
+        # Prepend the cargo bin directory inline so cargo can find its
+        # sibling toolchain binaries (rustc, rustdoc). PATH writes via
+        # FORGEJO_PATH haven't been propagating reliably on this runner.
+        run: |
+          export PATH="$(dirname "$CARGO"):$PATH"
+          $CARGO build --workspace --all-features
 
       - name: Publish crates in dependency order
         env:
           FORGEJO_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
         run: |
           set -euo pipefail
+          export PATH="$(dirname "$CARGO"):$PATH"
           for crate in $CRATES; do
             version=$($CARGO metadata --no-deps --format-version 1 \
               | jq -r ".packages[] | select(.name == \"$crate\") | .version")
