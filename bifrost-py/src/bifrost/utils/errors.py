@@ -6,7 +6,7 @@ the wire (PROTOCOL.md §9).
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 
 class PublicError(Exception):
@@ -35,7 +35,7 @@ class SchemaValidationError(Exception):
         self.errors: list[str] = errors or []
 
 
-class Errors(str, Enum):
+class Errors(StrEnum):
     AUTHENTICATION_FAILED = "Authentication Failed"
     EVENT_FORBIDDEN = "Event Forbidden"
     EVENT_NOT_FOUND = "Event Not Found"

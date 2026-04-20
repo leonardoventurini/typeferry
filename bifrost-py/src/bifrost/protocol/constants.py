@@ -5,7 +5,7 @@ String values MUST match the TS enum values exactly. See PROTOCOL.md §12.
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 HTTP_ENDPOINT_PATH = "/__h"
 BIFROST_WS_PATH = "/bifrost-ws"
@@ -16,14 +16,14 @@ CLIENT_ID_HEADER_KEY = "x-client-id"
 TOKEN_HEADER_KEY = "x-api-key"
 
 
-class BifrostEvents(str, Enum):
+class BifrostEvents(StrEnum):
     METHOD_REFRESH = "bifrost:method:refresh"
     SERVER_SENT_EVENTS_CONNECTED = "server:sent:events:connected"
     COMMIT_PENDING_SUBSCRIPTIONS = "commit:pending:subscriptions"
     COMMIT_PENDING_UNSUBSCRIPTIONS = "commit:pending:unsubscriptions"
 
 
-class WebSocketEvents(str, Enum):
+class WebSocketEvents(StrEnum):
     OPEN = "open"
     MESSAGE = "message"
     CONNECTION = "connection"
@@ -33,7 +33,7 @@ class WebSocketEvents(str, Enum):
     DISCONNECT = "disconnect"
 
 
-class ServerEvents(str, Enum):
+class ServerEvents(StrEnum):
     AUTHENTICATION = "authentication"
     LOGOUT = "logout"
     UPGRADE = "upgrade"
@@ -53,7 +53,7 @@ class ServerEvents(str, Enum):
     USER_DISCONNECTED = "user:disconnected"
 
 
-class ClientEvents(str, Enum):
+class ClientEvents(StrEnum):
     LOGOUT = "auth:logout"
     ERROR = "error"
     INITIALIZING = "initializing"
@@ -70,13 +70,13 @@ class ClientEvents(str, Enum):
     CLOSE = "client:close"
 
 
-class RedisListeners(str, Enum):
+class RedisListeners(StrEnum):
     CONNECT = "connect"
     EVENTS = "events"
     MESSAGE = "message"
 
 
-class Methods(str, Enum):
+class Methods(StrEnum):
     RPC_LOGIN = "rpc:login"
     RPC_LOGOUT = "rpc:logout"
     RPC_ON = "rpc:on"

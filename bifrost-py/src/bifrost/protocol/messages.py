@@ -7,11 +7,11 @@ text. See PROTOCOL.md §5.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
-from typing import Any, TypeGuard, Union
+from enum import StrEnum
+from typing import Any, TypeGuard
 
 
-class MessageType(str, Enum):
+class MessageType(StrEnum):
     RPC = "rpc"
     RPC_VOID = "rpc:void"
     RPC_RESPONSE = "rpc:res"
@@ -21,7 +21,7 @@ class MessageType(str, Enum):
     PONG = "pong"
 
 
-class PayloadType(str, Enum):
+class PayloadType(StrEnum):
     """HTTP/in-memory envelope discriminator (distinct from ``MessageType``).
 
     Mirrors ``PayloadType`` in ``bifrost-ts/src/utils/presentation.ts``.
@@ -61,7 +61,7 @@ class PongMessage:
     t: MessageType = MessageType.PONG
 
 
-ClientMessage = Union[RpcMessage, RpcVoidMessage, PongMessage]
+ClientMessage = RpcMessage | RpcVoidMessage | PongMessage
 
 
 # ---------------------------------------------------------------------------
@@ -84,7 +84,7 @@ class RpcResponseError:
     t: MessageType = MessageType.RPC_RESPONSE
 
 
-RpcResponseMessage = Union[RpcResponseSuccess, RpcResponseError]
+RpcResponseMessage = RpcResponseSuccess | RpcResponseError
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,8 +107,8 @@ class PingMessage:
     t: MessageType = MessageType.PING
 
 
-ServerMessage = Union[RpcResponseMessage, EventMessage, AuthMessage, PingMessage]
-WireMessage = Union[ClientMessage, ServerMessage]
+ServerMessage = RpcResponseMessage | EventMessage | AuthMessage | PingMessage
+WireMessage = ClientMessage | ServerMessage
 
 
 # ---------------------------------------------------------------------------
