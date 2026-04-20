@@ -72,5 +72,22 @@ packages = ["bifrost"]
 mypy_path = "src"
 
 [[tool.mypy.overrides]]
-module = ["pydantic", "pydantic.*"]
+module = [
+  "pydantic",
+  "pydantic.*",
+  "ua_parser",
+  "ua_parser.*",
+  "google.auth.*",
+  "google.oauth2.*",
+]
 ignore_missing_imports = true
+
+# The ua-parser, google-auth, and Pydantic packages ship partial type
+# information; treat the file-level calls into those untyped APIs as
+# dynamic surfaces on the bifrost.auth boundary.
+[[tool.mypy.overrides]]
+module = [
+  "bifrost.auth.device_info",
+  "bifrost.auth.oauth.google",
+]
+disable_error_code = ["no-untyped-call"]
