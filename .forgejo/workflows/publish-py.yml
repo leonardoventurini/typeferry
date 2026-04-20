@@ -46,15 +46,15 @@ jobs:
 
       - name: Install build tooling into an isolated venv
         run: |
-          $PYTHON -m venv .ci-venv
-          .ci-venv/bin/pip install --quiet --upgrade pip
-          .ci-venv/bin/pip install --quiet build twine
+          $PYTHON -m venv ../.ci-venv-py
+          ../.ci-venv-py/bin/pip install --quiet --upgrade pip
+          ../.ci-venv-py/bin/pip install --quiet build twine
 
       - name: Build sdist + wheel
-        run: .ci-venv/bin/python -m build
+        run: ../.ci-venv-py/bin/python -m build
 
       - name: Publish to Forgejo PyPI
         # --skip-existing makes the upload idempotent: re-runs without a
         # version bump succeed quietly instead of failing on the
         # registry's immutable-version constraint.
-        run: .ci-venv/bin/python -m twine upload --skip-existing dist/*
+        run: ../.ci-venv-py/bin/python -m twine upload --skip-existing dist/*

@@ -49,19 +49,16 @@ jobs:
 
       - name: Ensure Rust toolchain is on PATH
         # Self-hosted runner: the user already has cargo installed
-        # under their home. We invoke that cargo binary but redirect
-        # registry config + credentials into our job-scoped CARGO_HOME.
+        # under their home, but each step gets a fresh shell that
+        # doesn't source the user's rc files. Always append
+        # ~/.cargo/bin to FORGEJO_PATH so subsequent steps see it.
         run: |
-          if command -v cargo >/dev/null 2>&1; then
-            cargo --version
-          elif [ -x "$HOME/.cargo/bin/cargo" ]; then
-            echo "$HOME/.cargo/bin" >> "$FORGEJO_PATH"
-            "$HOME/.cargo/bin/cargo" --version
-          else
+          if [ ! -x "$HOME/.cargo/bin/cargo" ] && ! command -v cargo >/dev/null 2>&1; then
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
               | sh -s -- -y --default-toolchain stable --profile minimal
-            echo "$HOME/.cargo/bin" >> "$FORGEJO_PATH"
           fi
+          echo "$HOME/.cargo/bin" >> "$FORGEJO_PATH"
+          "$HOME/.cargo/bin/cargo" --version || cargo --version
 
       - name: Configure Forgejo Cargo registry (job-scoped)
         env:
