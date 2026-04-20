@@ -47,18 +47,24 @@ jobs:
     steps:
       - uses: https://data.forgejo.org/actions/checkout@v4
 
-      - name: Ensure Rust toolchain is on PATH
-        # Self-hosted runner: the user already has cargo installed
-        # under their home, but each step gets a fresh shell that
-        # doesn't source the user's rc files. Always append
-        # ~/.cargo/bin to FORGEJO_PATH so subsequent steps see it.
+      - name: Resolve cargo binary
+        # Self-hosted runner: the user has cargo installed but the
+        # runner shell doesn't source their rc files, and the
+        # FORGEJO_PATH mechanism hasn't been reliable for this job.
+        # Resolve cargo's absolute path here and propagate it via
+        # FORGEJO_ENV so subsequent steps invoke `$CARGO` directly.
         run: |
-          if [ ! -x "$HOME/.cargo/bin/cargo" ] && ! command -v cargo >/dev/null 2>&1; then
+          if command -v cargo >/dev/null 2>&1; then
+            cargo_bin=$(command -v cargo)
+          elif [ -x "$HOME/.cargo/bin/cargo" ]; then
+            cargo_bin="$HOME/.cargo/bin/cargo"
+          else
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
               | sh -s -- -y --default-toolchain stable --profile minimal
+            cargo_bin="$HOME/.cargo/bin/cargo"
           fi
-          echo "$HOME/.cargo/bin" >> "$FORGEJO_PATH"
-          "$HOME/.cargo/bin/cargo" --version || cargo --version
+          echo "CARGO=$cargo_bin" >> "$FORGEJO_ENV"
+          $cargo_bin --version
 
       - name: Configure Forgejo Cargo registry (job-scoped)
         env:
@@ -89,7 +95,7 @@ jobs:
             https://forgejo.example-app.com/api/packages/leonardoventurini/cargo/_init || true
 
       - name: Build workspace
-        run: cargo build --workspace --all-features
+        run: $CARGO build --workspace --all-features
 
       - name: Publish crates in dependency order
         env:
@@ -97,7 +103,7 @@ jobs:
         run: |
           set -euo pipefail
           for crate in $CRATES; do
-            version=$(cargo metadata --no-deps --format-version 1 \
+            version=$($CARGO metadata --no-deps --format-version 1 \
               | jq -r ".packages[] | select(.name == \"$crate\") | .version")
             # Probe the registry for the exact version. The Forgejo
             # Cargo API returns 200 with a JSON body listing versions
@@ -110,7 +116,7 @@ jobs:
               continue
             fi
             echo "publish $crate@$version"
-            cargo publish -p "$crate" --registry forgejo --no-verify
+            $CARGO publish -p "$crate" --registry forgejo --no-verify
             # Brief sleep so the next crate sees the index update.
             sleep 5
           done
