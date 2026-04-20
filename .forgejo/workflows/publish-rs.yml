@@ -1,0 +1,103 @@
+name: Publish (bifrost-rs)
+
+# Triggers on push to main when any Rust package file changes.
+# Publishes every workspace crate that has `publish.workspace = true`
+# in dependency order, skipping any already on the registry.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'bifrost-rs/Cargo.toml'
+      - 'bifrost-rs/crates/**'
+      - '.forgejo/workflows/publish-rs.yml'
+
+concurrency:
+  group: publish-rs
+  cancel-in-progress: false
+
+# Dependency order — each crate is published only after every crate it
+# depends on is on the registry. The umbrella `bifrost` crate goes
+# last; conformance crates are publish=false and excluded.
+env:
+  CRATES: >-
+    bifrost-protocol
+    bifrost-ejson
+    bifrost-runtime
+    bifrost-http
+    bifrost-ws
+    bifrost-redis
+    bifrost-auth
+    bifrost-macros
+    bifrost
+  REGISTRY_INDEX: sparse+https://forgejo.example-app.com/api/packages/leonardoventurini/cargo/
+  REGISTRY_API: https://forgejo.example-app.com/api/packages/leonardoventurini/cargo/api/v1/crates
+
+jobs:
+  publish:
+    name: publish
+    runs-on: arm64
+    defaults:
+      run:
+        working-directory: bifrost-rs
+    steps:
+      - uses: https://data.forgejo.org/actions/checkout@v4
+
+      - name: Install Rust toolchain
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal
+          echo "$HOME/.cargo/bin" >> "$FORGEJO_PATH"
+
+      - name: Configure Forgejo Cargo registry
+        env:
+          FORGEJO_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
+        run: |
+          mkdir -p ~/.cargo
+          cat > ~/.cargo/config.toml <<EOF
+          [registries.forgejo]
+          index = "$REGISTRY_INDEX"
+
+          [net]
+          git-fetch-with-cli = true
+          EOF
+          cat > ~/.cargo/credentials.toml <<EOF
+          [registries.forgejo]
+          token = "Bearer $FORGEJO_TOKEN"
+          EOF
+
+      - name: Initialize Cargo registry index (no-op if already present)
+        env:
+          FORGEJO_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
+        run: |
+          # Forgejo creates the _cargo-index repo on first publish, but we
+          # poke the init endpoint defensively. A 4xx here is fine.
+          curl -fsS -o /dev/null -X POST \
+            -H "Authorization: token $FORGEJO_TOKEN" \
+            https://forgejo.example-app.com/api/packages/leonardoventurini/cargo/_init || true
+
+      - name: Build workspace
+        run: cargo build --workspace --all-features
+
+      - name: Publish crates in dependency order
+        env:
+          FORGEJO_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
+        run: |
+          set -euo pipefail
+          for crate in $CRATES; do
+            version=$(cargo metadata --no-deps --format-version 1 \
+              | jq -r ".packages[] | select(.name == \"$crate\") | .version")
+            # Probe the registry for the exact version. The Forgejo
+            # Cargo API returns 200 with a JSON body listing versions
+            # when the crate exists, 404 otherwise.
+            status=$(curl -s -o /tmp/probe.json -w '%{http_code}' \
+              -H "Authorization: token $FORGEJO_TOKEN" \
+              "$REGISTRY_API/$crate") || true
+            if [ "$status" = "200" ] && jq -e ".versions[] | select(.num == \"$version\")" /tmp/probe.json >/dev/null 2>&1; then
+              echo "skip $crate@$version (already published)"
+              continue
+            fi
+            echo "publish $crate@$version"
+            cargo publish -p "$crate" --registry forgejo --no-verify
+            # Brief sleep so the next crate sees the index update.
+            sleep 5
+          done

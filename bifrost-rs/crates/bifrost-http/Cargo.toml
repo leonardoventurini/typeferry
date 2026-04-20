@@ -3,6 +3,8 @@ name = "bifrost-http"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
+publish.workspace = true
 description = "HTTP transport for Bifrost (axum-backed POST /__h)"
 
 [dependencies]

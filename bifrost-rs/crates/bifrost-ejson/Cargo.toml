@@ -3,6 +3,8 @@ name = "bifrost-ejson"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
+publish.workspace = true
 description = "EJSON serialization for the Bifrost wire protocol"
 
 [dependencies]

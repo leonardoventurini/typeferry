@@ -11,14 +11,16 @@ members = [
     "crates/bifrost-macros",
     "crates/bifrost-conformance-server",
     "crates/bifrost-conformance",
+    "crates/bifrost",
 ]
 
 [workspace.package]
 version = "0.0.1"
 edition = "2024"
 license = "UNLICENSED"
-repository = "https://github.com/example-app/bifrost"
+repository = "https://forgejo.example-app.com/leonardoventurini/bifrost"
 authors = ["Leonardo Venturini"]
+publish = ["forgejo"]
 
 [workspace.dependencies]
 # Shared runtime dependencies. Pin conservatively; individual crates

@@ -3,6 +3,8 @@ name = "bifrost-redis"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
+publish.workspace = true
 description = "Redis multi-instance transport for Bifrost"
 
 [dependencies]

@@ -10,10 +10,15 @@ readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "UNLICENSED" }
 authors = [{ name = "Leonardo Venturini" }]
+keywords = ["bifrost", "rpc", "websocket", "ejson", "starlette"]
 dependencies = [
-  # Runtime stack is layered in as each phase lands. The initial EJSON
-  # and protocol-message layers depend only on the stdlib.
+  # Core EJSON + protocol layers depend only on the stdlib. Optional
+  # transports / auth / schema live behind extras (see below).
 ]
+
+[project.urls]
+Homepage   = "https://forgejo.example-app.com/leonardoventurini/bifrost"
+Repository = "https://forgejo.example-app.com/leonardoventurini/bifrost"
 
 [project.optional-dependencies]
 http = [

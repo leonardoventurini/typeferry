@@ -12,13 +12,13 @@ use axum::{
 };
 use bifrost_ejson::{EjsonValue, Presentation};
 use bifrost_protocol::{
-    CLIENT_ID_HEADER_KEY, HTTP_ENDPOINT_PATH, PayloadType, TOKEN_HEADER_KEY,
+    CLIENT_ID_HEADER_KEY, HTTP_ENDPOINT_PATH, TOKEN_HEADER_KEY,
     errors::{
         INTERNAL_ERROR, INVALID_REQUEST, METHOD_FORBIDDEN, METHOD_NOT_FOUND,
     },
 };
 use bifrost_runtime::{BifrostError, ClientNode, Server};
-use serde_json::{Map, Value, json};
+use serde_json::{Map, Value};
 use std::sync::Arc;
 
 /// Build the axum router for the HTTP transport.
