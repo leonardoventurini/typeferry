@@ -37,6 +37,10 @@ jobs:
   publish:
     name: publish
     runs-on: arm64
+    # Only run when the head commit is a release-bot bump. Regular
+    # feature/fix pushes flow through release-bump.yml first, which
+    # creates a chore(release) commit that lands here.
+    if: startsWith(forgejo.event.head_commit.message, 'chore(release):')
     defaults:
       run:
         working-directory: bifrost-rs
