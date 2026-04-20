@@ -1,4 +1,12 @@
-# Rust Server Protocol Parity Plan
+# Rust Server Feature Parity Plan
+
+> **Scope update (2026-04-20):** this plan originally targeted protocol
+> parity only. It has been widened to **full server feature parity** to
+> match the Python plan (`2026-04-20-python-server-port-and-monorepo.md`).
+> Wire compatibility is the floor; authoring ergonomics, default methods,
+> auth surface, and caching semantics are now explicit goals expressed
+> through language-natural Rust surfaces (macros + `serde` + a validator
+> trait) rather than direct TS ports.
 
 ## Context
 
@@ -6,36 +14,75 @@ Bifrost is currently a TypeScript-first RPC and realtime framework. The server
 runtime lives in `src/server` and `src/auth/server`, while the browser-facing
 contract is consumed by the existing JS/TS client in `src/client`.
 
-The open architecture question is whether Bifrost should gain a pure Rust
-server implementation.
+A Rust server reimplementation is a worthwhile investment **because** the
+runtime concerns (EJSON, transports, rooms, Redis propagation, auth) carry
+real operational value, and the authoring concerns (decorators, schema
+validation, caching) have natural Rust equivalents.
 
-The wrong scope for that effort is "full framework parity" because Bifrost's
-current value includes TypeScript-native authoring ergonomics that do not
-translate directly across languages:
+Client-side concerns are out of scope because the JS client remains the
+canonical consumer:
 
-- decorators
+- React adapter ergonomics
+- Lit adapter ergonomics
 - inferred client types
-- Zod-backed schema authoring
-- React and Lit adapter ergonomics
 
-The right scope is protocol/runtime parity.
+Server-side concerns are in scope and must be feature-parity:
 
-That means a Rust server should be considered successful if the existing JS
-client can talk to it without knowing or caring that the backend is no longer
-the TypeScript server.
+- every default method (incl. `list:methods`)
+- every transport semantic (HTTP RPC, WS, Redis)
+- every decorator equivalent (`@Namespace`, `@Method`, `@Protected`,
+  `@Cached`, `@Schema`, `@Use`)
+- every auth flow (JWT, cookies, sessions, device info, OAuth providers)
+- `@Cached` canonical cache-key semantics so multi-instance TS+Rust
+  deployments cache-hit identically
 
 ## Decision Boundary
 
-Define the Rust goal as:
+A Rust server is successful when **both** hold:
+
+### Protocol parity (wire-level)
 
 - full protocol parity with the existing Bifrost server
+- existing JS client can talk to it without knowing or caring that the
+  backend is no longer the TypeScript server
+- shared conformance suite passes against both TS and Rust targets
 
-Do not define the goal as:
+### Feature parity (server-side authoring surface)
 
-- identical internal architecture
-- identical decorator APIs
-- identical TypeScript authoring experience
-- reimplementation of React/Lit integration
+- Rust macros (proc-macro attributes) cover the full TS decorator matrix:
+  `#[bifrost::namespace]`, `#[bifrost::method]`,
+  `#[bifrost::protected]`, `#[bifrost::cached]`, `#[bifrost::schema]`,
+  `#[bifrost::r#use]` — names adapted to Rust conventions
+- a `SchemaValidator` trait covers every validation capability Zod
+  exposes today (default implementation via `serde` + `validator`
+  crate; pluggable for custom validators), producing identical error
+  envelopes at the same lifecycle point
+- every default method exists: `rpc:login`, `rpc:logout`, `rpc:on`,
+  `rpc:off`, **`list:methods`**
+- every auth flow works: JWT (HS256 default via `jsonwebtoken` crate,
+  configurable algorithms), cookie handling, session manager, device
+  info (`woothee` or `uaparser` crate), OAuth server flows for every
+  provider in `src/auth/server/oauth/`
+- `#[cached]` memoization preserves canonical cache-key semantics —
+  same stable-stringify algorithm as TS so cache hits cross the
+  language boundary
+- middleware ordering (`#[r#use]`) preserves TS precedence
+- context propagation via `tokio::task_local!` (or `tracing::Span`)
+  matches `BifrostAsyncLocalStorage.run(...)` wrapping in
+  `src/server/method.ts`
+
+### What is explicitly not required
+
+- identical internal architecture or module layout
+- TS-identical macro syntax (Rust proc-macros read differently; the
+  *semantics* must match, not the source shape)
+- TS-identical decorator ordering at the AST level (macro expansion
+  order is normalized to match TS registration precedence)
+- Zod as the runtime engine (a validator trait is the Rust-native
+  equivalent)
+- TypeScript type inference parity (Rust's own generic system provides
+  the equivalent static story)
+- reimplementation of React/Lit integration (client-side)
 
 ## Current Implementation Landing Zone
 
@@ -112,9 +159,12 @@ Protocol parity should include these guarantees.
   - `rpc:logout`
   - `rpc:on`
   - `rpc:off`
+  - `list:methods`
 - same protected/public gating behavior
 - same middleware ordering semantics
 - same cache-visible semantics for cached methods
+- **same canonical cache-key algorithm** (stable-stringify over EJSON
+  params) so cache hits cross TS ↔ Rust in multi-instance deployments
 - same request correlation behavior for RPC responses
 - same fire-and-forget behavior for `rpc:void`
 
@@ -151,18 +201,28 @@ Protocol parity should include these guarantees.
 
 ## What Is Explicitly Out Of Scope
 
-These are not required for the first Rust implementation:
+Client-side and syntax-level concerns stay out of scope:
 
-- TypeScript decorators such as `@Namespace`, `@Method`, `@Protected`
-- Zod as the schema engine
-- TypeScript type inference parity
-- React hooks
-- Lit controllers
-- Bun, Express, or Hono implementation parity
+- React hooks (client-side)
+- Lit controllers (client-side)
+- TS-identical macro syntax (Rust proc-macros match *semantics*, not
+  source shape)
+- Bun, Express, or Hono implementation parity at the module level
+  (transport *behavior* is in scope; the underlying framework choice
+  is not)
 - line-by-line code structure parity
 
-If the Rust implementation later wants its own authoring DSL or macro layer,
-that should be treated as a separate project after protocol parity lands.
+**Previously out of scope, now in scope** (with Rust-native surfaces):
+
+- authoring macros that cover `@Namespace`, `@Method`, `@Protected`,
+  `@Cached`, `@Schema`, `@Use` — required, see Phase 5.5
+- schema validation layer (Zod → `SchemaValidator` trait with a default
+  `serde + validator` implementation) — required, see Phase 5.5
+- `list:methods` default method — required, see Phase 2
+- `@Cached` with canonical cache keys byte-identical to TS — required,
+  see Phase 5.5
+- OAuth server flows for every provider in `src/auth/server/oauth/` —
+  required, see Phase 5.75
 
 ## Recommended Delivery Strategy
 
@@ -224,22 +284,31 @@ Build a Rust server that can satisfy:
 - EJSON request parsing and response encoding
 - protected/public method execution
 - `rpc:login` and `rpc:logout`
+- `list:methods` introspection default method
+  (`Methods.LIST_METHODS` in `src/utils/constants.ts`) — required for
+  feature parity
 - context/token handling
+- rate limiting middleware equivalent to
+  `src/server/transports/hono-rate-limit.ts` (tower layer over axum)
 
 This phase deliberately excludes WebSockets so the first milestone is a small,
 deterministic compatibility surface.
 
 Recommended Rust stack:
 
-- `axum`
-- `tokio`
-- `serde`
-- custom or ported EJSON compatibility layer
+- `axum` + `tower` (HTTP + middleware)
+- `tokio` (runtime)
+- `serde` + `serde_json` (baseline JSON; EJSON layered on top)
+- `jsonwebtoken` crate for JWT
+- `redis` crate for Redis transport
+- EJSON: extend the existing `bifrost-protocol` crate in the
+  SolidScript workspace, or fork it into a dedicated ejson crate
 
 Success criteria:
 
 - the JS client can perform HTTP method calls against the Rust server
 - the conformance suite passes for HTTP-only behavior
+- `list:methods` returns the same registered-method shape as TS
 
 ### Phase 3: Add WebSocket protocol parity
 
@@ -286,6 +355,69 @@ Implement:
 Success criteria:
 
 - multi-instance event propagation tests pass against Rust
+
+### Phase 5.5: Authoring feature parity (proc-macro layer)
+
+At this point the wire is fully covered. This phase lights up the
+authoring surface so Rust callers can write a server with the same
+ergonomics as TS callers.
+
+Implement proc-macros mirroring `src/server/decorators/`:
+
+| TS decorator        | Rust macro                    | Parity requirement |
+|---------------------|-------------------------------|--------------------|
+| `@Namespace('x')`   | `#[bifrost::namespace("x")]`  | scoped method prefixing identical |
+| `@Method()`         | `#[bifrost::method]`          | same routing semantics, same context access |
+| `@Protected`        | `#[bifrost::protected]`       | identical gating + identical unauth error envelope |
+| `@Cached(ttl)`      | `#[bifrost::cached(ttl = ...)]` | **canonical cache-key parity with TS** (stable EJSON of params); same TTL semantics |
+| `@Schema(ZodT)`     | `#[bifrost::schema(MyStruct)]` | validation via `SchemaValidator` trait; same failure envelope and timing |
+| `@Use(mw)`          | `#[bifrost::r#use(mw)]`       | same outer-to-inner execution order |
+
+Ship a Rust-native `SchemaValidator` trait. Default implementation uses
+`serde` deserialization + the `validator` crate. Consumers can plug in
+alternatives.
+
+Also ship an imperative registration path (`Server::add_method(...)`)
+for callers who prefer not to use macros, mirroring the TS imperative
+alternative.
+
+Success criteria:
+
+- every decorator in `src/server/decorators/` has a working Rust macro
+  counterpart with matched unit tests
+- a port-fidelity test boots both servers with equivalent macro-driven
+  method sets and proves identical protocol behavior end-to-end
+- `#[cached]` cache keys are byte-identical to TS for the same params
+- context propagation across async boundaries matches
+  `BifrostAsyncLocalStorage` (validated with nested-method and
+  middleware-to-handler tests)
+
+### Phase 5.75: Auth & OAuth feature parity
+
+Implement, mirroring `src/auth/server/`:
+
+- **JWT**: `jsonwebtoken` crate, HS256 default, configurable algorithms,
+  symmetric round-trip with Node-issued tokens verified by shared
+  fixtures
+- **Cookie utilities**: identical `SameSite`, `HttpOnly`,
+  `Max-Age`/`Expires`, domain scoping to Hono/Express output
+- **Device info**: `woothee` or `uaparser` crate; assert identical
+  parsed shape against a shared fixture matrix of UA strings
+- **Session manager**: identical session lifecycle with pluggable
+  storage (memory / Redis)
+- **OAuth providers**: one Rust equivalent per provider in
+  `src/auth/server/oauth/`. Google via `google-auth` equivalent
+  (`yup-oauth2` or raw `reqwest` + google JWKS verification); generic
+  OIDC via `openidconnect` crate. Redirect URIs, state handling, and
+  callback payloads must match byte-for-byte on the wire.
+
+Success criteria:
+
+- JWT round-trip fixtures pass in both directions (TS-signed →
+  Rust-verified and vice versa)
+- OAuth callback flows complete against the same mock IdP from both
+  servers with identical session + cookie output
+- device-info parsing matches against a shared fixture matrix
 
 ### Phase 6: Stabilize and formalize server targeting
 
@@ -376,7 +508,7 @@ The current client and tests rely on the exact shape of error vs result
 payloads. "Equivalent" behavior is not enough here. The wire contract needs to
 be treated as strict.
 
-## Non-Goals For The First Plan
+## Non-Goals
 
 This plan does not require:
 
@@ -384,19 +516,28 @@ This plan does not require:
 - deprecating the TS server
 - supporting every internal helper from day one
 - replacing the authoring model for TS users
+- reimplementing client-side surfaces (React, Lit, type inference)
 
-It only establishes the boundary that makes a Rust implementation realistic.
+It establishes the boundary that makes a feature-complete Rust
+implementation realistic and incremental.
 
 ## Practical Recommendation
 
 Proceed only if the project is willing to do this in the following order:
 
 1. specification
-2. conformance harness
-3. Rust HTTP parity
+2. conformance harness (black-box, shared with Python per
+   `2026-04-20-python-server-port-and-monorepo.md`)
+3. Rust HTTP parity (incl. `list:methods`, rate limiting)
 4. Rust WebSocket parity
 5. Rust subscription parity
 6. Rust Redis parity
+7. Rust authoring macros + `SchemaValidator` + `#[cached]` canonical
+   keys
+8. Rust auth & OAuth feature parity
+9. CI gating: conformance suite must pass against TS and Rust on every
+   PR; Rust server reaches `1.0.0` when the full feature parity
+   checklist is green
 
 Do not start by writing a Rust server from the current TS code informally.
 Without a frozen contract and black-box compatibility tests, the effort will
