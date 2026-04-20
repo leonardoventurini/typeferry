@@ -18,7 +18,7 @@ pub use client_node::ClientNode;
 pub use context::{BifrostContext, ExecutionContext};
 pub use error::{BifrostError, PublicError, SchemaValidationError};
 pub use event::{Event, EventOptions};
-pub use method::{Method, MethodOptions, Middleware, RpcHandler};
+pub use method::{BoxResult, Method, MethodOptions, Middleware, RpcFuture, RpcHandler};
 pub use room_registry::RoomRegistry;
 pub use schema::{SchemaValidator, ValidationIssue, ValidationResult};
 pub use server::{Server, ServerOptions};
