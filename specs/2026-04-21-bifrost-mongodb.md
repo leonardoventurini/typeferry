@@ -2,44 +2,148 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `subagent-driven-development` by default to implement this plan task-by-task. If delegation is unavailable, continue in the current session with the same checklist, risk, and verification discipline. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build `@example-app/bifrost/mongodb` as a decorator-driven MongoDB integration that can fully replace ExampleApp's current Mongoose dependency while preserving the application-level ergonomics ExampleApp relies on.
+**Goal:** Build `@example-app/bifrost/mongodb` as a lean, decorator-driven bridge between Bifrost and the official MongoDB driver so ExampleApp can remove Mongoose without replacing it with another ORM.
 
-**Architecture:** The package provides a Bifrost-native MongoDB registry, schema contract, repository API, query API, document wrapper, hook/plugin system, reference population layer, and change-stream-to-Bifrost event bridge. The design intentionally targets the Mongoose subset ExampleApp actually uses and keeps the native MongoDB driver available as an escape hatch for migrations, bulk operations, and advanced aggregation.
+**Architecture:** The package owns connection lifecycle, collection metadata, schema validation helpers, index registration, ObjectId helpers, and change-stream-to-Bifrost event wiring. Application code should keep using native MongoDB `Collection<T>`, `FindCursor<T>`, sessions, aggregations, and bulk operations directly; Mongoose-only concepts such as hydrated documents, query thenables, implicit middleware, automatic populate, and model statics are deliberately moved into explicit app-level functions or omitted.
 
-**Tech Stack:** TypeScript, Bun, `mongodb`, `bson`, Zod, Bifrost server events/channels, TC39 Stage 3 decorators, Vitest, and the existing Bifrost package export/build pipeline.
+**Tech Stack:** TypeScript, Bun, official `mongodb` driver, `bson`/driver `ObjectId`, Zod, Bifrost server events/channels, TC39 Stage 3 decorators, Vitest, Cortex, and the existing Bifrost package export/build pipeline.
 
-**Delegation Strategy:** Start with one Cortex-first `explorer` sidecar only if the implementer has not already read the current Bifrost decorator and packaging files. The supervisor should own the public API and integration boundaries, assign independent worker tasks for schema/query/document/change-stream files with disjoint write scopes, then require verifier coverage for all public API and ExampleApp parity behavior because this is a high-risk public package surface.
+**Delegation Strategy:** Start with one Cortex-first `explorer` sidecar only if the implementer has not already mapped Bifrost's decorator/package surface and ExampleApp's Mongoose usage. The supervisor owns the API boundary and must keep the scope driver-first. Workers may independently implement decorators/metadata, registry/connection, schema/ObjectId helpers, and change-stream bridge because those write scopes are disjoint; verification and review are required because this is a public package surface and a data-layer migration path.
 
 ---
 
+## Executive Revision
+
+The first draft was too Mongoose-shaped. It proposed a repository API, query builder, document wrapper, plugin system, and populate layer. That repeats the abstraction that ExampleApp is trying to leave.
+
+The revised plan is stricter:
+
+- `bifrost-mongodb` is not an ORM.
+- `bifrost-mongodb` does not wrap the MongoDB driver query API.
+- `bifrost-mongodb` does not implement `lean`, `save`, hydrated documents, Mongoose middleware, Mongoose plugins, or automatic `populate`.
+- The primary runtime object exposed to applications is `mongodb.Collection<TDocument>`.
+- Decorators are used for declarative metadata, not for hiding database behavior.
+- ExampleApp migration should simplify the application by replacing Mongoose statics/plugins/hooks with explicit functions and services.
+- Any behavior that the native driver already handles should stay in the native driver.
+
+This is the proper fix: remove Mongoose's implicit behavior instead of rebuilding it under a Bifrost name.
+
 ## Problem
 
-ExampleApp currently depends heavily on Mongoose for persistence, model declaration, validation-ish schema shape, statics, instance methods, plugins, hooks, `lean()` behavior, `populate()`, change streams, raw collection access, and ObjectId utilities. Replacing Mongoose with direct `mongodb` driver calls in application code would scatter persistence concerns across the codebase and would make Bifrost less helpful for real-time data applications.
+ExampleApp currently depends on Mongoose for many concerns:
 
-The package should become the direct path from MongoDB writes to Bifrost server behavior:
+- connection lifecycle
+- model registry
+- schemas
+- indexes
+- statics
+- instance methods
+- hooks and plugins
+- default lean behavior
+- soft delete filtering
+- `populate()`
+- change streams
+- ObjectId utilities
+- raw `collection` escape hatches
 
-- A collection declaration should look and feel close to Bifrost's method declaration system.
-- Database writes should be type-aware and validation-aware.
-- Change streams should register Bifrost events without separate watcher boilerplate.
-- Mongoose-specific app code should migrate to a Bifrost-owned model/repository abstraction.
-- Native MongoDB access should remain available where abstraction would add risk.
+Those conveniences now create hidden behavior and make migration hard. Replacing them with a second abstraction that looks like Mongoose would preserve the same operational risks:
+
+- hidden filters
+- hidden writes from hooks
+- unclear type ownership
+- unclear transaction/session propagation
+- unexpected query execution
+- hard-to-test side effects
+
+The new package should only own the parts where Bifrost adds unique value:
+
+- typed collection registration
+- Bifrost server event integration
+- change-stream lifecycle management
+- schema validation helpers
+- index declaration
+- ObjectId helpers
+- explicit migration helpers
+
+Everything else should remain plain MongoDB driver code.
 
 ## Current Reference Surface
 
 The reference application is `<user-home>/Repositories/example-app/example-app`.
 
-Observed ExampleApp Mongoose footprint:
+Observed Mongoose footprint:
 
 - `43` collection files under `src/server/data/collections`
 - `50` schema files under `src/server/data/schemas`
 - `200+` TypeScript files with direct Mongoose/model/query usage
-- Direct uses of `mongoose.connect`, `mongoose.disconnect`, `mongoose.model`, `mongoose.models`, `mongoose.connection.db.collection`, `mongoose.Collection.watch`, `mongoose.Types.ObjectId`, `Schema`, `model`, `Model`, `HydratedDocument`, `Document`, `QueryWithHelpers`, `QueryFilter`, and `UpdateWriteOpResult`
-- Common query/document methods: `find`, `findOne`, `findById`, `create`, `insertMany`, `updateOne`, `updateMany`, `findOneAndUpdate`, `deleteOne`, `deleteMany`, `countDocuments`, `distinct`, `aggregate`, `watch`, `.collection.*`, `.lean()`, `.lean(false)`, `.populate()`, `.select()`, `.sort()`, `.limit()`, `.skip()`, `.save()`
-- Mongoose extensions and plugins: soft delete, default lean, find-one-or-create, orderable, compound orderable, add-count, add-computed-field, Meilisearch sync, schema indexes, schema hooks, schema statics, schema instance methods
+- Common APIs: `mongoose.connect`, `mongoose.disconnect`, `mongoose.model`, `mongoose.models`, `mongoose.connection.db.collection`, `mongoose.Collection.watch`, `mongoose.Types.ObjectId`, `Schema`, `model`, `Model`, `HydratedDocument`, `Document`, `QueryWithHelpers`, `QueryFilter`, `UpdateWriteOpResult`
+- Common operations: `find`, `findOne`, `findById`, `create`, `insertMany`, `updateOne`, `updateMany`, `findOneAndUpdate`, `deleteOne`, `deleteMany`, `countDocuments`, `distinct`, `aggregate`, `watch`, `.collection.*`, `.lean()`, `.lean(false)`, `.populate()`, `.select()`, `.sort()`, `.limit()`, `.skip()`, `.save()`
+- Extensions: soft delete, default lean, find-one-or-create, orderable, compound orderable, add-count, add-computed-field, Meilisearch sync, schema indexes, schema hooks, schema statics, schema instance methods
 
-The first implementation must not attempt to clone all of Mongoose. It must cover the above behavior explicitly and provide typed native-driver escape hatches for advanced cases.
+The migration should convert this surface into explicit driver usage:
 
-## Proposed Public API
+- `Model.find(...).lean()` becomes `collection.find(...).toArray()`.
+- `Model.findOne(...).lean()` becomes `collection.findOne(...)`.
+- `Model.findById(id).lean()` becomes `collection.findOne({ _id: toObjectId(id) })`.
+- `query.select('a b')` becomes driver projection `{ projection: { a: 1, b: 1 } }`.
+- `query.sort(...).limit(...)` becomes driver cursor chaining.
+- `.lean(false)` plus mutation plus `.save()` becomes explicit `updateOne`, `replaceOne`, or a small app-specific helper.
+- `populate()` becomes explicit batched reads or `$lookup` aggregation.
+- model statics become exported functions in `src/server/data/stores` or service modules.
+- instance methods become pure functions accepting a document and dependencies.
+- plugins become explicit helper functions or service calls.
+- hooks become explicit write paths or Bifrost MongoDB change-stream watchers.
+
+## Stress-Tested Assumptions
+
+### Assumption 1: A repository layer will make migration easier.
+
+**Rejected.** A repository that mirrors Mongoose reduces short-term edits but preserves the same hidden model layer. The MongoDB driver already has a typed collection API. The package should expose native collections and add metadata around them.
+
+### Assumption 2: A query builder is needed to replace Mongoose queries.
+
+**Rejected.** The driver already has `FindCursor<T>` with `project`, `sort`, `limit`, `skip`, `toArray`, and async iteration. A Bifrost query builder would risk double execution, incomplete cursor support, broken session propagation, and more types to maintain.
+
+### Assumption 3: `lean(false)` needs a package-level document wrapper.
+
+**Rejected for version one.** Hydrated documents are a Mongoose escape hatch. ExampleApp should convert those cases to explicit `updateOne`, `replaceOne`, or small app-local helpers where mutation is truly clearer.
+
+### Assumption 4: `populate()` should be recreated.
+
+**Rejected.** Populate hides extra database reads and field exposure. ExampleApp should use explicit batched loaders or `$lookup` pipelines. The package may provide tiny projection and ObjectId utilities, but not automatic relationship loading.
+
+### Assumption 5: Mongoose plugins should become Bifrost MongoDB plugins.
+
+**Rejected for version one.** Mongoose plugins are the primary source of hidden behavior. Convert common patterns into explicit helpers:
+
+- soft delete filter builders
+- timestamp update builders
+- find-one-or-create helper
+- order mutation helper
+- Meilisearch sync service
+- count recomputation service
+
+### Assumption 6: Schema validation must cover every update operator.
+
+**Rejected.** Full MongoDB update validation is complex and can become wrong. Version one validates inserts and replacements, provides `parseSet` for `$set` payloads, and keeps raw driver updates explicit.
+
+### Assumption 7: Decorators should register behavior-heavy classes.
+
+**Rejected.** Decorators should register metadata-heavy collection definitions. Behavior should be explicit functions that receive native collections.
+
+### Assumption 8: Replacing Mongoose means preserving model statics.
+
+**Rejected.** Statics are just functions attached to a class. They should become named exported functions with explicit dependencies. That improves testability and avoids binding ambiguity.
+
+### Assumption 9: The package should hide MongoDB sessions and transactions.
+
+**Rejected.** Sessions and transactions must remain normal driver concepts. The package can expose `withTransaction`, but must pass through `ClientSession` instead of inventing a transaction abstraction.
+
+### Assumption 10: Bifrost MongoDB should be a ExampleApp-specific compatibility package.
+
+**Rejected.** ExampleApp is the pressure test, not the product boundary. The package should be reusable for any Bifrost server that uses MongoDB and wants real-time events from change streams.
+
+## Revised Public API
 
 ### Package Exports
 
@@ -58,51 +162,47 @@ Add these subpath exports to `bifrost-ts/package.json`:
 }
 ```
 
-Add `mongodb` and `bson` as optional peer dependencies and dev dependencies:
+Add the official driver as an optional peer dependency and dev dependency:
 
 ```json
 {
   "peerDependencies": {
-    "mongodb": ">=6",
-    "bson": ">=6"
+    "mongodb": ">=6"
   },
   "peerDependenciesMeta": {
     "mongodb": {
-      "optional": true
-    },
-    "bson": {
       "optional": true
     }
   }
 }
 ```
 
-If `mongodb` re-exports `ObjectId` cleanly for the supported range, `bson` may be used only for explicit consumer compatibility.
+Use `ObjectId` from `mongodb` unless a concrete compatibility issue requires direct `bson` import. Do not add both by default if the driver export is sufficient.
 
 ### Decorator Syntax
 
-The package should mirror the shape of `@Namespace`, `@Method`, and `registerNamespace`:
+Decorators describe collection metadata, not a repository class:
 
 ```ts
 import { z } from 'zod'
+import { ObjectId } from 'mongodb'
 import {
   MongoCollection,
   MongoIndex,
-  MongoReference,
-  MongoStatic,
-  MongoBefore,
-  MongoAfter,
+  MongoSchema,
   MongoWatch,
-  registerMongoCollections,
+  createBifrostMongo,
   objectId,
-  MongoRepository,
+  toObjectId,
+  withInsertTimestamps,
+  withUpdateTimestamp,
 } from '@example-app/bifrost/mongodb'
 
 const BoardSchema = z.object({
   _id: objectId(),
-  name: z.string(),
+  name: z.string().min(1),
   author: objectId(),
-  nodeCount: z.number().int().nonnegative().default(0),
+  nodeCount: z.number().int().nonnegative(),
   deletedAt: z.date().optional(),
   deletedBy: objectId().optional(),
   createdAt: z.date(),
@@ -111,227 +211,234 @@ const BoardSchema = z.object({
 
 type Board = z.infer<typeof BoardSchema>
 
-@MongoCollection<Board>({
-  name: 'boards',
-  schema: BoardSchema,
-  timestamps: true,
-})
+@MongoCollection<Board>('boards')
+@MongoSchema(BoardSchema)
 @MongoIndex({ author: 1, deletedAt: 1 })
-@MongoReference({
-  path: 'author',
-  collection: 'users',
-  foreignField: '_id',
-})
+@MongoIndex({ updatedAt: -1 })
 @MongoWatch({
   event: 'boards.changed',
+  eventOptions: { protected: true },
   getChannel: doc => String(doc.author),
   excludeFields: ['analytics'],
 })
-class BoardStore extends MongoRepository<Board> {
-  @MongoStatic()
-  async updateDiskUsage(boardId: ObjectId, bytes: number) {
-    return this.updateOne({ _id: boardId }, { $set: { diskUsage: bytes } })
-  }
+class BoardsCollection {}
 
-  @MongoBefore('insert')
-  normalizeNewBoard(doc: Board): void {
-    doc.nodeCount ??= 0
-  }
-}
-
-const mongo = await registerMongoCollections({
+const mongo = await createBifrostMongo({
   server,
   uri: process.env.DATABASE,
-  authSource: 'admin',
-  collections: [BoardStore],
+  dbName: 'example-app',
+  clientOptions: { authSource: 'admin' },
+  collections: [BoardsCollection],
 })
 
-export const BoardCollection = mongo.collection(BoardStore)
-```
+export const Boards = mongo.collection<Board>(BoardsCollection)
 
-### Repository API
+export async function createBoard(input: {
+  name: string
+  author: string | ObjectId
+}) {
+  const board = BoardSchema.parse(
+    withInsertTimestamps({
+      _id: new ObjectId(),
+      name: input.name,
+      author: toObjectId(input.author),
+      nodeCount: 0,
+    }),
+  )
 
-Every registered class extending `MongoRepository<TDocument>` should receive a typed API:
+  await Boards.insertOne(board)
+  return board
+}
 
-```ts
-interface MongoRepository<TDocument extends MongoBaseDocument> {
-  readonly name: string
-  readonly native: Collection<TDocument>
-
-  find(filter?: Filter<TDocument>, options?: FindOptions<TDocument>): MongoQuery<TDocument[]>
-  findOne(filter: Filter<TDocument>, options?: FindOptions<TDocument>): MongoQuery<TDocument | null>
-  findById(id: ObjectIdLike, options?: FindOptions<TDocument>): MongoQuery<TDocument | null>
-  create(input: InsertInput<TDocument>): Promise<MongoDocument<TDocument>>
-  insertMany(inputs: Array<InsertInput<TDocument>>): Promise<Array<MongoDocument<TDocument>>>
-  updateOne(filter: Filter<TDocument>, update: UpdateFilter<TDocument>): Promise<UpdateResult<TDocument>>
-  updateMany(filter: Filter<TDocument>, update: UpdateFilter<TDocument>): Promise<UpdateResult<TDocument>>
-  findOneAndUpdate(
-    filter: Filter<TDocument>,
-    update: UpdateFilter<TDocument>,
-    options?: FindOneAndUpdateOptions,
-  ): MongoQuery<TDocument | null>
-  deleteOne(filter: Filter<TDocument>): Promise<DeleteResult>
-  deleteMany(filter: Filter<TDocument>): Promise<DeleteResult>
-  countDocuments(filter?: Filter<TDocument>): Promise<number>
-  distinct<TKey extends keyof TDocument>(field: TKey, filter?: Filter<TDocument>): Promise<Array<TDocument[TKey]>>
-  aggregate<TResult = unknown>(pipeline: Document[]): AggregationCursor<TResult>
-  watch(pipeline?: Document[], options?: ChangeStreamOptions): ChangeStream<TDocument>
+export async function updateBoardName(id: string | ObjectId, name: string) {
+  return Boards.updateOne(
+    { _id: toObjectId(id) },
+    withUpdateTimestamp({ $set: { name } }),
+  )
 }
 ```
 
-Names may differ during implementation if MongoDB driver type constraints require it, but exported types must avoid `any`.
+The class is a stable collection token. It does not need to extend a base class.
 
-### Query API
-
-`MongoQuery<TResult>` should support ExampleApp's common fluent query operations:
+### Runtime API
 
 ```ts
-interface MongoQuery<TResult> extends PromiseLike<TResult> {
-  select(projection: ProjectionSpec): MongoQuery<TResult>
-  sort(sort: SortSpec): MongoQuery<TResult>
-  limit(count: number): MongoQuery<TResult>
-  skip(count: number): MongoQuery<TResult>
-  populate(path: string, projection?: ProjectionSpec): MongoQuery<TResult>
-  populate(spec: PopulateSpec | PopulateSpec[]): MongoQuery<TResult>
-  lean(value?: true): MongoQuery<LeanResult<TResult>>
-  lean(value: false): MongoQuery<HydratedResult<TResult>>
-  exec(): Promise<TResult>
+interface BifrostMongoOptions {
+  server?: Server
+  uri?: string
+  client?: MongoClient
+  db?: Db
+  dbName?: string
+  clientOptions?: MongoClientOptions
+  collections: MongoCollectionClass[]
+  ensureIndexes?: boolean
+  closeExternalClient?: boolean
+}
+
+interface BifrostMongo {
+  readonly db: Db
+  readonly client: MongoClient | null
+  collection<TDocument extends Document>(
+    token: MongoCollectionClass,
+  ): Collection<TDocument>
+  collectionByName<TDocument extends Document>(name: string): Collection<TDocument>
+  meta(token: MongoCollectionClass): MongoCollectionDefinition
+  ensureIndexes(): Promise<void>
+  close(): Promise<void>
+}
+
+function createBifrostMongo(options: BifrostMongoOptions): Promise<BifrostMongo>
+```
+
+The package should not expose a `MongoRepository`, `MongoQuery`, or `MongoDocument`.
+
+### Schema Helpers
+
+Use Zod helpers for document boundaries:
+
+```ts
+function objectId(): z.ZodType<ObjectId>
+function coerceObjectId(): z.ZodType<ObjectId>
+function toObjectId(value: string | ObjectId): ObjectId
+function objectIdHex(value: string | ObjectId): string
+
+function parseInsert<TDocument>(
+  schema: z.ZodType<TDocument>,
+  input: unknown,
+): TDocument
+
+function parseReplacement<TDocument>(
+  schema: z.ZodType<TDocument>,
+  input: unknown,
+): TDocument
+
+function parseSet<TSet extends object>(
+  schema: z.ZodType<TSet>,
+  input: unknown,
+): TSet
+```
+
+Use explicit timestamp helpers:
+
+```ts
+function withInsertTimestamps<T extends object>(
+  input: T,
+  now?: Date,
+): T & { createdAt: Date; updatedAt: Date }
+
+function withUpdateTimestamp<TUpdate extends Document>(
+  update: TUpdate,
+  now?: Date,
+): TUpdate
+```
+
+`withUpdateTimestamp` must preserve existing update operators and add `updatedAt` under `$set`.
+
+### Query Style
+
+Use the official driver directly:
+
+```ts
+const boards = await Boards.find(
+  active({ author: toObjectId(userId) }),
+  { projection: { name: 1, nodeCount: 1, updatedAt: 1 } },
+)
+  .sort({ updatedAt: -1 })
+  .limit(50)
+  .toArray()
+```
+
+No `lean()` equivalent is needed because the MongoDB driver returns plain objects by default.
+
+No `select()` helper is needed for version one. If projection strings reduce migration noise, add a small pure helper:
+
+```ts
+function projection(fields: string): Document
+```
+
+Example:
+
+```ts
+await Users.findOne(
+  { _id: toObjectId(userId) },
+  { projection: projection('name email avatar') },
+)
+```
+
+### Relationship Loading
+
+Do not implement `populate()` in the package. Use explicit app-level functions:
+
+```ts
+export async function loadUsersById(
+  users: Collection<User>,
+  ids: Array<ObjectId>,
+) {
+  const docs = await users.find({ _id: { $in: ids } }).toArray()
+  return new Map(docs.map(doc => [objectIdHex(doc._id), doc]))
 }
 ```
 
-`lean(false)` should not recreate full Mongoose documents. It should return `MongoDocument<T>` wrappers with `.save()`, `.deleteOne()`, and `.toObject()` so ExampleApp can migrate call sites that currently mutate hydrated Mongoose documents.
+For server methods that need relationship joins, prefer either:
 
-### Document API
+- batched loaders near the method or service that needs them
+- MongoDB aggregation with `$lookup` when the database should perform the join
+
+This makes data exposure explicit at the call site.
+
+### Soft Delete
+
+Do not hide soft delete through implicit query middleware.
+
+Use pure filter helpers:
 
 ```ts
-interface MongoDocument<TDocument extends MongoBaseDocument> {
-  readonly _id: TDocument['_id']
-  readonly isNew: boolean
-  toObject(): TDocument
-  save(): Promise<MongoDocument<TDocument>>
-  deleteOne(): Promise<DeleteResult>
+type SoftDeleted = {
+  deletedAt?: Date | null
 }
-```
 
-The implementation should proxy field reads/writes or expose mutable fields directly only if type safety can be preserved. If proxying adds too much complexity, prefer `doc.toObject()` plus `doc.set(partial)`:
-
-```ts
-interface MongoDocument<TDocument extends MongoBaseDocument> {
-  set(patch: Partial<TDocument>): void
+function active<TFilter extends Document>(filter: TFilter): TFilter & {
+  deletedAt: null
 }
+
+function includeDeleted<TFilter extends Document>(filter: TFilter): TFilter
+
+function markDeleted(userId: string | ObjectId, now?: Date): UpdateFilter<SoftDeleted>
+
+function markRestored(): UpdateFilter<SoftDeleted>
 ```
 
-### Schema API
-
-Use Zod as the first schema contract instead of building a Mongoose-like schema DSL.
-
-Provide helpers for MongoDB-specific types:
+Example:
 
 ```ts
-const objectId = (): z.ZodType<ObjectId>
-const objectIdString = (): z.ZodType<string>
-const dateWithDefault = (factory?: () => Date): z.ZodDefault<z.ZodDate>
+await Boards.find(active({ author: toObjectId(userId) })).toArray()
+
+await Boards.updateOne(
+  { _id: toObjectId(boardId) },
+  markDeleted(client.userId),
+)
 ```
 
-The schema layer must support:
+This is more verbose than Mongoose middleware and intentionally safer.
 
-- validation before insert
-- validation before full document replacement
-- optional validation for update operators where reliable
-- default application on inserts
-- timestamp application on insert and update
-- strict mode that rejects unknown keys
-- passthrough mode for migrations and raw collections
+### Find-Or-Create
 
-### Hook API
-
-Use explicit operation names rather than Mongoose method strings:
+Do not implement model statics. Provide a pure helper:
 
 ```ts
-type MongoHookOperation =
-  | 'insert'
-  | 'insertMany'
-  | 'updateOne'
-  | 'updateMany'
-  | 'findOneAndUpdate'
-  | 'deleteOne'
-  | 'deleteMany'
-  | 'save'
+async function findOneOrCreate<TDocument extends Document>(
+  collection: Collection<TDocument>,
+  filter: Filter<TDocument>,
+  create: OptionalUnlessRequiredId<TDocument>,
+  options?: { session?: ClientSession },
+): Promise<TDocument>
 ```
 
-Decorators:
-
-```ts
-@MongoBefore('insert')
-@MongoAfter('insert')
-@MongoBefore('updateOne')
-@MongoAfter('updateOne')
-```
-
-Hook contexts should be typed:
-
-```ts
-interface MongoHookContext<TDocument> {
-  collection: MongoRepository<TDocument>
-  operation: MongoHookOperation
-  filter?: Filter<TDocument>
-  update?: UpdateFilter<TDocument>
-  documents?: TDocument[]
-  result?: unknown
-}
-```
-
-### Plugin API
-
-Plugins should be plain functions operating on collection definitions:
-
-```ts
-type MongoPlugin<TDocument extends MongoBaseDocument> = (
-  definition: MongoCollectionDefinition<TDocument>,
-) => void
-```
-
-Built-in plugins needed for ExampleApp:
-
-- `timestampsPlugin()`
-- `softDeletePlugin({ deletedAt, deletedBy })`
-- `defaultLeanPlugin({ virtuals: true })`
-- `findOneOrCreatePlugin()`
-
-The soft delete plugin must add default filters for `find`, `findOne`, and `countDocuments`, plus repository methods:
-
-```ts
-softDeleteById(id: ObjectIdLike, userId: ObjectIdLike): Promise<UpdateResult>
-restoreById(id: ObjectIdLike): Promise<UpdateResult>
-softDeleteMany(filter: Filter<TDocument>, userId: ObjectIdLike): Promise<UpdateResult>
-restoreMany(filter: Filter<TDocument>): Promise<UpdateResult>
-```
-
-### Reference Population API
-
-`populate()` should be implemented as explicit registered references, not implicit schema magic:
-
-```ts
-@MongoReference({
-  path: 'author',
-  collection: 'users',
-  localField: 'author',
-  foreignField: '_id',
-})
-```
-
-Support:
-
-- single ObjectId reference
-- ObjectId array reference
-- projection strings like `'name email'`
-- object projections like `{ name: 1, email: 1 }`
-- batched fetch by collection and key
-- stable preservation of missing references as `null` for single refs and omitted/null entries for arrays according to the reference config
+Implementation should use `findOneAndUpdate` with `$setOnInsert` and `upsert: true` when possible.
 
 ### Change Stream API
 
-`@MongoWatch` should register Bifrost events and create resilient MongoDB change streams:
+This is the package's main behavior layer.
 
 ```ts
 @MongoWatch({
@@ -341,67 +448,98 @@ Support:
   excludeFields: ['analytics'],
   fullDocument: 'updateLookup',
 })
+class BoardNodesCollection {}
 ```
 
-It must:
+Responsibilities:
 
 - call `server.addEvent(event, eventOptions)`
+- open `collection.watch()`
 - emit through `server.channel(channel).emit(event, payload)`
 - include `eventId`, `_id`, `doc`, and `deleted`
 - skip updates that only touch `updatedAt`
 - skip updates where all changed fields are excluded
-- resume after transient change-stream failures
-- expose close handles through the Mongo registry so `server.close()` integrations can shut down cleanly
+- resume after transient failures
+- close watchers through `mongo.close()`
+
+Payload:
+
+```ts
+type MongoWatchPayload<TDocument> = {
+  eventId: string
+  _id: ObjectId
+  doc: TDocument | null
+  deleted: boolean
+}
+```
+
+### Transactions And Sessions
+
+Keep driver semantics:
+
+```ts
+await mongo.client?.withSession(async session => {
+  await session.withTransaction(async () => {
+    await Boards.updateOne(filter, update, { session })
+    await BoardNodes.updateMany(nodeFilter, nodeUpdate, { session })
+  })
+})
+```
+
+The package may expose a small `withTransaction` helper later, but version one should not hide `ClientSession`.
 
 ## File Structure
 
 Create these Bifrost files:
 
-- `bifrost-ts/src/mongodb/index.ts` — public exports for runtime, types, helpers, plugins, and decorators that are safe for server-side consumers
-- `bifrost-ts/src/mongodb/client.ts` — connection creation from URI, existing `MongoClient`, or existing `Db`
-- `bifrost-ts/src/mongodb/registry.ts` — registered collection metadata, repository instances, model lookup, shutdown, index creation
-- `bifrost-ts/src/mongodb/schema.ts` — Zod/Mongo helper types, ObjectId validators, validation helpers, defaults, timestamps
-- `bifrost-ts/src/mongodb/collection.ts` — `MongoRepository` base class and repository operation implementations
-- `bifrost-ts/src/mongodb/query.ts` — fluent query builder, projections, sort, lean, populate, exec
-- `bifrost-ts/src/mongodb/document.ts` — hydrated document wrapper and save/delete behavior
-- `bifrost-ts/src/mongodb/hooks.ts` — hook registration and deterministic execution
-- `bifrost-ts/src/mongodb/plugins.ts` — built-in plugin definitions
-- `bifrost-ts/src/mongodb/populate.ts` — reference metadata and batched population implementation
-- `bifrost-ts/src/mongodb/change-streams.ts` — resilient change stream wrapper and Bifrost event bridge
+- `bifrost-ts/src/mongodb/index.ts` — public exports for runtime, decorators, schema helpers, filter helpers, timestamp helpers, watch payload types
+- `bifrost-ts/src/mongodb/client.ts` — create or bind MongoDB `MongoClient`/`Db`
+- `bifrost-ts/src/mongodb/registry.ts` — register collection metadata, return native collections, ensure indexes, own watcher lifecycle, close owned resources
+- `bifrost-ts/src/mongodb/schema.ts` — ObjectId helpers, Zod helpers, insert/replacement/set parsing
+- `bifrost-ts/src/mongodb/timestamps.ts` — explicit insert/update timestamp helpers
+- `bifrost-ts/src/mongodb/filters.ts` — soft delete and projection helpers
+- `bifrost-ts/src/mongodb/find-one-or-create.ts` — pure helper around native driver
+- `bifrost-ts/src/mongodb/change-streams.ts` — resilient watch wrapper and Bifrost event bridge
 - `bifrost-ts/src/mongodb/decorators/index.ts` — decorator exports
 - `bifrost-ts/src/mongodb/decorators/metadata.ts` — WeakMap metadata stores modeled after server decorator metadata
-- `bifrost-ts/src/mongodb/decorators/collection.ts` — `@MongoCollection`, `@MongoIndex`, `@MongoReference`, `@MongoPlugin`
-- `bifrost-ts/src/mongodb/decorators/hook.ts` — `@MongoBefore`, `@MongoAfter`
-- `bifrost-ts/src/mongodb/decorators/static.ts` — `@MongoStatic`
+- `bifrost-ts/src/mongodb/decorators/collection.ts` — `@MongoCollection`, `@MongoSchema`, `@MongoIndex`
 - `bifrost-ts/src/mongodb/decorators/watch.ts` — `@MongoWatch`
-- `bifrost-ts/src/mongodb/decorators/register.ts` — class registration bridge that creates repositories and binds statics/hooks
+- `bifrost-ts/src/mongodb/decorators/register.ts` — metadata reader and validation utilities
+
+Do not create these files in version one:
+
+- `bifrost-ts/src/mongodb/query.ts`
+- `bifrost-ts/src/mongodb/document.ts`
+- `bifrost-ts/src/mongodb/populate.ts`
+- `bifrost-ts/src/mongodb/plugins.ts`
+- `bifrost-ts/src/mongodb/collection.ts` as a repository abstraction
 
 Create these tests:
 
-- `bifrost-ts/src/mongodb/schema.unit.spec.ts`
+- `bifrost-ts/src/mongodb/index.unit.spec.ts`
 - `bifrost-ts/src/mongodb/decorators.unit.spec.ts`
-- `bifrost-ts/src/mongodb/query.unit.spec.ts`
-- `bifrost-ts/src/mongodb/document.unit.spec.ts`
-- `bifrost-ts/src/mongodb/plugins.unit.spec.ts`
-- `bifrost-ts/src/mongodb/populate.integration.spec.ts`
+- `bifrost-ts/src/mongodb/registry.unit.spec.ts`
+- `bifrost-ts/src/mongodb/schema.unit.spec.ts`
+- `bifrost-ts/src/mongodb/timestamps.unit.spec.ts`
+- `bifrost-ts/src/mongodb/filters.unit.spec.ts`
+- `bifrost-ts/src/mongodb/find-one-or-create.unit.spec.ts`
+- `bifrost-ts/src/mongodb/change-streams.unit.spec.ts`
 - `bifrost-ts/src/mongodb/change-streams.integration.spec.ts`
-- `bifrost-ts/src/mongodb/example-app-parity.integration.spec.ts`
+- `bifrost-ts/src/mongodb/driver-parity.integration.spec.ts`
 
 Modify these existing files:
 
-- `bifrost-ts/package.json` — add exports, optional peers, dev dependencies, and targeted test commands if useful
-- `bifrost-ts/tsconfig.json` — keep path alias behavior compatible; no source alias should be required by package consumers
-- `bifrost-ts/tsconfig.build.json` — no special include needed if files live under `src`
-- `bifrost-ts/scripts/prepare-dist.mjs` — verify subpath dist imports still get `.js` suffixes; modify only if build output shows unresolved specifiers
-- `bifrost-ts/src/ejson/mongoose.unit.spec.ts` — keep current BSON/ObjectId behavior covered or rename if Mongoose is no longer the right concept
+- `bifrost-ts/package.json` — add subpath exports and optional peer dependency
+- `bifrost-ts/scripts/prepare-dist.mjs` — modify only if generated nested `dist/mongodb` imports fail ESM resolution
+- `bifrost-ts/src/ejson/mongoose.unit.spec.ts` — keep ObjectId/EJSON behavior covered; rename only if Mongoose wording becomes misleading
 
 Create this decision after implementation:
 
-- `decisions/YYYY-MM-DD-bifrost-mongodb-decorator-registry.md`
+- `decisions/YYYY-MM-DD-bifrost-mongodb-driver-first-registry.md`
 
 ## Implementation Tasks
 
-### Task 1: Confirm Architecture And Blast Radius
+### Task 1: Confirm Scope And Existing Extension Points
 
 **Files:**
 - Read: `bifrost-ts/src/server/decorators/*`
@@ -416,23 +554,26 @@ Create this decision after implementation:
 - Owner: `supervisor`
 - Support: `explorer`
 - Risk: `low`
-- Verification: Cortex `graph_context` for Bifrost decorators and ExampleApp Mongoose usage, followed by targeted file reads
+- Verification: Cortex `graph_context`, targeted file reads, and a written note confirming no repository/query/document abstraction will be implemented
 
-- [ ] **Step 1: Dispatch initial Cortex-first exploration sidecar**
+- [ ] **Step 1: Dispatch a Cortex-first explorer if context is stale**
 
-  Ask for exact files, symbols, package export patterns, decorator metadata patterns, ExampleApp Mongoose usage categories, and implementation risks. Stop the sidecar if the graph is stale or if it recommends broad manual exploration.
+  Ask the explorer for exact files, symbols, current Bifrost decorator patterns, package export patterns, ExampleApp Mongoose behaviors, and risks. Stop if it recommends broad exploratory edits.
 
-- [ ] **Step 2: Verify the decorator pattern**
+- [ ] **Step 2: Confirm the driver-first rule**
 
-  Confirm the implementation can reuse the current WeakMap plus pending-update pattern from:
+  Record these exclusions in the working checklist before implementation:
 
   ```txt
-  bifrost-ts/src/server/decorators/metadata.ts
-  bifrost-ts/src/server/decorators/namespace.ts
-  bifrost-ts/src/server/decorators/register.ts
+  no MongoRepository
+  no MongoQuery
+  no MongoDocument
+  no populate
+  no plugin system
+  no Mongoose compatibility layer
   ```
 
-- [ ] **Step 3: Verify package export behavior**
+- [ ] **Step 3: Verify current baseline**
 
   Run:
 
@@ -441,9 +582,9 @@ Create this decision after implementation:
   bun run build
   ```
 
-  Expected: existing build passes before MongoDB work starts. If it fails before edits, record the failure and avoid mixing unrelated fixes into the MongoDB package commit.
+  Expected: current build passes before MongoDB work starts. If it fails before edits, record the failure separately and do not mix unrelated fixes into this work.
 
-### Task 2: Add MongoDB Package Skeleton
+### Task 2: Add Package Surface
 
 **Files:**
 - Create: `bifrost-ts/src/mongodb/index.ts`
@@ -455,84 +596,21 @@ Create this decision after implementation:
 - Owner: `worker`
 - Support: `verifier`
 - Risk: `medium`
-- Verification: `bun run typecheck`, `bun run build`, targeted unit test
+- Verification: targeted unit test, `bun run typecheck`, `bun run build`
 
-- [ ] **Step 1: Add failing export smoke test**
+- [ ] **Step 1: Write export smoke test**
 
-  Create `bifrost-ts/src/mongodb/index.unit.spec.ts`:
+  Test that `createBifrostMongo`, `objectId`, `toObjectId`, `withInsertTimestamps`, `active`, `findOneOrCreate`, `MongoCollection`, `MongoSchema`, `MongoIndex`, and `MongoWatch` are exported.
 
-  ```ts
-  import { describe, expect, it } from 'vitest'
+- [ ] **Step 2: Add minimal exported functions**
 
-  import {
-    MongoRepository,
-    createMongoBifrost,
-    objectId,
-  } from './index'
-  import { MongoCollection } from './decorators'
+  Add real minimal implementations that throw specific configuration errors where runtime input is required. Do not add placeholders that look usable.
 
-  describe('@example-app/bifrost/mongodb exports', () => {
-    it('exports the registry, repository base, schema helpers, and decorators', () => {
-      expect(createMongoBifrost).toBeTypeOf('function')
-      expect(MongoRepository).toBeTypeOf('function')
-      expect(objectId).toBeTypeOf('function')
-      expect(MongoCollection).toBeTypeOf('function')
-    })
-  })
-  ```
+- [ ] **Step 3: Add package exports**
 
-- [ ] **Step 2: Add minimal public files**
+  Add `./mongodb` and `./mongodb/decorators` to `bifrost-ts/package.json`.
 
-  Create `bifrost-ts/src/mongodb/index.ts`:
-
-  ```ts
-  export { createMongoBifrost } from './registry'
-  export { MongoRepository } from './collection'
-  export { objectId } from './schema'
-  export * from './decorators'
-  ```
-
-  Create `bifrost-ts/src/mongodb/decorators/index.ts`:
-
-  ```ts
-  export { MongoCollection } from './collection'
-  ```
-
-- [ ] **Step 3: Add placeholder-free minimal implementations**
-
-  Create the smallest real implementations needed for the smoke test:
-
-  ```ts
-  export class MongoRepository<TDocument extends object = object> {
-    protected readonly documentType?: TDocument
-  }
-  ```
-
-  ```ts
-  export function createMongoBifrost(): never {
-    throw new Error('createMongoBifrost requires a MongoDB connection configuration.')
-  }
-  ```
-
-  ```ts
-  import { z } from 'zod'
-
-  export function objectId(): z.ZodType<unknown> {
-    return z.unknown()
-  }
-  ```
-
-  ```ts
-  export function MongoCollection(): ClassDecorator {
-    return target => target
-  }
-  ```
-
-- [ ] **Step 4: Add package exports**
-
-  Update `bifrost-ts/package.json` exports with `./mongodb` and `./mongodb/decorators`.
-
-- [ ] **Step 5: Verify skeleton**
+- [ ] **Step 4: Verify**
 
   Run:
 
@@ -543,24 +621,18 @@ Create this decision after implementation:
   bun run build
   ```
 
-  Expected: the targeted test, typecheck, and build pass.
-
-- [ ] **Step 6: Commit**
-
-  Commit:
+- [ ] **Step 5: Commit**
 
   ```sh
   git add bifrost-ts/package.json bifrost-ts/src/mongodb
   git commit -m "feat: add mongodb package surface"
   ```
 
-### Task 3: Implement Decorator Metadata And Registration
+### Task 3: Implement Decorator Metadata
 
 **Files:**
 - Create: `bifrost-ts/src/mongodb/decorators/metadata.ts`
 - Create: `bifrost-ts/src/mongodb/decorators/collection.ts`
-- Create: `bifrost-ts/src/mongodb/decorators/hook.ts`
-- Create: `bifrost-ts/src/mongodb/decorators/static.ts`
 - Create: `bifrost-ts/src/mongodb/decorators/watch.ts`
 - Create: `bifrost-ts/src/mongodb/decorators/register.ts`
 - Modify: `bifrost-ts/src/mongodb/decorators/index.ts`
@@ -570,51 +642,39 @@ Create this decision after implementation:
 - Owner: `worker`
 - Support: `verifier`
 - Risk: `high`
-- Verification: decorator unit tests and `bun run typecheck`
+- Verification: decorator tests and `bun run typecheck`
 
 - [ ] **Step 1: Write decorator tests**
 
   Cover:
 
-  - `@MongoCollection` stores name, schema, timestamps, strict mode
-  - `@MongoIndex` appends index definitions
-  - `@MongoReference` appends reference definitions
-  - `@MongoBefore` and `@MongoAfter` queue method metadata and flush through `@MongoCollection`
-  - `@MongoStatic` records static method names
-  - `@MongoWatch` appends watcher definitions
-  - metadata isolation between classes in the same file
+  - `@MongoCollection` stores collection name.
+  - `@MongoSchema` stores Zod schema.
+  - `@MongoIndex` appends index definitions.
+  - `@MongoWatch` appends watcher definitions.
+  - Multiple decorators on one class compose.
+  - Same-file classes do not leak metadata.
+  - Classes missing `@MongoCollection` fail registration validation.
 
-- [ ] **Step 2: Implement metadata stores**
+- [ ] **Step 2: Implement metadata**
 
-  Use the same style as Bifrost server decorators:
+  Use WeakMaps keyed by class constructor. Do not use `reflect-metadata`.
 
   ```ts
-  export interface MongoCollectionMeta<TDocument extends object = object> {
+  export interface MongoCollectionDefinition<TDocument extends Document = Document> {
+    token: MongoCollectionClass
     name: string
     schema?: z.ZodType<TDocument>
-    timestamps: boolean
-    strict: boolean
-    indexes: MongoIndexMeta[]
-    references: MongoReferenceMeta[]
-    hooks: Map<string, MongoHookMeta[]>
-    statics: Set<string>
-    watches: MongoWatchMeta<TDocument>[]
+    indexes: MongoIndexDefinition[]
+    watches: MongoWatchDefinition<TDocument>[]
   }
   ```
 
-  Use WeakMaps keyed by class constructor. Use pending update queues for method decorators to avoid Bun decorator initializer leakage.
+- [ ] **Step 3: Implement decorators**
 
-- [ ] **Step 3: Implement class and member decorators**
+  Keep decorators data-only. They must not open database connections, create indexes, or start watchers.
 
-  `@MongoCollection` must flush pending updates after setting class metadata.
-
-  Member decorators must queue updates until the class decorator runs.
-
-- [ ] **Step 4: Implement `getMongoCollectionMeta`**
-
-  Export a testable metadata read function from `decorators/register.ts` or `decorators/metadata.ts`.
-
-- [ ] **Step 5: Verify**
+- [ ] **Step 4: Verify**
 
   Run:
 
@@ -624,16 +684,14 @@ Create this decision after implementation:
   bun run typecheck
   ```
 
-  Expected: tests pass without decorator metadata leaking across test classes.
-
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
   ```sh
   git add bifrost-ts/src/mongodb/decorators bifrost-ts/src/mongodb/decorators.unit.spec.ts
-  git commit -m "feat: add mongodb collection decorators"
+  git commit -m "feat: declare mongodb collection metadata"
   ```
 
-### Task 4: Implement Connection Registry
+### Task 4: Implement Registry And Native Collection Access
 
 **Files:**
 - Create: `bifrost-ts/src/mongodb/client.ts`
@@ -645,55 +703,32 @@ Create this decision after implementation:
 - Owner: `worker`
 - Support: `verifier`
 - Risk: `high`
-- Verification: unit tests with mocked `MongoClient`, typecheck, build
+- Verification: mocked driver unit tests, `bun run typecheck`, `bun run build`
 
 - [ ] **Step 1: Write registry tests**
 
-  Test:
+  Cover:
 
-  - accepts an existing `Db`
-  - accepts an existing `MongoClient`
-  - accepts a URI and creates a client
-  - registers class metadata into repository instances
-  - rejects classes missing `@MongoCollection`
-  - creates indexes during registration
-  - closes owned clients and change streams
-  - does not close externally owned clients unless configured
+  - accepts existing `Db`
+  - accepts existing `MongoClient`
+  - accepts URI plus `clientOptions`
+  - returns native `Collection<T>` from `collection(token)`
+  - returns native `Collection<T>` from `collectionByName(name)`
+  - exposes metadata through `meta(token)`
+  - creates indexes only through `ensureIndexes()`
+  - optionally runs `ensureIndexes()` during startup when configured
+  - closes owned client
+  - does not close external client unless `closeExternalClient` is true
 
-- [ ] **Step 2: Implement connection input types**
+- [ ] **Step 2: Implement connection resolution**
 
-  ```ts
-  export interface MongoBifrostOptions {
-    server?: Server
-    uri?: string
-    client?: MongoClient
-    db?: Db
-    dbName?: string
-    authSource?: string
-    collections?: Array<MongoCollectionClass>
-    closeExternalClient?: boolean
-  }
-  ```
+  Resolve exactly one of `db`, `client`, or `uri`. Throw clear errors for invalid combinations.
 
-- [ ] **Step 3: Implement registry**
+- [ ] **Step 3: Implement native collection registry**
 
-  The registry should expose:
+  Store metadata and collection instances. Return `mongodb.Collection<TDocument>` directly.
 
-  ```ts
-  collection<TRepository extends MongoRepository>(
-    Class: MongoRepositoryClass<TRepository>,
-  ): TRepository
-
-  collectionByName<TDocument extends object>(name: string): MongoRepository<TDocument>
-
-  close(): Promise<void>
-  ```
-
-- [ ] **Step 4: Wire public export**
-
-  `createMongoBifrost(options)` should return `Promise<MongoBifrostRegistry>`.
-
-- [ ] **Step 5: Verify**
+- [ ] **Step 4: Verify**
 
   Run:
 
@@ -704,14 +739,14 @@ Create this decision after implementation:
   bun run build
   ```
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
   ```sh
   git add bifrost-ts/src/mongodb/client.ts bifrost-ts/src/mongodb/registry.ts bifrost-ts/src/mongodb/index.ts bifrost-ts/src/mongodb/registry.unit.spec.ts
-  git commit -m "feat: register mongodb repositories"
+  git commit -m "feat: register native mongodb collections"
   ```
 
-### Task 5: Implement Schema And ObjectId Contracts
+### Task 5: Implement ObjectId And Schema Helpers
 
 **Files:**
 - Create: `bifrost-ts/src/mongodb/schema.ts`
@@ -721,38 +756,27 @@ Create this decision after implementation:
 - Owner: `worker`
 - Support: `verifier`
 - Risk: `medium`
-- Verification: schema unit tests and typecheck
+- Verification: schema unit tests and `bun run typecheck`
 
-- [ ] **Step 1: Write schema tests**
+- [ ] **Step 1: Write helper tests**
 
   Cover:
 
-  - `objectId()` accepts `ObjectId`
-  - `objectId()` rejects invalid strings in strict mode
-  - `coerceObjectId()` converts valid ObjectId strings
-  - insert validation applies defaults
-  - timestamps apply `createdAt` and `updatedAt`
-  - update validation applies `updatedAt`
-  - strict schemas reject unknown keys
+  - `objectId()` accepts driver `ObjectId`
+  - `objectId()` rejects strings
+  - `coerceObjectId()` accepts valid strings and `ObjectId`
+  - `coerceObjectId()` rejects invalid strings
+  - `toObjectId()` normalizes strings and preserves ObjectIds
+  - `objectIdHex()` returns stable hex strings
+  - `parseInsert()` runs Zod parse
+  - `parseReplacement()` runs Zod parse
+  - `parseSet()` validates only a supplied `$set` payload schema
 
 - [ ] **Step 2: Implement helpers**
 
-  ```ts
-  export function objectId(): z.ZodType<ObjectId>
-  export function coerceObjectId(): z.ZodType<ObjectId>
-  export function isObjectIdLike(value: unknown): value is ObjectId | string
-  export function normalizeObjectId(value: ObjectId | string): ObjectId
-  ```
+  Keep helpers pure and independent of Bifrost server state.
 
-- [ ] **Step 3: Implement validation helpers**
-
-  ```ts
-  validateInsert<T>(schema: z.ZodType<T>, input: unknown): T
-  validateReplacement<T>(schema: z.ZodType<T>, input: unknown): T
-  applyTimestamps<T>(input: T, mode: 'insert' | 'update'): T
-  ```
-
-- [ ] **Step 4: Verify**
+- [ ] **Step 3: Verify**
 
   Run:
 
@@ -762,426 +786,165 @@ Create this decision after implementation:
   bun run typecheck
   ```
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 4: Commit**
 
   ```sh
   git add bifrost-ts/src/mongodb/schema.ts bifrost-ts/src/mongodb/schema.unit.spec.ts
-  git commit -m "feat: validate mongodb document schemas"
+  git commit -m "feat: add mongodb schema helpers"
   ```
 
-### Task 6: Implement Repository Operations
+### Task 6: Implement Timestamp, Filter, Projection, And Find-Or-Create Helpers
 
 **Files:**
-- Create: `bifrost-ts/src/mongodb/collection.ts`
-- Modify: `bifrost-ts/src/mongodb/registry.ts`
-- Test: `bifrost-ts/src/mongodb/collection.unit.spec.ts`
+- Create: `bifrost-ts/src/mongodb/timestamps.ts`
+- Create: `bifrost-ts/src/mongodb/filters.ts`
+- Create: `bifrost-ts/src/mongodb/find-one-or-create.ts`
+- Modify: `bifrost-ts/src/mongodb/index.ts`
+- Test: `bifrost-ts/src/mongodb/timestamps.unit.spec.ts`
+- Test: `bifrost-ts/src/mongodb/filters.unit.spec.ts`
+- Test: `bifrost-ts/src/mongodb/find-one-or-create.unit.spec.ts`
 
 **Execution:**
 - Owner: `worker`
 - Support: `verifier`
-- Risk: `high`
-- Verification: repository unit tests and integration parity tests later
+- Risk: `medium`
+- Verification: helper unit tests and `bun run typecheck`
 
-- [ ] **Step 1: Write repository operation tests**
-
-  Mock native collection methods and verify:
-
-  - `find` creates a `MongoQuery`
-  - `findOne` creates a `MongoQuery`
-  - `findById` normalizes string ObjectIds
-  - `create` validates, applies defaults, inserts, then returns a document wrapper
-  - `insertMany` validates each document
-  - `updateOne` applies update timestamps
-  - `updateMany` applies update timestamps
-  - `findOneAndUpdate` supports returning updated documents
-  - `native` exposes the underlying collection
-
-- [ ] **Step 2: Implement `MongoRepository`**
-
-  `MongoRepository` should be a real base class with protected binding from the registry:
-
-  ```ts
-  protected bindMongoContext(context: MongoRepositoryContext<TDocument>): void
-  ```
-
-  Keep the binding method non-public to prevent consumers from constructing half-bound repositories.
-
-- [ ] **Step 3: Add typed operation methods**
-
-  Implement all core repository methods against `mongodb.Collection<TDocument>`.
-
-- [ ] **Step 4: Verify**
-
-  Run:
-
-  ```sh
-  cd bifrost-ts
-  bun run test:unit -- src/mongodb/collection.unit.spec.ts
-  bun run typecheck
-  ```
-
-- [ ] **Step 5: Commit**
-
-  ```sh
-  git add bifrost-ts/src/mongodb/collection.ts bifrost-ts/src/mongodb/collection.unit.spec.ts bifrost-ts/src/mongodb/registry.ts
-  git commit -m "feat: add typed mongodb repositories"
-  ```
-
-### Task 7: Implement Query Builder
-
-**Files:**
-- Create: `bifrost-ts/src/mongodb/query.ts`
-- Modify: `bifrost-ts/src/mongodb/collection.ts`
-- Test: `bifrost-ts/src/mongodb/query.unit.spec.ts`
-
-**Execution:**
-- Owner: `worker`
-- Support: `verifier`
-- Risk: `high`
-- Verification: query unit tests and typecheck
-
-- [ ] **Step 1: Write query tests**
+- [ ] **Step 1: Write timestamp tests**
 
   Cover:
 
-  - `.select('name email')` maps to projection
-  - `.select({ name: 1 })` maps to projection
-  - `.sort({ createdAt: -1 })`
-  - `.limit(10)`
-  - `.skip(20)`
-  - `.lean()` returns plain objects
-  - `.lean(false)` returns document wrappers
-  - awaiting the query calls `.exec()`
-  - `.exec()` is idempotent and does not issue duplicate database reads
+  - insert timestamps set `createdAt` and `updatedAt`
+  - caller can inject `now` for deterministic tests
+  - update timestamp preserves existing `$set`
+  - update timestamp does not remove `$inc`, `$unset`, or other operators
 
-- [ ] **Step 2: Implement `MongoQuery`**
-
-  Use `PromiseLike<TResult>` and an internal memoized execution promise.
-
-- [ ] **Step 3: Integrate repository reads**
-
-  `find`, `findOne`, `findById`, and `findOneAndUpdate` should return `MongoQuery`.
-
-- [ ] **Step 4: Verify**
-
-  Run:
-
-  ```sh
-  cd bifrost-ts
-  bun run test:unit -- src/mongodb/query.unit.spec.ts
-  bun run typecheck
-  ```
-
-- [ ] **Step 5: Commit**
-
-  ```sh
-  git add bifrost-ts/src/mongodb/query.ts bifrost-ts/src/mongodb/query.unit.spec.ts bifrost-ts/src/mongodb/collection.ts
-  git commit -m "feat: add mongodb query builder"
-  ```
-
-### Task 8: Implement Document Wrapper
-
-**Files:**
-- Create: `bifrost-ts/src/mongodb/document.ts`
-- Modify: `bifrost-ts/src/mongodb/query.ts`
-- Modify: `bifrost-ts/src/mongodb/collection.ts`
-- Test: `bifrost-ts/src/mongodb/document.unit.spec.ts`
-
-**Execution:**
-- Owner: `worker`
-- Support: `verifier`
-- Risk: `high`
-- Verification: document tests and ExampleApp hydrated-document parity tests later
-
-- [ ] **Step 1: Write document tests**
+- [ ] **Step 2: Write filter/projection tests**
 
   Cover:
 
-  - `toObject()` returns the current object state
-  - `set()` mutates pending document state
-  - `save()` validates and writes `$set` changes
-  - `save()` applies `updatedAt`
-  - `deleteOne()` deletes by `_id`
-  - `lean(false)` read results are wrapped documents
+  - `active({ author })` adds `deletedAt: null`
+  - `active({ deletedAt: explicit })` rejects conflicting filters
+  - `markDeleted(userId)` sets `deletedAt` and `deletedBy`
+  - `markRestored()` unsets soft delete fields
+  - `projection('name email')` returns `{ name: 1, email: 1 }`
 
-- [ ] **Step 2: Implement `MongoDocument`**
+- [ ] **Step 3: Write find-one-or-create tests**
 
-  Prefer explicit `.set()` over proxy mutation for version one.
+  Mock collection `findOneAndUpdate` and verify `$setOnInsert`, `upsert: true`, `returnDocument: 'after'`, and session option forwarding.
 
-- [ ] **Step 3: Wire into `create` and query hydration**
+- [ ] **Step 4: Implement helpers**
 
-  `create()` should return a document wrapper. `lean(false)` should hydrate reads.
+  These helpers must not patch collection methods or add hidden behavior.
 
-- [ ] **Step 4: Verify**
-
-  Run:
-
-  ```sh
-  cd bifrost-ts
-  bun run test:unit -- src/mongodb/document.unit.spec.ts
-  bun run typecheck
-  ```
-
-- [ ] **Step 5: Commit**
-
-  ```sh
-  git add bifrost-ts/src/mongodb/document.ts bifrost-ts/src/mongodb/document.unit.spec.ts bifrost-ts/src/mongodb/query.ts bifrost-ts/src/mongodb/collection.ts
-  git commit -m "feat: hydrate mongodb documents"
-  ```
-
-### Task 9: Implement Hooks And Statics
-
-**Files:**
-- Create: `bifrost-ts/src/mongodb/hooks.ts`
-- Modify: `bifrost-ts/src/mongodb/collection.ts`
-- Modify: `bifrost-ts/src/mongodb/registry.ts`
-- Test: `bifrost-ts/src/mongodb/hooks.unit.spec.ts`
-
-**Execution:**
-- Owner: `worker`
-- Support: `verifier`
-- Risk: `high`
-- Verification: hook ordering tests and typecheck
-
-- [ ] **Step 1: Write hook and static tests**
-
-  Cover:
-
-  - before hooks run before native operations
-  - after hooks receive operation results
-  - hooks can mutate insert documents
-  - hooks can mutate update operators
-  - hook errors prevent writes
-  - `@MongoStatic` methods are callable on the repository instance
-  - static methods receive `this` as the bound repository
-
-- [ ] **Step 2: Implement hook runner**
-
-  Add deterministic operation context and explicit before/after phases.
-
-- [ ] **Step 3: Bind statics during registration**
-
-  Copy decorated methods from the repository class prototype onto the repository instance with correct `this` binding.
-
-- [ ] **Step 4: Verify**
+- [ ] **Step 5: Verify**
 
   Run:
 
   ```sh
   cd bifrost-ts
-  bun run test:unit -- src/mongodb/hooks.unit.spec.ts
+  bun run test:unit -- src/mongodb/timestamps.unit.spec.ts src/mongodb/filters.unit.spec.ts src/mongodb/find-one-or-create.unit.spec.ts
   bun run typecheck
   ```
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
   ```sh
-  git add bifrost-ts/src/mongodb/hooks.ts bifrost-ts/src/mongodb/hooks.unit.spec.ts bifrost-ts/src/mongodb/collection.ts bifrost-ts/src/mongodb/registry.ts
-  git commit -m "feat: run mongodb hooks and statics"
+  git add bifrost-ts/src/mongodb/timestamps.ts bifrost-ts/src/mongodb/filters.ts bifrost-ts/src/mongodb/find-one-or-create.ts bifrost-ts/src/mongodb/index.ts bifrost-ts/src/mongodb/*.unit.spec.ts
+  git commit -m "feat: add explicit mongodb write helpers"
   ```
 
-### Task 10: Implement Built-In Plugins
-
-**Files:**
-- Create: `bifrost-ts/src/mongodb/plugins.ts`
-- Modify: `bifrost-ts/src/mongodb/collection.ts`
-- Modify: `bifrost-ts/src/mongodb/query.ts`
-- Test: `bifrost-ts/src/mongodb/plugins.unit.spec.ts`
-
-**Execution:**
-- Owner: `worker`
-- Support: `verifier`
-- Risk: `high`
-- Verification: plugin tests and ExampleApp plugin parity tests later
-
-- [ ] **Step 1: Write plugin tests**
-
-  Cover:
-
-  - timestamps plugin adds dates on insert
-  - timestamps plugin updates `updatedAt`
-  - soft delete adds default read filters
-  - soft delete can be bypassed through an explicit `{ deleted: true }` option
-  - `softDeleteById`, `restoreById`, `softDeleteMany`, `restoreMany`
-  - find-one-or-create returns existing document without creating a duplicate
-  - find-one-or-create creates when missing
-
-- [ ] **Step 2: Implement plugin contract**
-
-  Plugins should modify collection definitions before repositories are instantiated.
-
-- [ ] **Step 3: Implement built-ins**
-
-  Export:
-
-  ```ts
-  timestampsPlugin()
-  softDeletePlugin()
-  defaultLeanPlugin()
-  findOneOrCreatePlugin()
-  ```
-
-- [ ] **Step 4: Verify**
-
-  Run:
-
-  ```sh
-  cd bifrost-ts
-  bun run test:unit -- src/mongodb/plugins.unit.spec.ts
-  bun run typecheck
-  ```
-
-- [ ] **Step 5: Commit**
-
-  ```sh
-  git add bifrost-ts/src/mongodb/plugins.ts bifrost-ts/src/mongodb/plugins.unit.spec.ts bifrost-ts/src/mongodb/collection.ts bifrost-ts/src/mongodb/query.ts
-  git commit -m "feat: add mongodb repository plugins"
-  ```
-
-### Task 11: Implement Reference Population
-
-**Files:**
-- Create: `bifrost-ts/src/mongodb/populate.ts`
-- Modify: `bifrost-ts/src/mongodb/query.ts`
-- Modify: `bifrost-ts/src/mongodb/registry.ts`
-- Test: `bifrost-ts/src/mongodb/populate.integration.spec.ts`
-
-**Execution:**
-- Owner: `worker`
-- Support: `verifier`
-- Risk: `high`
-- Verification: integration tests with real MongoDB test database or isolated MongoDB test harness
-
-- [ ] **Step 1: Write populate integration tests**
-
-  Cover:
-
-  - single reference population
-  - array reference population
-  - missing single ref returns `null`
-  - projection string selects only requested fields
-  - projection object selects only requested fields
-  - population batches IDs into one query per target collection
-
-- [ ] **Step 2: Implement population planner**
-
-  Group requested population specs by target collection and foreign field.
-
-- [ ] **Step 3: Implement result merger**
-
-  Merge populated documents into result objects without mutating cached query results across independent queries.
-
-- [ ] **Step 4: Verify**
-
-  Run:
-
-  ```sh
-  cd bifrost-ts
-  bun run test:integration -- src/mongodb/populate.integration.spec.ts
-  bun run typecheck
-  ```
-
-- [ ] **Step 5: Commit**
-
-  ```sh
-  git add bifrost-ts/src/mongodb/populate.ts bifrost-ts/src/mongodb/populate.integration.spec.ts bifrost-ts/src/mongodb/query.ts bifrost-ts/src/mongodb/registry.ts
-  git commit -m "feat: populate mongodb references"
-  ```
-
-### Task 12: Implement Bifrost Change Stream Bridge
+### Task 7: Implement Bifrost Change Stream Bridge
 
 **Files:**
 - Create: `bifrost-ts/src/mongodb/change-streams.ts`
 - Modify: `bifrost-ts/src/mongodb/registry.ts`
-- Modify: `bifrost-ts/src/mongodb/collection.ts`
+- Modify: `bifrost-ts/src/mongodb/index.ts`
+- Test: `bifrost-ts/src/mongodb/change-streams.unit.spec.ts`
 - Test: `bifrost-ts/src/mongodb/change-streams.integration.spec.ts`
 
 **Execution:**
 - Owner: `worker`
-- Support: `verifier`
+- Support: `verifier` and `reviewer`
 - Risk: `high`
-- Verification: integration tests and reviewer pass because this touches Bifrost server event semantics
+- Verification: unit tests, integration tests, typecheck, and reviewer pass
 
-- [ ] **Step 1: Write change stream tests**
+- [ ] **Step 1: Write watcher unit tests**
 
   Cover:
 
   - watcher registers Bifrost event through `server.addEvent`
-  - insert emits event with `doc`
-  - update emits event with updated `doc`
-  - delete emits event with `deleted: true`
+  - insert emits `{ eventId, _id, doc, deleted: false }`
+  - update emits current full document
+  - delete emits `{ doc: null, deleted: true }`
   - update containing only `updatedAt` is skipped
   - update containing only excluded fields is skipped
-  - `getChannel` can return one channel or multiple channels
-  - registry close closes open change streams
+  - `getChannel` may return one channel or many channels
+  - close prevents reconnect scheduling
 
-- [ ] **Step 2: Implement resilient wrapper**
+- [ ] **Step 2: Write integration test**
 
-  Port the behavior from ExampleApp's current `createResilientChangeStream` into a package-owned implementation with typed inputs and no Mongoose dependency.
+  Use a real MongoDB test database when available. If replica-set change streams are unavailable, skip with a clear diagnostic and keep unit coverage mandatory.
 
-- [ ] **Step 3: Implement Bifrost bridge**
+- [ ] **Step 3: Implement resilient watcher**
 
-  Emit through:
+  Port ExampleApp's current behavior without importing Mongoose. Use native `collection.watch()` and store close handles in the registry.
 
-  ```ts
-  server.channel(channel).emit(event, payload)
-  ```
+- [ ] **Step 4: Wire registry startup and shutdown**
 
-  Payload:
+  When a registered collection has watch metadata and a server is configured, start watchers after collection registration and close them through `mongo.close()`.
 
-  ```ts
-  {
-    eventId: string,
-    _id: ObjectId,
-    doc: TDocument | null,
-    deleted: boolean,
-  }
-  ```
-
-- [ ] **Step 4: Verify**
+- [ ] **Step 5: Verify**
 
   Run:
 
   ```sh
   cd bifrost-ts
+  bun run test:unit -- src/mongodb/change-streams.unit.spec.ts
   bun run test:integration -- src/mongodb/change-streams.integration.spec.ts
   bun run typecheck
   ```
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
   ```sh
-  git add bifrost-ts/src/mongodb/change-streams.ts bifrost-ts/src/mongodb/change-streams.integration.spec.ts bifrost-ts/src/mongodb/registry.ts bifrost-ts/src/mongodb/collection.ts
-  git commit -m "feat: bridge mongodb changes to bifrost events"
+  git add bifrost-ts/src/mongodb/change-streams.ts bifrost-ts/src/mongodb/change-streams*.spec.ts bifrost-ts/src/mongodb/registry.ts bifrost-ts/src/mongodb/index.ts
+  git commit -m "feat: stream mongodb changes through bifrost"
   ```
 
-### Task 13: Add ExampleApp Parity Tests
+### Task 8: Add Driver-Parity Integration Tests
 
 **Files:**
-- Create: `bifrost-ts/src/mongodb/example-app-parity.integration.spec.ts`
+- Create: `bifrost-ts/src/mongodb/driver-parity.integration.spec.ts`
 
 **Execution:**
 - Owner: `worker`
 - Support: `verifier`
 - Risk: `high`
-- Verification: integration tests and reviewer pass
+- Verification: integration tests and typecheck
 
-- [ ] **Step 1: Create representative schemas**
-
-  Include `User`, `Board`, `BoardNode`, and `Session` style documents with ObjectId references, timestamps, soft delete, statics, and hooks.
-
-- [ ] **Step 2: Test current ExampleApp patterns**
+- [ ] **Step 1: Test native driver workflows**
 
   Cover:
 
-  - `BoardCollection.find({ author }).lean()`
-  - `BoardCollection.findById(id).lean(false)` followed by `set()` and `save()`
-  - `BoardCollection.updateOne({ _id }, { $set })`
-  - `BoardCollection.softDeleteById(id, userId)`
-  - `RoleCollection.find({ org }).populate('user', 'name email')`
-  - `SessionCollection.findOneOrCreate({ familyId })`
-  - `BoardNodeCollection.aggregate([...])`
-  - `BoardNodeCollection.native.updateMany(...)`
+  - `collection.find(...).project(...).sort(...).limit(...).toArray()`
+  - `collection.findOne(...)`
+  - `collection.findOneAndUpdate(...)`
+  - `collection.updateOne(...)`
+  - `collection.aggregate(...)`
+  - `collection.bulkWrite(...)`
+  - session option forwarding through helper functions
+  - index creation through `ensureIndexes()`
+
+- [ ] **Step 2: Test ExampleApp migration examples**
+
+  Cover:
+
+  - replacing `.lean()` with direct driver reads
+  - replacing `.lean(false).save()` with explicit `updateOne`
+  - replacing `.populate()` with batched loader
+  - replacing soft-delete middleware with `active()` filter
+  - replacing model static with exported helper function
 
 - [ ] **Step 3: Verify**
 
@@ -1189,7 +952,7 @@ Create this decision after implementation:
 
   ```sh
   cd bifrost-ts
-  bun run test:integration -- src/mongodb/example-app-parity.integration.spec.ts
+  bun run test:integration -- src/mongodb/driver-parity.integration.spec.ts
   bun run typecheck
   bun run build
   ```
@@ -1197,45 +960,41 @@ Create this decision after implementation:
 - [ ] **Step 4: Commit**
 
   ```sh
-  git add bifrost-ts/src/mongodb/example-app-parity.integration.spec.ts
-  git commit -m "test: cover example-app mongodb parity"
+  git add bifrost-ts/src/mongodb/driver-parity.integration.spec.ts
+  git commit -m "test: cover driver-first mongodb workflows"
   ```
 
-### Task 14: Update Documentation And Decision Record
+### Task 9: Document Design And Decision
 
 **Files:**
 - Create: `bifrost-ts/src/mongodb/README.md` if package-local docs are accepted by the repo
-- Create: `decisions/YYYY-MM-DD-bifrost-mongodb-decorator-registry.md`
-- Modify: `RELEASING.md` if package export behavior or peer dependency release steps change
+- Create: `decisions/YYYY-MM-DD-bifrost-mongodb-driver-first-registry.md`
+- Modify: `RELEASING.md` if optional peer dependency or package export release steps change
 
 **Execution:**
 - Owner: `supervisor`
 - Support: `reviewer`
 - Risk: `medium`
-- Verification: doc review, package build, no broken links
+- Verification: doc review and `bun run build`
 
-- [ ] **Step 1: Write usage documentation**
+- [ ] **Step 1: Document driver-first usage**
 
   Include:
 
   - connection setup
-  - collection decorator example
-  - schema helper example
-  - repository operations
-  - statics and hooks
-  - populate
-  - change streams
-  - migration notes from Mongoose
-  - raw driver escape hatch
+  - collection decorators
+  - native collection access
+  - schema helpers
+  - timestamp helpers
+  - soft delete helpers
+  - find-one-or-create helper
+  - change-stream events
+  - explicit relationship loading
+  - migration examples from common Mongoose patterns
 
 - [ ] **Step 2: Write decision record**
 
-  Record:
-
-  - why the package uses Zod schemas instead of cloning Mongoose schemas
-  - why decorators register metadata instead of relying on runtime type metadata
-  - why native driver access remains public
-  - why `lean(false)` returns Bifrost document wrappers instead of Mongoose-compatible documents
+  Record why the package does not implement repositories, query builders, document wrappers, populate, or plugin systems.
 
 - [ ] **Step 3: Verify**
 
@@ -1249,11 +1008,11 @@ Create this decision after implementation:
 - [ ] **Step 4: Commit**
 
   ```sh
-  git add bifrost-ts/src/mongodb/README.md decisions/YYYY-MM-DD-bifrost-mongodb-decorator-registry.md RELEASING.md
-  git commit -m "docs: explain mongodb repository design"
+  git add bifrost-ts/src/mongodb/README.md decisions/YYYY-MM-DD-bifrost-mongodb-driver-first-registry.md RELEASING.md
+  git commit -m "docs: explain driver-first mongodb integration"
   ```
 
-### Task 15: Full Verification And Risk Review
+### Task 10: Full Verification And Release-Surface Review
 
 **Files:**
 - Analyze all changed Bifrost files
@@ -1274,7 +1033,7 @@ Create this decision after implementation:
   bun run build
   ```
 
-- [ ] **Step 2: Run full package checks**
+- [ ] **Step 2: Run full checks**
 
   ```sh
   cd bifrost-ts
@@ -1284,11 +1043,9 @@ Create this decision after implementation:
 
 - [ ] **Step 3: Run Cortex risk report**
 
-  Use `regression_risk_report` on all changed files under `bifrost-ts/src/mongodb`, `bifrost-ts/package.json`, and any build/doc files.
+  Use `regression_risk_report` on changed MongoDB package files, `bifrost-ts/package.json`, and any release/build files.
 
-- [ ] **Step 4: Review public API declarations**
-
-  Inspect generated declarations:
+- [ ] **Step 4: Inspect dist declarations**
 
   ```sh
   cd bifrost-ts
@@ -1297,823 +1054,703 @@ Create this decision after implementation:
 
   Confirm consumers can import from `@example-app/bifrost/mongodb` and `@example-app/bifrost/mongodb/decorators` without source aliases.
 
-- [ ] **Step 5: Final commit if verification required fixes**
+- [ ] **Step 5: Commit verification fixes**
 
   ```sh
   git add bifrost-ts/src/mongodb bifrost-ts/package.json bifrost-ts/scripts bifrost-ts/tsconfig*.json RELEASING.md decisions
   git commit -m "fix: harden mongodb package release surface"
   ```
 
-## ExampleApp Migration Plan
+## ExampleApp Migration Strategy
 
-The Bifrost package must be implemented first. Then migrate ExampleApp in one direct rollout with frequent logical commits.
+The migration should simplify ExampleApp rather than preserve Mongoose structure.
 
-### ExampleApp Task 1: Replace Connection Layer
+### Migration Principle 1: Collections Are Native
 
-**Files:**
-- Modify: `<user-home>/Repositories/example-app/example-app/src/server/data/db-connect.ts`
-- Modify: `<user-home>/Repositories/example-app/example-app/src/server/index.ts`
-- Modify: `<user-home>/Repositories/example-app/example-app/src/test/global-setup.ts`
+Current:
 
-**Execution:**
-- Owner: `supervisor`
-- Support: `verifier`
-- Risk: `high`
-- Verification: ExampleApp `bun run typecheck`, test global setup smoke
+```ts
+export const BoardCollection = model<Board, SoftDeleteModel<BoardModel>>(
+  ColName.Boards,
+  BoardSchema,
+)
+```
 
-- [ ] Replace `mongoose.connect` with `createMongoBifrost`.
-- [ ] Replace `mongoose.disconnect` with registry close.
-- [ ] Preserve current `authSource: 'admin'`.
-- [ ] Preserve CI direct connection behavior.
-- [ ] Keep `bson.ObjectId` as the canonical app ObjectId type.
+Target:
 
-### ExampleApp Task 2: Convert Simple Collections
+```ts
+@MongoCollection<Board>(ColName.Boards)
+@MongoSchema(BoardSchema)
+@MongoIndex({ author: 1, deletedAt: 1 })
+class BoardsCollection {}
 
-**Files:**
-- Modify files under `<user-home>/Repositories/example-app/example-app/src/server/data/collections`
-- Modify matching files under `<user-home>/Repositories/example-app/example-app/src/server/data/schemas`
+export const BoardCollection = mongo.collection<Board>(BoardsCollection)
+```
 
-**Execution:**
-- Owner: `worker`
-- Support: `verifier`
-- Risk: `medium`
-- Verification: ExampleApp unit and integration tests touching OAuth, settings, notifications, store
+### Migration Principle 2: Statics Become Functions
 
-- [ ] Convert OAuth client/code/token collections.
-- [ ] Convert settings.
-- [ ] Convert notifications.
-- [ ] Convert store collections.
-- [ ] Keep raw native access where migrations currently use raw collection methods.
+Current:
 
-### ExampleApp Task 3: Port Shared Plugins
+```ts
+BoardSchema.statics.updateDiskUsage = async function (boardId, bytes) {
+  return this.updateOne({ _id: boardId }, { diskUsage: bytes })
+}
+```
 
-**Files:**
-- Modify: `<user-home>/Repositories/example-app/example-app/src/server/data/plugins/soft-delete.ts`
-- Modify: `<user-home>/Repositories/example-app/example-app/src/server/data/plugins/lean-plugin.ts`
-- Modify: `<user-home>/Repositories/example-app/example-app/src/server/data/extenders/add-count.ts`
-- Modify: `<user-home>/Repositories/example-app/example-app/src/server/data/extenders/add-computed-field.ts`
-- Modify: `<user-home>/Repositories/example-app/example-app/src/server/data/plugins/orderable.ts`
-- Modify: `<user-home>/Repositories/example-app/example-app/src/server/data/plugins/mongoose-meilisearch.ts`
+Target:
 
-**Execution:**
-- Owner: `worker`
-- Support: `reviewer`
-- Risk: `high`
-- Verification: existing plugin integration tests plus new Bifrost MongoDB parity tests
+```ts
+export async function updateBoardDiskUsage(
+  boards: Collection<Board>,
+  boardId: ObjectId,
+  bytes: number,
+  options?: { session?: ClientSession },
+) {
+  return boards.updateOne(
+    { _id: boardId },
+    withUpdateTimestamp({ $set: { diskUsage: bytes } }),
+    options,
+  )
+}
+```
 
-- [ ] Replace Mongoose hook usage with Bifrost MongoDB hooks.
-- [ ] Replace schema mutation with collection-definition plugins.
-- [ ] Replace model registry lookup with registry `collectionByName`.
-- [ ] Replace Mongoose documents with `MongoDocument` wrappers where mutation and save are needed.
+### Migration Principle 3: Hooks Become Explicit Write Paths
 
-### ExampleApp Task 4: Convert Complex Collections
+Current:
 
-**Files:**
-- Modify User, Board, BoardNode, Deck, Exercise, Session, File, Role, Organization, Friendship, DirectMessage, DirectConversation collections and schemas
+```ts
+schema.post('save', syncMeilisearch)
+```
 
-**Execution:**
-- Owner: `worker`
-- Support: `verifier` and `reviewer`
-- Risk: `high`
-- Verification: ExampleApp full server integration tests
+Target:
 
-- [ ] Convert User statics and hooks.
-- [ ] Convert Board statics, soft delete, count behavior, and references.
-- [ ] Convert BoardNode nested schema shape, hooks, and references.
-- [ ] Convert Deck and Exercise delete/update cascade hooks.
-- [ ] Convert Session auth and revocation queries.
-- [ ] Convert File storage statics.
-- [ ] Convert organization and role population paths.
+```ts
+export async function saveBoardNodeAndSyncSearch(input: SaveBoardNodeInput) {
+  const result = await BoardNodes.updateOne(input.filter, input.update)
+  await syncBoardNodeToSearch(input.nodeId)
+  return result
+}
+```
 
-### ExampleApp Task 5: Replace Populate And Change Streams
+Use change streams only when the side effect truly should follow all writes to the collection.
 
-**Files:**
-- Modify: `<user-home>/Repositories/example-app/example-app/src/server/data/change-streams.ts`
-- Modify files under `<user-home>/Repositories/example-app/example-app/src/server/methods`
-- Modify files under `<user-home>/Repositories/example-app/example-app/src/server/jobs`
+### Migration Principle 4: Populate Becomes Batched Loading
 
-**Execution:**
-- Owner: `worker`
-- Support: `verifier`
-- Risk: `high`
-- Verification: events, boards, friends, organizations, jobs integration tests
+Current:
 
-- [ ] Replace `.populate()` calls with registered references.
-- [ ] Replace current watcher setup with `@MongoWatch`.
-- [ ] Preserve event payload shape currently consumed by Bifrost clients.
-- [ ] Preserve excluded-field behavior for analytics and background updates.
+```ts
+const roles = await RoleCollection.find({ org }).populate('user', 'name email')
+```
 
-### ExampleApp Task 6: Remove Mongoose
+Target:
 
-**Files:**
-- Modify: `<user-home>/Repositories/example-app/example-app/package.json`
-- Modify: `<user-home>/Repositories/example-app/example-app/bun.lock`
-- Modify any remaining imports found by `rg`
+```ts
+const roles = await Roles.find({ org }).toArray()
+const usersById = await loadUsersById(
+  Users,
+  roles.map(role => role.user),
+  projection('name email'),
+)
 
-**Execution:**
-- Owner: `supervisor`
-- Support: `verifier` and `reviewer`
-- Risk: `high`
-- Verification: full ExampleApp verification suite
+return roles.map(role => ({
+  ...role,
+  user: usersById.get(objectIdHex(role.user)) ?? null,
+}))
+```
 
-- [ ] Run `rg "mongoose|HydratedDocument|Schema|Model|QueryWithHelpers" src`.
-- [ ] Replace remaining ObjectId imports with `bson` or `mongodb`.
-- [ ] Remove `mongoose` dependency through Bun.
-- [ ] Run full checks:
+### Migration Principle 5: Hydrated Documents Become Direct Updates
 
-  ```sh
-  bun run typecheck
-  bun run test:unit
-  bun run test:integration
-  bun run server:build
-  ```
+Current:
 
-## Acceptance Criteria
+```ts
+const user = await UserCollection.findById(userId).lean(false)
+user.name = name
+await user.save()
+```
 
-- Bifrost publishes `@example-app/bifrost/mongodb` and `@example-app/bifrost/mongodb/decorators` from `dist`.
-- Consumers do not need `node_modules/@example-app/bifrost/src` aliases.
-- MongoDB dependency remains optional for non-server Bifrost consumers.
-- Decorators work with the same Stage 3 decorator assumptions as Bifrost method decorators.
-- Registered repositories expose typed core MongoDB operations.
-- Zod-backed schemas validate inserts and replacements.
-- ObjectId helpers interoperate with MongoDB/BSON ObjectIds and string inputs where configured.
-- Query builder supports ExampleApp's common `lean`, projection, sort, limit, skip, and populate patterns.
-- `lean(false)` supports mutation plus `save()` through `MongoDocument`.
-- Hooks, statics, and plugins cover ExampleApp's existing Mongoose extension patterns.
-- Change streams emit Bifrost events with current ExampleApp-compatible payloads.
-- Native driver access remains available through `repository.native`.
-- Bifrost unit, integration, browser tests, typecheck, lint, and build pass.
-- ExampleApp can remove `mongoose` after its migration tasks complete.
+Target:
 
-## Non-Goals
+```ts
+await Users.updateOne(
+  { _id: toObjectId(userId) },
+  withUpdateTimestamp({ $set: { name } }),
+)
+```
 
-- Recreating the full Mongoose schema DSL.
-- Supporting arbitrary Mongoose plugins unchanged.
-- Providing a browser-side MongoDB client.
-- Hiding the native MongoDB driver from advanced server code.
-- Changing Bifrost wire protocol semantics.
-- Adding protocol changes to `PROTOCOL.md`; this package operates above the wire protocol.
+### Migration Principle 6: Plugins Become Small Helpers Or Services
 
-## Open Design Constraints
+Migrate patterns as follows:
 
-- The package should prefer explicit Zod schemas over runtime decorator type inference.
-- The implementation should avoid `any` in public exported types; use `unknown`, generic constraints, and type guards.
-- The implementation should keep long-running change streams non-blocking and closeable.
-- The implementation should not introduce Mongoose as a dependency, even for compatibility tests.
-- The implementation should not make Redis required; clustered event propagation should reuse existing Bifrost event options.
+- soft delete plugin -> `active`, `markDeleted`, `markRestored`
+- lean plugin -> remove; driver returns plain objects
+- find-one-or-create plugin -> `findOneOrCreate(collection, filter, create)`
+- orderable plugin -> explicit order service functions
+- add-count extender -> explicit count recomputation service or change-stream consumer
+- add-computed-field extender -> explicit write helper or background recomputation
+- Meilisearch plugin -> explicit sync service or change-stream consumer
 
-## Praemeditatio Malorum: Failure Modes And Risk Register
+### Migration Tasks
 
-This section assumes the implementation will fail in predictable ways unless each risk is designed against up front. Each risk includes the likely symptom, prevention strategy, and recovery path.
+1. Replace connection setup with `createBifrostMongo`.
+2. Convert collection exports to decorated collection tokens returning native collections.
+3. Convert schemas to Zod document contracts where runtime validation is useful.
+4. Replace simple `.lean()` reads with native driver reads.
+5. Replace `.lean(false).save()` with explicit updates.
+6. Convert statics to exported functions.
+7. Convert populate sites to batched loaders or `$lookup`.
+8. Convert soft delete to explicit filter/update helpers.
+9. Convert hooks/plugins to explicit write services or change-stream consumers.
+10. Replace raw `mongoose.connection.db.collection` with `mongo.db.collection`.
+11. Replace `mongoose.Types.ObjectId` with driver `ObjectId`.
+12. Remove Mongoose only after `rg "mongoose|HydratedDocument|Schema|Model|QueryWithHelpers" src` is clean.
 
-### 1. Accidentally Rebuilding Mongoose
+## Praemeditatio Malorum: Revised Failure Modes
 
-**Failure:** The package grows a large compatibility surface that tries to support arbitrary Mongoose schemas, plugins, middleware names, document mutation semantics, query helpers, and casting behavior.
+### 1. The Package Rebuilds Mongoose Anyway
+
+**Failure:** Implementation adds repository/query/document/populate/plugin abstractions despite this revision.
 
 **Symptoms:**
 
-- Implementation files become large and cross-coupled.
-- Public API starts accepting Mongoose concepts by name.
-- Tests assert Mongoose quirks instead of ExampleApp needs.
-- Consumers cannot understand where Bifrost ends and Mongoose compatibility begins.
+- New files named `query.ts`, `document.ts`, `populate.ts`, or `plugins.ts`.
+- Public types include `MongoRepository`, `MongoQuery`, or `MongoDocument`.
+- ExampleApp migration examples keep `.lean()`, `.save()`, or `.populate()` semantics.
 
 **Prevention:**
 
-- Treat ExampleApp's current usage as the compatibility contract, not Mongoose as a whole.
-- Keep the native driver escape hatch public and documented.
-- Prefer explicit Bifrost MongoDB concepts: repository, schema, hook, plugin, reference, watch.
-- Reject feature requests that require simulating undocumented Mongoose behavior unless ExampleApp depends on them and no native-driver path is adequate.
+- Treat those names as scope violations for version one.
+- Return native `Collection<T>` from the registry.
+- Keep migration helpers as pure functions over driver collections.
 
 **Recovery:**
 
-- Move compatibility-only helpers into `mongodb/compat` before release.
-- Mark any accidental Mongoose-shaped APIs as internal before publishing.
-- Replace broad abstractions with direct native driver access at call sites that need rare behavior.
+- Delete the abstraction before it becomes part of published API.
+- Move any necessary app-specific helper into ExampleApp, not Bifrost.
 
-### 2. Decorator Metadata Leaks Across Classes
+### 2. Driver Types Are Wrapped Until They Lose Value
 
-**Failure:** Stage 3 decorator metadata is stored incorrectly, causing hooks, statics, indexes, references, or watchers from one class to attach to another class.
+**Failure:** The package hides `Collection<T>`, `FindCursor<T>`, `ClientSession`, or driver options behind weaker local types.
 
 **Symptoms:**
 
-- Tests pass in isolation but fail when run as a file.
-- A collection receives indexes or watchers declared on a different collection.
-- Registration order changes behavior.
+- Consumers cannot pass normal MongoDB options.
+- Transactions require package-specific concepts.
+- Aggregation and bulk operations need escape hatches.
 
 **Prevention:**
 
-- Reuse Bifrost server decorator's WeakMap plus pending-update queue pattern.
-- Add same-file, multi-class isolation tests for every decorator category.
-- Flush pending member metadata only from the class decorator.
-- Clear test metadata between tests through exported test-only helpers if needed.
+- Export and accept driver types directly.
+- Keep helper functions generic over `Collection<T>`.
+- Do not retype the driver API.
 
 **Recovery:**
 
-- Stop implementation work and isolate decorator metadata with unit tests before continuing.
-- Refactor all decorator state into one metadata module.
-- Add regression tests matching the failing class order.
+- Replace local wrapper types with imports from `mongodb`.
+- Convert package-specific options to driver option passthroughs.
 
-### 3. Type Surface Leaks `any`
+### 3. Decorators Become Runtime Behavior Containers
 
-**Failure:** Public repository, query, document, hook, plugin, and schema types use `any`, eroding the main value of replacing Mongoose.
+**Failure:** Decorators open connections, mutate collections, start watchers immediately, or bind methods.
 
 **Symptoms:**
 
-- Consumer hover docs lose document types after `.find()`, `.lean()`, `.populate()`, or custom statics.
-- TypeScript cannot catch invalid document field names.
-- ExampleApp migrations require casts at every call site.
+- Importing a collection definition has side effects.
+- Tests become order-dependent.
+- Application startup behavior depends on module import order.
 
 **Prevention:**
 
-- Use `unknown`, `Filter<TDocument>`, `UpdateFilter<TDocument>`, `OptionalUnlessRequiredId<TDocument>`, and explicit generic constraints.
-- Add type-only tests with representative ExampleApp document types.
-- Keep exported function return types explicit.
-- Do not use non-null assertions or inline `import()` type annotations.
+- Decorators only write metadata.
+- `createBifrostMongo` is the only runtime registration entry point.
+- Tests assert decorators do not touch the driver.
 
 **Recovery:**
 
-- Add a `types.unit.spec.ts` or `tsd`-style compile fixture before broad implementation continues.
-- Patch the generic contract first, then repair implementation errors.
+- Move side effects into registry startup.
+- Make decorator modules metadata-only again.
 
-### 4. Zod Schema And MongoDB Driver Types Diverge
+### 4. Schema Validation Pretends To Prove All Updates
 
-**Failure:** Runtime schemas, insert input types, MongoDB driver types, and returned documents disagree about optional fields, defaults, ObjectId fields, timestamps, or strictness.
+**Failure:** Update validation gives false confidence and rejects valid MongoDB update operators or misses invalid nested updates.
 
 **Symptoms:**
 
-- Valid MongoDB documents fail Zod parsing after reads.
-- Inserts require fields that should be defaulted.
-- Timestamps are missing or overwritten incorrectly.
-- Update operators accept values that full documents reject.
+- `$inc`, `$unset`, array filters, or pipeline updates fail unexpectedly.
+- Complex updates bypass validation anyway.
 
 **Prevention:**
 
-- Define separate types for insert input, stored document, update input, and read output.
-- Apply defaults only on insert and full replacement.
-- Apply `updatedAt` through update operator rewriting, not by mutating arbitrary update payloads blindly.
-- Keep update validation conservative; validate known `$set` payloads and document exact limitations.
+- Validate inserts and replacements.
+- Offer `parseSet` for explicit `$set` validation.
+- Keep complex updates as driver-owned behavior.
 
 **Recovery:**
 
-- Add failing tests for the specific insert/update/read mismatch.
-- Split schema helpers instead of making one helper handle all modes.
+- Remove broad update validation.
+- Add narrow app-level Zod parsers for high-risk write inputs.
 
-### 5. ObjectId Compatibility Breaks Existing Data
+### 5. Soft Delete Becomes Hidden Middleware Again
 
-**Failure:** The package normalizes ObjectIds inconsistently across `bson`, `mongodb`, string inputs, EJSON serialization, and existing ExampleApp document constants.
+**Failure:** The package automatically changes every read filter.
 
 **Symptoms:**
 
-- Queries by string id stop matching existing documents.
-- Bifrost event channel names receive `[object Object]`.
-- `EJSON` serializes ObjectIds differently from current behavior.
-- Tests pass with strings but fail with real `ObjectId` instances.
+- Migrations cannot find deleted data.
+- Counts disagree with raw collection results.
+- Developers do not know whether a query includes deleted records.
 
 **Prevention:**
 
-- Use one canonical `ObjectId` implementation from the MongoDB driver or `bson`.
-- Centralize `isObjectIdLike`, `normalizeObjectId`, and channel string conversion.
-- Test string input, `ObjectId` input, invalid string input, and round-trip serialization.
-- Keep channel names as explicit `String(id)`.
+- Use explicit `active(filter)` and `markDeleted(userId)` helpers.
+- Do not patch `find`, `findOne`, or `countDocuments`.
 
 **Recovery:**
 
-- Add compatibility tests copied from ExampleApp ObjectId call sites.
-- Introduce explicit `objectIdString()` for fields that must remain strings.
+- Remove implicit filters.
+- Replace call sites with explicit helpers.
 
-### 6. Query Builder Executes More Than Once
+### 6. Relationship Loading Reintroduces Implicit Data Exposure
 
-**Failure:** Awaiting a query, calling `.exec()`, or chaining after partial execution issues duplicate database reads or writes.
+**Failure:** A package-level populate helper returns fields that should stay private.
 
 **Symptoms:**
 
-- Integration tests show doubled query count.
-- Hooks run more than once.
-- `findOneAndUpdate` mutates twice.
-- Change stream tests receive duplicate updates.
+- Token hashes, billing fields, passkey internals, or private profile data appear in responses.
+- A server method's data exposure is no longer visible locally.
 
 **Prevention:**
 
-- Memoize execution inside `MongoQuery`.
-- Make mutating operations return promises directly instead of query objects unless MongoDB semantics require query-like behavior.
-- Add tests that await the same query twice and assert one native call.
+- Do not implement package-level populate.
+- Use explicit projection at each batched loader or `$lookup`.
 
 **Recovery:**
 
-- Restrict `MongoQuery` to read operations and explicitly special-case `findOneAndUpdate`.
-- Throw if callers attempt to mutate query options after execution begins.
+- Delete generic populate helper.
+- Add per-domain loaders with tests for returned fields.
 
-### 7. `lean(false)` Becomes A False Promise
+### 7. Change Streams Leak Or Reconnect After Shutdown
 
-**Failure:** The hydrated wrapper looks like a Mongoose document but does not support enough mutation behavior for migrated ExampleApp call sites.
+**Failure:** Watchers keep timers or streams alive after server/test shutdown.
 
 **Symptoms:**
 
-- ExampleApp code mutates properties directly and expects `.save()` to persist.
-- Nested mutations are lost.
-- Instance methods from old schemas are unavailable.
+- Vitest hangs.
+- Reconnect logs continue after `mongo.close()`.
+- The process remains alive after server close.
 
 **Prevention:**
 
-- Do not claim Mongoose document parity.
-- Name and document it as `MongoDocument<T>`.
-- Provide explicit `.set()` and `.toObject()` first.
-- Add ExampleApp parity tests for known `lean(false)` call sites before converting them.
+- Registry owns all watcher close handles.
+- Reconnect loops check a closed flag.
+- Close streams before closing owned clients.
 
 **Recovery:**
 
-- Convert migrated call sites from direct property mutation to `.set()`.
-- Add narrow document helper methods only when they are cleaner than repository methods.
+- Add a watcher kill switch.
+- Add tests that close during reconnect delay.
 
-### 8. Hooks Create Hidden Write Amplification
+### 8. Change Streams Become The New Hidden Hook System
 
-**Failure:** Hooks that emulate Mongoose plugins perform extra reads/writes in common write paths, causing slow updates or recursive updates.
+**Failure:** App logic relies on watchers for critical writes that should be explicit and transactional.
 
 **Symptoms:**
 
-- Updating one board node triggers many unrelated writes.
-- Hooks recursively trigger themselves.
-- Meilisearch or count sync runs more often than before.
+- Search/count/billing side effects lag or run out of order.
+- Tests need sleeps to observe consistency.
+- Transactional workflows are split across asynchronous watchers.
 
 **Prevention:**
 
-- Include operation metadata in hook context.
-- Provide a hook option to skip hooks for internal maintenance writes.
-- Add tests that assert hook execution count.
-- Keep count/computed-field logic explicit and batched.
+- Use watchers for client notifications and eventually consistent side effects.
+- Use explicit service functions for critical write-side invariants.
 
 **Recovery:**
 
-- Add `skipHooks` options to internal repository writes.
-- Move expensive post-write work to background tasks where possible.
+- Move critical side effects back into the write path.
+- Keep watcher payloads for UI refresh only.
 
-### 9. Soft Delete Semantics Drift
+### 9. Index Creation Blocks Startup
 
-**Failure:** Soft-deleted documents leak into normal reads, or explicit deleted reads stop working.
+**Failure:** Startup waits on slow index creation or fails because index reconciliation is destructive.
 
 **Symptoms:**
 
-- Boards/nodes/users marked with `deletedAt` appear in normal UI queries.
-- Purge jobs cannot find deleted documents.
-- Counts disagree with list results.
+- Server readiness is delayed.
+- Production deployment fails while creating indexes.
 
 **Prevention:**
 
-- Apply default soft-delete filters in one query-planning layer.
-- Test `find`, `findOne`, `countDocuments`, and aggregate entry points.
-- Provide explicit `{ deleted: true }` and `{ withDeleted: true }` options with documented semantics.
+- `ensureIndexes()` is explicit.
+- Automatic index creation is opt-in.
+- Never drop indexes automatically.
 
 **Recovery:**
 
-- Audit query builder filter merge order.
-- Add a temporary runtime warning when a filter includes `deletedAt` and options also request deleted behavior.
+- Disable startup index creation.
+- Move index work to migrations/deployment.
 
-### 10. Populate Produces N+1 Queries Or Wrong Shapes
+### 10. Optional MongoDB Dependency Loads In Browser Bundles
 
-**Failure:** `populate()` fetches one referenced document at a time, mis-handles arrays, overwrites ObjectIds unexpectedly, or returns shapes that break existing ExampleApp methods.
+**Failure:** Non-MongoDB Bifrost imports require `mongodb` at runtime.
 
 **Symptoms:**
 
-- Organization and friends methods become slow.
-- Populated array ordering changes.
-- Missing references throw instead of returning `null`.
-- Projections include sensitive fields.
+- Client/react/lit consumers fail bundling.
+- Browser bundle includes MongoDB driver code.
 
 **Prevention:**
 
-- Batch by target collection and foreign field.
-- Preserve input array order during merge.
-- Test single refs, array refs, missing refs, projection strings, object projections, and repeated refs.
-- Require explicit registered references; do not infer collection names from field names.
+- Keep MongoDB imports under `src/mongodb`.
+- Do not export MongoDB symbols from root package exports.
+- Use subpath-only runtime loading.
 
 **Recovery:**
 
-- Add collection-level `populateDefaults` only for repeated safe projections.
-- Convert high-risk call sites to explicit manual repository queries.
+- Move eager imports behind the MongoDB subpath.
+- Add import smoke tests for non-MongoDB subpaths.
 
-### 11. Change Streams Leak Resources
+### 11. ExampleApp Migration Leaves Mixed Data Layers
 
-**Failure:** Watchers reconnect forever after shutdown or keep sockets/timers alive across tests and server restarts.
+**Failure:** Mongoose and Bifrost MongoDB coexist long enough to create inconsistent lifecycle behavior.
 
 **Symptoms:**
 
-- Vitest hangs after MongoDB integration tests.
-- Server close returns but process remains alive.
-- Reconnect logs continue after shutdown.
+- Two clients connect to the same database.
+- Tests clean one registry but not the other.
+- Change streams are split between Mongoose and native driver.
 
 **Prevention:**
 
-- Registry owns every watcher close handle.
-- Reconnect loops check an `isClosed` flag before scheduling.
-- `registry.close()` closes streams before closing owned clients.
-- Tests assert no reconnect after close.
+- Migrate connection first, then simple collections, then complex collections.
+- Keep commits small but the rollout direct.
+- Use `rg` as a hard removal gate.
 
 **Recovery:**
 
-- Add a kill switch to the resilient watcher.
-- Ensure test teardown calls registry close even when assertions fail.
+- Close both clients in teardown until migration is complete.
+- Do not remove Mongoose until all imports are gone.
 
-### 12. Change Stream Resume Logic Loses Or Duplicates Events
+### 12. Auth/Session Semantics Drift
 
-**Failure:** Resume tokens are saved too late, reused incorrectly, or discarded on transient errors.
-
-**Symptoms:**
-
-- Clients miss document updates during MongoDB primary changes.
-- Clients receive duplicate events after reconnect.
-- Watcher crashes permanently on invalid resume token.
-
-**Prevention:**
-
-- Save resume token immediately on each change before invoking user handlers.
-- Catch invalid resume token errors and restart without resume only when MongoDB reports that recovery is impossible.
-- Include event IDs in emitted payloads so clients can deduplicate if needed.
-
-**Recovery:**
-
-- Reset stream without resume token and emit a server warning.
-- Add a diagnostic event or log for watcher recovery mode.
-
-### 13. Bifrost Event Authorization Is Bypassed
-
-**Failure:** `@MongoWatch` emits events on channels that clients can subscribe to without the intended `protected`, `user`, or custom `shouldSubscribe` checks.
+**Failure:** Removing Mongoose changes session revocation, OAuth token, passkey, or JWT-related persistence behavior.
 
 **Symptoms:**
 
-- A user can subscribe to another user's document change channel.
-- Event options differ from current ExampleApp watcher behavior.
+- Revoked sessions remain active.
+- OAuth authorization codes or refresh tokens do not expire.
+- Passkey challenges are not cleaned up.
 
 **Prevention:**
 
-- Require `eventOptions` in high-risk watchers or provide safe defaults.
-- Register events through `server.addEvent(event, eventOptions)`.
-- Add integration tests for protected/user channel subscriptions.
-- Keep channel derivation explicit through `getChannel`.
-
-**Recovery:**
-
-- Make unsafe watcher definitions fail registration in strict mode.
-- Add a migration audit that lists every watcher and its event authorization.
-
-### 14. Bifrost Event Payload Shape Breaks Clients
-
-**Failure:** Change stream payloads differ from ExampleApp's current `{ eventId, _id, doc, deleted }` contract.
-
-**Symptoms:**
-
-- Existing React `useObject` and subscription code stops refreshing correctly.
-- Delete events are interpreted as updates.
-- Same-millisecond updates do not refresh as expected.
-
-**Prevention:**
-
-- Preserve current payload fields.
-- Keep `eventId` stable and serializable.
-- Add client-facing integration tests that subscribe through Bifrost rather than only inspecting server calls.
-
-**Recovery:**
-
-- Add a payload compatibility adapter before the event is emitted.
-- Version new payload fields without removing old ones.
-
-### 15. Native Driver Escape Hatch Bypasses Invariants
-
-**Failure:** Consumers overuse `repository.native` and bypass schema validation, timestamps, hooks, soft delete, and events.
-
-**Symptoms:**
-
-- Data invariants drift over time.
-- Change streams still emit, but documents are missing expected fields.
-- Tests pass at repository level but fail after raw migration writes.
-
-**Prevention:**
-
-- Name the escape hatch explicitly as `native`, not as the default path.
-- Document which invariants are bypassed.
-- Prefer repository helpers for common raw patterns.
-- Use native access intentionally in migrations and bulk maintenance jobs.
-
-**Recovery:**
-
-- Add repository-level bulk methods where raw access becomes common.
-- Add audit scripts or tests for required fields after migrations.
-
-### 16. Index Creation Blocks Startup
-
-**Failure:** Registering collections creates or modifies indexes synchronously during server startup, delaying availability or failing production boot.
-
-**Symptoms:**
-
-- Server readiness waits on slow index builds.
-- A single index creation failure prevents unrelated methods from serving.
-- Deployments fail during foreground index builds.
-
-**Prevention:**
-
-- Make index synchronization configurable.
-- Default to safe `createIndexes` behavior and avoid destructive index changes.
-- Expose `registry.ensureIndexes()` so applications can run it explicitly.
-- Do not drop indexes automatically.
-
-**Recovery:**
-
-- Disable automatic index creation in production config.
-- Move index reconciliation to a migration or deployment step.
-
-### 17. Transactions And Sessions Are Under-Specified
-
-**Failure:** ExampleApp or future consumers need MongoDB transactions, but the repository API does not thread `ClientSession` through queries and writes.
-
-**Symptoms:**
-
-- Call sites drop to `native` for all transaction work.
-- Writes inside a transaction accidentally execute outside it.
-
-**Prevention:**
-
-- Add a first-class optional `session` option to repository operations and query builders.
-- Add `registry.withTransaction(fn)` as a typed helper.
-- Test transaction option propagation even if full transaction integration is deferred.
-
-**Recovery:**
-
-- Add session-aware overloads before migrating transaction-sensitive ExampleApp paths.
-- Keep transaction-heavy code on native driver until repository support is verified.
-
-### 18. Aggregation Typing Gives False Safety
-
-**Failure:** `aggregate<TResult>()` appears type-safe but cannot prove pipeline output shape.
-
-**Symptoms:**
-
-- Consumers trust incorrect aggregate result types.
-- Runtime output differs from declared generic type.
-
-**Prevention:**
-
-- Make `aggregate<TResult = unknown>()` explicit about caller-owned output typing.
-- Encourage parsing aggregate output with Zod when it crosses a boundary.
-- Do not infer aggregate output from source collection type.
-
-**Recovery:**
-
-- Add `aggregateParsed(schema, pipeline)` if repeated aggregate validation appears in ExampleApp.
-
-### 19. Build Output Breaks Package Consumers
-
-**Failure:** `dist/mongodb` declarations or ESM imports reference source files, omit `.js` suffixes, or fail subpath export resolution.
-
-**Symptoms:**
-
-- ExampleApp must alias `node_modules/@example-app/bifrost/src`.
-- `node --input-type=module` cannot import the built package.
-- TypeScript resolves source instead of declarations.
-
-**Prevention:**
-
-- Add explicit package subpath exports.
-- Run `bun run build` after every package-surface change.
-- Inspect generated `dist/mongodb/*.js` and `*.d.ts`.
-- Keep `scripts/prepare-dist.mjs` compatible with nested subdirectories.
-
-**Recovery:**
-
-- Fix build output before publishing.
-- Treat any consumer source alias requirement as a release blocker.
-
-### 20. Optional Peer Dependencies Become Required At Runtime
-
-**Failure:** Browser or non-MongoDB server consumers import `@example-app/bifrost/client`, `react`, `lit`, or `server` and crash because `mongodb` is loaded eagerly.
-
-**Symptoms:**
-
-- Bundlers include MongoDB driver in client bundles.
-- Importing unrelated Bifrost subpaths fails when `mongodb` is absent.
-
-**Prevention:**
-
-- Keep all MongoDB imports inside `src/mongodb`.
-- Do not re-export MongoDB package symbols from root Bifrost exports.
-- Use type-only imports where possible.
-- Keep `mongodb` optional in peer dependency metadata.
-
-**Recovery:**
-
-- Move eager runtime imports behind dynamic imports or into the subpath only.
-- Add a browser import smoke test for non-MongoDB subpaths.
-
-### 21. Test Suite Requires A Fragile MongoDB Environment
-
-**Failure:** Integration tests depend on a specific local MongoDB topology or replica set and fail in CI.
-
-**Symptoms:**
-
-- Change stream tests pass locally but fail in Forgejo.
-- CI cannot resolve MongoDB hostnames.
-- Tests hang when replica set is unavailable.
-
-**Prevention:**
-
-- Separate unit tests from MongoDB integration tests.
-- Reuse existing CI MongoDB setup patterns.
-- Skip change-stream integration tests with a clear environment diagnostic when replica set support is absent.
-- Keep unit coverage for watcher logic with mocked streams.
-
-**Recovery:**
-
-- Add a minimal Docker/CI recipe for MongoDB replica set.
-- Mark environment-specific failures as setup failures, not product behavior failures.
-
-### 22. ExampleApp Migration Leaves Mixed Mongoose And Bifrost Models
-
-**Failure:** Some models use Mongoose while others use Bifrost MongoDB, causing inconsistent ObjectIds, hooks, connection lifecycles, and test setup.
-
-**Symptoms:**
-
-- Two MongoDB clients connect to the same database.
-- Some change streams are Mongoose-backed and others are Bifrost-backed.
-- Tests drop collections through one registry while another still holds models.
-
-**Prevention:**
-
-- Migrate in direct rollout order: package, connection, simple collections, plugins, complex collections, watchers, dependency removal.
-- Use `rg "mongoose|HydratedDocument|Schema|Model|QueryWithHelpers"` as a hard gate before removing Mongoose.
-- Keep path-limited commits so rollback is possible.
-
-**Recovery:**
-
-- Temporarily isolate the two systems behind separate imports and close both in teardown.
-- Do not remove Mongoose until the grep gate is clean.
-
-### 23. Migrations Lose Raw Bulk Behavior
-
-**Failure:** Rewriting migrations through repository APIs changes bulk operation semantics, update operators, or performance.
-
-**Symptoms:**
-
-- Historical migrations become slower.
-- `$unset`, `$rename`, `$[]`, or aggregation pipeline updates behave differently.
-- Migration tests fail on older data shapes.
-
-**Prevention:**
-
-- Prefer `repository.native` for existing migration bulk operations.
-- Do not force old migrations through schema validation.
-- Keep migration code close to MongoDB driver semantics.
-
-**Recovery:**
-
-- Revert migration call sites to native collection methods.
-- Add migration-specific integration tests for affected migrations.
-
-### 24. Auth And Session Semantics Drift
-
-**Failure:** Session revocation, token refresh, login, passkeys, or OAuth flows change behavior during the data layer migration.
-
-**Symptoms:**
-
-- Users remain logged in after revocation.
-- Refresh token families are not invalidated.
-- OAuth authorization codes are not expired or revoked correctly.
-- Passkey challenge reads/writes fail because ObjectIds or TTL indexes differ.
-
-**Prevention:**
-
-- Treat auth/session collections as high-risk migration targets.
-- Preserve TTL indexes.
-- Add regression tests around session revocation and OAuth token flows.
+- Preserve TTL indexes explicitly.
+- Add focused auth/session migration tests.
 - Keep Bifrost `disconnectUser` behavior unchanged.
 
 **Recovery:**
 
-- Pause broad migration and fix auth/session parity first.
-- Add compatibility adapters for old token/session document shapes.
+- Pause broader migration.
+- Fix auth/session collections before continuing.
 
-### 25. Search And External Side Effects Drift
+### 13. External Side Effects Drift
 
-**Failure:** Plugins currently syncing Meilisearch, counts, computed fields, files, or billing side effects stop running or run at the wrong time.
+**Failure:** Meilisearch, counts, computed fields, file cleanup, or billing writes previously handled by hooks/plugins stop running.
 
 **Symptoms:**
 
-- Search index misses new or updated documents.
+- Search index is stale.
 - Board counts drift.
 - Computed fields are stale.
-- Stripe/customer updates write partial user data.
+- Billing state writes are incomplete.
 
 **Prevention:**
 
-- Identify every plugin with external side effects before converting complex collections.
-- Add focused tests for side-effect timing.
-- Prefer after-commit style post-write hooks for external systems.
-- Keep idempotency in side-effect hooks.
+- Inventory every side-effect plugin before migration.
+- Convert critical side effects to explicit services.
+- Use watchers only for eventually consistent side effects.
 
 **Recovery:**
 
-- Add reconciliation jobs for search index and counts.
-- Re-run affected sync jobs after deployment.
+- Add reconciliation jobs for affected systems.
+- Re-run sync jobs after deployment.
 
-### 26. Performance Regressions Under Common Board Workloads
+### 14. Migrations Lose Native Bulk Semantics
 
-**Failure:** Repository abstraction adds overhead to high-volume board, node, edge, and chat operations.
+**Failure:** Historical migrations are rewritten through helper abstractions and lose exact MongoDB behavior.
 
 **Symptoms:**
 
-- Board load latency increases.
-- Node drag/update workflows become slower.
-- Change stream event volume increases.
-- CPU usage rises from schema parsing on every read.
+- `$rename`, `$unset`, array filters, pipeline updates, or bulk writes behave differently.
+- Migration tests fail on older data shapes.
 
 **Prevention:**
 
-- Validate writes, not every read by default.
-- Batch populate and side-effect work.
-- Add focused performance checks around board list/open operations.
-- Use native collection access for high-volume maintenance paths.
+- Keep migrations on `mongo.db.collection(...)` or `collection.bulkWrite(...)`.
+- Do not schema-validate historical migration writes by default.
 
 **Recovery:**
 
-- Add opt-in read parsing.
-- Cache compiled query plans where safe.
-- Move heavy hooks to background processing.
+- Revert migrations to native driver calls.
+- Add migration-specific tests.
 
-### 27. Security Regressions In Field Projection
+### 15. Event Payload Shape Breaks Existing Bifrost Clients
 
-**Failure:** Population or query projection returns fields previously excluded by Mongoose `select: false` or method-specific projections.
+**Failure:** Watch payloads differ from ExampleApp's current `{ eventId, _id, doc, deleted }` shape.
 
 **Symptoms:**
 
-- Password hashes, token hashes, passkey internals, or billing details appear in API responses.
-- OAuth token hashes become query-visible.
+- Subscribed clients stop refreshing.
+- Delete events are treated as updates.
+- Client deduplication fails.
 
 **Prevention:**
 
-- Do not rely on schema-level `select: false`; define protected fields in Bifrost MongoDB metadata.
-- Add collection-level default projection deny lists for sensitive collections.
-- Add tests for user/session/OAuth field projection.
+- Preserve payload shape in watcher tests.
+- Add integration test that subscribes through Bifrost.
 
 **Recovery:**
 
-- Add immediate deny-list projection to affected repositories.
-- Audit emitted Bifrost method responses and logs for leaked fields.
+- Add a compatibility payload adapter before emitting.
+- Version additive payload fields only.
 
-### 28. Internationalization And UI Copy Are Irrelevant But Accidentally Touched
+### 16. Protocol Governance Is Accidentally Violated
 
-**Failure:** The migration touches UI surfaces, user-facing copy, or locale files as collateral damage.
-
-**Symptoms:**
-
-- Locale files change without a product reason.
-- UI tests fail from unrelated copy changes.
-
-**Prevention:**
-
-- Keep this work server/package scoped.
-- Do not alter UI copy unless a migration error message becomes user-facing.
-
-**Recovery:**
-
-- Revert unrelated UI/locale changes before committing.
-
-### 29. Protocol Governance Is Accidentally Violated
-
-**Failure:** The implementation changes Bifrost wire protocol behavior or event envelope shapes in core utilities without updating `PROTOCOL.md`.
+**Failure:** MongoDB work changes Bifrost wire protocol, EJSON tags, default methods, cache keys, or message envelopes.
 
 **Symptoms:**
 
-- Existing clients no longer decode events.
 - Python/Rust conformance tests fail.
-- Wire payloads change outside MongoDB package boundaries.
+- Existing clients cannot decode events.
 
 **Prevention:**
 
-- Keep MongoDB event payloads inside normal Bifrost event params.
-- Do not change `Presentation`, `MessageType`, default methods, EJSON tags, or cache keys.
-- If a core protocol change becomes necessary, update `PROTOCOL.md` in the same commit.
+- Keep MongoDB events as normal Bifrost event params.
+- Do not change protocol utilities.
+- Update `PROTOCOL.md` in the same commit if a protocol change becomes unavoidable.
 
 **Recovery:**
 
-- Revert protocol changes unless explicitly required.
-- Add conformance fixtures for any intentional protocol change.
+- Revert protocol changes.
+- Add conformance fixtures for intentional changes.
 
-### 30. Release Versioning And Publishing Fail
+### 17. Performance Regresses From Over-Validation
 
-**Failure:** The package is built correctly but cannot be published because versioning or immutable package registry constraints are ignored.
+**Failure:** Every read or large bulk write gets parsed through Zod.
 
 **Symptoms:**
 
-- Forgejo npm rejects republishing the same version.
-- Consumers install an old package without MongoDB exports.
+- Board load and node operations slow down.
+- High-volume jobs consume extra CPU.
 
 **Prevention:**
 
-- Bump `bifrost-ts/package.json` before publishing.
-- Run `bun run build` before publish.
-- Verify package contents include `dist/mongodb`.
+- Validate inputs at boundaries and writes where useful.
+- Do not parse every driver read by default.
+- Keep bulk operations native.
 
 **Recovery:**
 
-- Bump version again if a failed publish already reserved a version.
-- Treat missing `dist/mongodb` as a release blocker.
+- Remove read parsing.
+- Add explicit validation only around high-risk writes.
+
+### 18. Release Surface Breaks Consumers
+
+**Failure:** `dist/mongodb` declarations or ESM output do not resolve through package exports.
+
+**Symptoms:**
+
+- ExampleApp needs source aliases into `node_modules/@example-app/bifrost/src`.
+- Node cannot import the built subpath.
+
+**Prevention:**
+
+- Run `bun run build`.
+- Inspect generated `dist/mongodb`.
+- Treat source aliases as release blockers.
+
+**Recovery:**
+
+- Fix exports or `prepare-dist.mjs` before publishing.
+- Bump package version before retrying an immutable publish.
+
+### 19. Change Stream Tests Depend On Unavailable Replica Sets
+
+**Failure:** Integration tests assume MongoDB change streams are available, but the local or CI MongoDB instance is standalone.
+
+**Symptoms:**
+
+- Change stream integration tests fail with topology errors.
+- CI failures look like product regressions when the environment is the problem.
+- Developers skip the entire MongoDB test suite because one watcher test is fragile.
+
+**Prevention:**
+
+- Keep watcher unit tests mandatory with mocked native streams.
+- Detect replica-set support before running change-stream integration tests.
+- Skip only the integration watcher test with a precise diagnostic when replica-set support is absent.
+- Document the replica-set requirement in the package README.
+
+**Recovery:**
+
+- Add a CI setup step for a single-node replica set.
+- Keep the unit tests as the correctness floor until CI topology is fixed.
+
+### 20. Raw Driver Writes Drift Away From Schema Contracts
+
+**Failure:** Because native collections are primary, application code can bypass Zod helpers and write malformed data.
+
+**Symptoms:**
+
+- Required fields are missing after migrations or bulk jobs.
+- Timestamps are inconsistent.
+- Client code receives shapes that no longer match shared TypeScript types.
+
+**Prevention:**
+
+- Validate at application input boundaries and high-risk write helpers.
+- Use named write functions for domain invariants rather than writing inline everywhere.
+- Keep migrations native, but add post-migration assertions for required fields.
+
+**Recovery:**
+
+- Add collection-specific audit scripts.
+- Backfill malformed documents through explicit migrations.
+- Add Zod parsing at the service boundary that produced bad writes.
+
+### 21. ObjectId And EJSON Compatibility Drifts
+
+**Failure:** Moving from Mongoose `Types.ObjectId` to driver `ObjectId` changes serialization, equality checks, channel names, or EJSON handling.
+
+**Symptoms:**
+
+- Bifrost events use inconsistent channel IDs.
+- Existing ObjectId EJSON tests fail.
+- Equality checks compare object identity instead of hex strings.
+- Client payloads receive ObjectIds in an unexpected shape.
+
+**Prevention:**
+
+- Centralize `toObjectId` and `objectIdHex`.
+- Keep existing EJSON ObjectId tests passing.
+- Use `objectIdHex(id)` for map keys and Bifrost channel names.
+- Add migration tests that compare Mongoose-era fixture IDs with driver ObjectIds.
+
+**Recovery:**
+
+- Add an ObjectId compatibility adapter at serialization boundaries.
+- Normalize channel names and map keys to hex strings everywhere.
+
+### 22. Watch Channel Authorization Is Incorrect
+
+**Failure:** `@MongoWatch` emits sensitive document changes on channels that unauthorized clients can subscribe to.
+
+**Symptoms:**
+
+- A user can subscribe to another user's document changes.
+- Event options are omitted or too permissive.
+- `getChannel` uses a public field when it should use owner/org/user context.
+
+**Prevention:**
+
+- Require explicit `eventOptions` for every watcher in strict mode.
+- Prefer user/org IDs as channels for sensitive collections.
+- Add tests for protected and user-scoped subscriptions.
+- Audit watcher definitions during ExampleApp migration.
+
+**Recovery:**
+
+- Disable the unsafe watcher.
+- Re-emit only on authorized channels.
+- Add Bifrost subscription authorization tests before reenabling.
+
+### 23. Explicit Services Duplicate Business Rules
+
+**Failure:** Replacing statics/plugins with explicit functions creates several similar helpers that drift apart.
+
+**Symptoms:**
+
+- Two write paths update the same collection with different timestamp, validation, or side-effect behavior.
+- One service syncs search and another forgets.
+- Callers cannot tell which helper is authoritative.
+
+**Prevention:**
+
+- Name one service function as the authoritative write path for each invariant-heavy operation.
+- Keep low-level collection exports simple and put business writes in service modules.
+- Add tests around services, not only around helper functions.
+
+**Recovery:**
+
+- Consolidate duplicate helpers into one service.
+- Add lint or import-boundary guidance if direct collection writes are unsafe in a domain.
+
+### 24. Sessions Are Dropped By Helper Functions
+
+**Failure:** Pure helpers like `findOneOrCreate`, timestamped updates, or service functions forget to accept and pass through `ClientSession`.
+
+**Symptoms:**
+
+- Some writes escape transactions.
+- Tests pass outside transactions and fail under transaction workflows.
+- Rollbacks leave partially written documents.
+
+**Prevention:**
+
+- Any helper that performs I/O accepts `{ session?: ClientSession }`.
+- Any helper that only builds data must not accept session options.
+- Add tests that assert session option forwarding.
+
+**Recovery:**
+
+- Patch helper signatures before broad migration.
+- Audit transaction-sensitive ExampleApp paths for direct session forwarding.
+
+### 25. Driver Version Or Module Format Breaks Consumers
+
+**Failure:** The package relies on a MongoDB driver API, ESM behavior, or type export that differs across supported driver versions.
+
+**Symptoms:**
+
+- Consumers on a valid peer range fail typecheck.
+- Runtime import works in Bun but fails in Node.
+- `ObjectId` import location differs between environments.
+
+**Prevention:**
+
+- Keep the peer range narrow enough to match tested APIs.
+- Test under the same Node/Bun targets supported by Bifrost.
+- Prefer `mongodb` exports over direct `bson` unless compatibility requires otherwise.
+
+**Recovery:**
+
+- Narrow peer dependency range.
+- Add compatibility shims only at import boundaries.
+- Document the supported driver version in README and release notes.
+
+## Acceptance Criteria
+
+- `@example-app/bifrost/mongodb` and `@example-app/bifrost/mongodb/decorators` publish from `dist`.
+- Non-MongoDB Bifrost consumers do not load the MongoDB driver.
+- Collection decorators are metadata-only.
+- `createBifrostMongo` returns native driver collections.
+- No public `MongoRepository`, `MongoQuery`, `MongoDocument`, package-level `populate`, or package-level plugin system exists in version one.
+- ObjectId helpers are compatible with the official driver.
+- Schema helpers validate inserts, replacements, and explicit `$set` payloads.
+- Timestamp and soft-delete helpers are explicit pure functions.
+- Change streams emit Bifrost events and close cleanly.
+- Driver sessions, transactions, aggregation, and bulk operations remain normal driver APIs.
+- ExampleApp migration examples reduce Mongoose concepts to explicit native driver calls.
+- Bifrost typecheck, focused tests, full tests, lint, and build pass before release.
+
+## Non-Goals
+
+- Recreating Mongoose schemas.
+- Recreating Mongoose query chains.
+- Recreating Mongoose hydrated documents.
+- Recreating Mongoose populate.
+- Supporting arbitrary Mongoose plugins.
+- Hiding MongoDB sessions or transactions.
+- Adding browser-side MongoDB support.
+- Changing Bifrost wire protocol semantics.
 
 ## Verification Commands
 
@@ -2128,16 +1765,7 @@ bun run test:browser
 bun run build
 ```
 
-Run in ExampleApp after migration:
-
-```sh
-bun run typecheck
-bun run test:unit
-bun run test:integration
-bun run server:build
-```
-
-Use focused test commands during implementation:
+Run focused checks during implementation:
 
 ```sh
 cd bifrost-ts
@@ -2145,11 +1773,23 @@ bun run test:unit -- src/mongodb
 bun run test:integration -- src/mongodb
 ```
 
+Run in ExampleApp after migration:
+
+```sh
+bun run typecheck
+bun run test:unit
+bun run test:integration
+bun run server:build
+rg "mongoose|HydratedDocument|Schema|Model|QueryWithHelpers" src --glob '!*.spec.ts'
+```
+
+The final `rg` command must return no production imports before removing `mongoose`.
+
 ## Self-Review
 
-- Spec coverage: The plan covers packaging, decorators, registry, schema, repository operations, query behavior, document hydration, hooks, plugins, populate, change streams, ExampleApp migration, verification, and release-surface checks.
-- Risk coverage: The Praemeditatio Malorum section documents package, type-system, decorator, schema, ObjectId, query, document, hook, plugin, populate, change-stream, security, performance, migration, CI, protocol, and release failure modes with prevention and recovery paths.
-- Placeholder scan: The document intentionally avoids incomplete placeholders and gives concrete files, APIs, commands, risks, mitigations, and acceptance criteria.
-- Type consistency: Public API names are aligned across examples and tasks: `MongoRepository`, `createMongoBifrost`, `MongoQuery`, `MongoDocument`, `MongoCollection`, `MongoWatch`, and `registerMongoCollections`.
+- Spec coverage: The revised plan covers package exports, decorator metadata, native collection registry, ObjectId/schema helpers, timestamp/filter helpers, find-one-or-create, change streams, ExampleApp migration, risk analysis, and verification.
+- Scope correction: The plan explicitly removes repository/query/document/populate/plugin abstractions from version one and keeps the official driver as the application API.
+- Risk coverage: The Praemeditatio Malorum section documents risks around accidental ORM rebuild, driver type weakening, decorator side effects, validation overreach, soft delete hidden behavior, relationship exposure, watcher lifecycle, replica-set testing, raw-write drift, ObjectId/EJSON compatibility, watch authorization, explicit-service duplication, session forwarding, driver version compatibility, side effects, migrations, auth/session drift, performance, protocol, and release surface.
+- Placeholder scan: The document avoids incomplete placeholders and gives concrete files, APIs, commands, exclusions, migration examples, prevention paths, and recovery paths.
+- Type consistency: Public names are aligned around `createBifrostMongo`, `MongoCollection`, `MongoSchema`, `MongoIndex`, `MongoWatch`, `objectId`, `toObjectId`, `withInsertTimestamps`, `withUpdateTimestamp`, `active`, and native `Collection<T>`.
 - Delegation readiness: Each task includes owner, support role, risk tier, files, and verification commands.
-- Exploration fit: The first task calls for a Cortex-first explorer only when the implementer has not already mapped the decorator/package surface.
