@@ -6,7 +6,7 @@
 
 **Architecture:** The package owns connection lifecycle, collection metadata, schema validation helpers, index registration, ObjectId helpers, and change-stream-to-Bifrost event wiring. Application code should keep using native MongoDB `Collection<T>`, `FindCursor<T>`, sessions, aggregations, and bulk operations directly; Mongoose-only concepts such as hydrated documents, query thenables, implicit middleware, automatic populate, and model statics are deliberately moved into explicit app-level functions or omitted.
 
-**Tech Stack:** TypeScript, Bun, official `mongodb` driver, `bson`/driver `ObjectId`, Zod, Bifrost server events/channels, TC39 Stage 3 decorators, Vitest, Cortex, and the existing Bifrost package export/build pipeline.
+**Tech Stack:** TypeScript, Bun, official `mongodb` driver, `bson`/driver `ObjectId`, Zod, Bifrost server events/channels, TC39 Stage 3 decorators, Vitest, a local MongoDB test instance at `mongodb://127.0.0.1:27017`, Cortex, and the existing Bifrost package export/build pipeline.
 
 **Delegation Strategy:** Start with one Cortex-first `explorer` sidecar only if the implementer has not already mapped Bifrost's decorator/package surface and ExampleApp's Mongoose usage. The supervisor owns the API boundary and must keep the scope driver-first. Workers may independently implement decorators/metadata, registry/connection, schema/ObjectId helpers, and change-stream bridge because those write scopes are disjoint; verification and review are required because this is a public package surface and a data-layer migration path.
 
@@ -579,6 +579,7 @@ Create these Bifrost files:
 - `bifrost-ts/src/mongodb/decorators/collection.ts` — `@MongoCollection`, `@MongoSchema`, `@MongoIndex`
 - `bifrost-ts/src/mongodb/decorators/watch.ts` — `@MongoWatch`
 - `bifrost-ts/src/mongodb/decorators/register.ts` — metadata reader and validation utilities
+- `bifrost-ts/src/mongodb/test/mongodb-test-utility.ts` — integration-test harness for the default local MongoDB instance, guarded test database cleanup, collection suffixing, and replica-set capability detection
 
 Do not create these files in version one:
 
@@ -599,8 +600,20 @@ Create these tests:
 - `bifrost-ts/src/mongodb/filters.unit.spec.ts`
 - `bifrost-ts/src/mongodb/find-one-or-create.unit.spec.ts`
 - `bifrost-ts/src/mongodb/change-streams.unit.spec.ts`
+- `bifrost-ts/src/mongodb/client.integration.spec.ts`
+- `bifrost-ts/src/mongodb/registry.integration.spec.ts`
+- `bifrost-ts/src/mongodb/helpers.integration.spec.ts`
 - `bifrost-ts/src/mongodb/change-streams.integration.spec.ts`
 - `bifrost-ts/src/mongodb/driver-parity.integration.spec.ts`
+
+MongoDB integration tests use the existing local MongoDB instance by default:
+
+- URI: `process.env.BIFROST_MONGODB_TEST_URI ?? 'mongodb://127.0.0.1:27017'`
+- database: `process.env.BIFROST_MONGODB_TEST_DB ?? 'bifrost_mongodb_integration_test'`
+- cleanup: drop only the configured test database in `beforeEach` and `afterAll`
+- guard: refuse to run cleanup unless the database name starts with `bifrost_mongodb_` and ends with `_test`
+- isolation: keep `vitest.config.integration.ts` `fileParallelism: false`, and suffix collection names by test file or test case when concurrent tests are added later
+- topology: all non-watch integration tests must pass on a standalone local MongoDB instance; only change-stream tests may skip when the server is not a replica set
 
 Modify these existing files:
 
@@ -967,7 +980,138 @@ Create this decision after implementation:
   git commit -m "feat: register native mongodb collections"
   ```
 
-### Task 6: Implement ObjectId And Schema Helpers
+### Task 6: Add MongoDB Integration Harness And Registry Coverage
+
+**Files:**
+- Create: `bifrost-ts/src/mongodb/test/mongodb-test-utility.ts`
+- Create: `bifrost-ts/src/mongodb/client.integration.spec.ts`
+- Create: `bifrost-ts/src/mongodb/registry.integration.spec.ts`
+- Modify: `bifrost-ts/src/mongodb/registry.ts` only if integration tests expose lifecycle defects
+- Modify: `bifrost-ts/src/mongodb/client.ts` only if integration tests expose connection defects
+
+**Execution:**
+- Owner: `worker`
+- Support: `verifier`
+- Risk: `high`
+- Verification: local MongoDB integration tests against `bifrost_mongodb_integration_test`, plus `bun run typecheck`
+
+- [ ] **Step 1: Write guarded MongoDB test utility**
+
+  The helper must use the existing MongoDB instance by default and must refuse
+  destructive cleanup outside an intentionally named test database.
+
+  Required shape:
+
+  ```ts
+  import { MongoClient, type Db } from 'mongodb'
+
+  export const DEFAULT_MONGODB_TEST_URI =
+    'mongodb://127.0.0.1:27017' as const
+
+  export const DEFAULT_MONGODB_TEST_DB =
+    'bifrost_mongodb_integration_test' as const
+
+  export interface MongoIntegrationHarness {
+    readonly uri: string
+    readonly dbName: string
+    readonly client: MongoClient
+    readonly db: Db
+    readonly collectionName: (baseName: string) => string
+    readonly reset: () => Promise<void>
+    readonly close: () => Promise<void>
+    readonly supportsChangeStreams: () => Promise<boolean>
+  }
+
+  export async function createMongoIntegrationHarness(
+    testFileName: string,
+  ): Promise<MongoIntegrationHarness> {
+    const uri =
+      process.env.BIFROST_MONGODB_TEST_URI ?? DEFAULT_MONGODB_TEST_URI
+    const dbName =
+      process.env.BIFROST_MONGODB_TEST_DB ?? DEFAULT_MONGODB_TEST_DB
+
+    assertSafeMongoTestDatabase(dbName)
+
+    const client = new MongoClient(uri)
+    await client.connect()
+    const db = client.db(dbName)
+
+    return {
+      uri,
+      dbName,
+      client,
+      db,
+      collectionName: baseName =>
+        `${testFileName.replaceAll(/[^a-zA-Z0-9]/g, '_')}_${baseName}`,
+      reset: async () => {
+        await db.dropDatabase()
+      },
+      close: async () => {
+        await db.dropDatabase()
+        await client.close()
+      },
+      supportsChangeStreams: async () => {
+        const hello = await db.admin().command({ hello: 1 })
+        return Boolean(hello.setName)
+      },
+    }
+  }
+
+  export function assertSafeMongoTestDatabase(dbName: string): void {
+    if (!dbName.startsWith('bifrost_mongodb_') || !dbName.endsWith('_test')) {
+      throw new Error(
+        `Refusing to clean unsafe MongoDB database "${dbName}". ` +
+          'Use a name like bifrost_mongodb_integration_test.',
+      )
+    }
+  }
+  ```
+
+- [ ] **Step 2: Write client lifecycle integration tests**
+
+  In `client.integration.spec.ts`, use `beforeAll` to create the harness,
+  `beforeEach` to call `harness.reset()`, and `afterAll` to call
+  `harness.close()`.
+
+  Cover:
+
+  - `createBifrostMongo({ uri, dbName, collections })` connects to the default local MongoDB instance.
+  - `createBifrostMongo({ client, dbName, collections })` reuses an external `MongoClient`.
+  - `createBifrostMongo({ db, collections })` reuses an external `Db`.
+  - `mongo.close()` closes owned clients.
+  - `mongo.close()` leaves external clients open unless `closeExternalClient` is `true`.
+  - invalid option combinations fail before connecting.
+
+- [ ] **Step 3: Write registry integration tests**
+
+  In `registry.integration.spec.ts`, define two decorated collection
+  definitions using harness-suffixed collection names. Cover:
+
+  - `mongo.collection(Token)` returns a native collection that can insert and read documents.
+  - `mongo.collectionByName<Board>(name)` returns the same real collection by name.
+  - `ensureIndexes()` creates declared indexes in MongoDB.
+  - `ensureIndexes: true` creates indexes during startup.
+  - `meta(Token)` returns the decorator metadata used by the registry.
+  - two registered collections do not share metadata or indexes.
+
+- [ ] **Step 4: Verify**
+
+  Run with the existing MongoDB instance on the default port:
+
+  ```sh
+  cd bifrost-ts
+  bun run test:integration -- src/mongodb/client.integration.spec.ts src/mongodb/registry.integration.spec.ts
+  bun run typecheck
+  ```
+
+- [ ] **Step 5: Commit**
+
+  ```sh
+  git add bifrost-ts/src/mongodb/test/mongodb-test-utility.ts bifrost-ts/src/mongodb/client.integration.spec.ts bifrost-ts/src/mongodb/registry.integration.spec.ts bifrost-ts/src/mongodb/client.ts bifrost-ts/src/mongodb/registry.ts
+  git commit -m "test: cover mongodb integration lifecycle"
+  ```
+
+### Task 7: Implement ObjectId And Schema Helpers
 
 **Files:**
 - Create: `bifrost-ts/src/mongodb/schema.ts`
@@ -1014,7 +1158,7 @@ Create this decision after implementation:
   git commit -m "feat: add mongodb schema helpers"
   ```
 
-### Task 7: Implement Timestamp, Filter, Projection, And Find-Or-Create Helpers
+### Task 8: Implement Timestamp, Filter, Projection, And Find-Or-Create Helpers
 
 **Files:**
 - Create: `bifrost-ts/src/mongodb/timestamps.ts`
@@ -1024,12 +1168,13 @@ Create this decision after implementation:
 - Test: `bifrost-ts/src/mongodb/timestamps.unit.spec.ts`
 - Test: `bifrost-ts/src/mongodb/filters.unit.spec.ts`
 - Test: `bifrost-ts/src/mongodb/find-one-or-create.unit.spec.ts`
+- Test: `bifrost-ts/src/mongodb/helpers.integration.spec.ts`
 
 **Execution:**
 - Owner: `worker`
 - Support: `verifier`
 - Risk: `medium`
-- Verification: helper unit tests and `bun run typecheck`
+- Verification: helper unit tests, helper integration tests against local MongoDB, and `bun run typecheck`
 
 - [ ] **Step 1: Write timestamp tests**
 
@@ -1058,24 +1203,37 @@ Create this decision after implementation:
 
   These helpers must not patch collection methods or add hidden behavior.
 
-- [ ] **Step 5: Verify**
+- [ ] **Step 5: Write helper integration tests**
+
+  In `helpers.integration.spec.ts`, use `createMongoIntegrationHarness()` and
+  the default `bifrost_mongodb_integration_test` database. Cover:
+
+  - `parseInsert()` output can be inserted and read through a native collection.
+  - `withInsertTimestamps()` writes stable `createdAt` and `updatedAt` values.
+  - `withUpdateTimestamp()` updates a real document without dropping other update operators.
+  - `active()` filters out soft-deleted documents in a real `find()`.
+  - `projection('name author')` limits fields returned by the driver.
+  - `findOneOrCreate()` creates once, returns the existing document on the second call, and forwards a `ClientSession` option when supplied.
+
+- [ ] **Step 6: Verify**
 
   Run:
 
   ```sh
   cd bifrost-ts
   bun run test:unit -- src/mongodb/timestamps.unit.spec.ts src/mongodb/filters.unit.spec.ts src/mongodb/find-one-or-create.unit.spec.ts
+  bun run test:integration -- src/mongodb/helpers.integration.spec.ts
   bun run typecheck
   ```
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
   ```sh
-  git add bifrost-ts/src/mongodb/timestamps.ts bifrost-ts/src/mongodb/filters.ts bifrost-ts/src/mongodb/find-one-or-create.ts bifrost-ts/src/mongodb/index.ts bifrost-ts/src/mongodb/*.unit.spec.ts
+  git add bifrost-ts/src/mongodb/timestamps.ts bifrost-ts/src/mongodb/filters.ts bifrost-ts/src/mongodb/find-one-or-create.ts bifrost-ts/src/mongodb/index.ts bifrost-ts/src/mongodb/*.unit.spec.ts bifrost-ts/src/mongodb/helpers.integration.spec.ts
   git commit -m "feat: add explicit mongodb write helpers"
   ```
 
-### Task 8: Implement Bifrost Change Stream Bridge
+### Task 9: Implement Bifrost Change Stream Bridge
 
 **Files:**
 - Create: `bifrost-ts/src/mongodb/change-streams.ts`
@@ -1105,7 +1263,19 @@ Create this decision after implementation:
 
 - [ ] **Step 2: Write integration test**
 
-  Use a real MongoDB test database when available. If replica-set change streams are unavailable, skip with a clear diagnostic and keep unit coverage mandatory.
+  Use `createMongoIntegrationHarness()` and the default
+  `bifrost_mongodb_integration_test` database. If the local MongoDB instance is
+  standalone, skip only this change-stream integration file with a precise
+  diagnostic from `supportsChangeStreams()` and keep unit coverage mandatory.
+
+  Cover:
+
+  - insert in MongoDB emits one Bifrost event with `{ eventId, _id, doc, deleted: false }`
+  - update emits the post-update full document
+  - delete emits `{ doc: null, deleted: true }`
+  - excluded-field-only updates do not emit
+  - `mongo.close()` closes the watch cursor and no later writes emit events
+  - reconnect is attempted after a transient stream error and stopped after shutdown
 
 - [ ] **Step 3: Implement resilient watcher**
 
@@ -1133,18 +1303,22 @@ Create this decision after implementation:
   git commit -m "feat: stream mongodb changes through bifrost"
   ```
 
-### Task 9: Add Driver-Parity Integration Tests
+### Task 10: Add Driver-Parity And Migration Integration Tests
 
 **Files:**
 - Create: `bifrost-ts/src/mongodb/driver-parity.integration.spec.ts`
+- Modify: `bifrost-ts/src/mongodb/test/mongodb-test-utility.ts` only if the full suite exposes missing harness helpers
 
 **Execution:**
 - Owner: `worker`
 - Support: `verifier`
 - Risk: `high`
-- Verification: integration tests and typecheck
+- Verification: full MongoDB integration suite against `bifrost_mongodb_integration_test`, typecheck, and build
 
 - [ ] **Step 1: Test native driver workflows**
+
+  Use `createMongoIntegrationHarness()` so this file hits the same default
+  local MongoDB instance and guarded test database as the rest of the suite.
 
   Cover:
 
@@ -1167,25 +1341,43 @@ Create this decision after implementation:
   - replacing soft-delete middleware with `active()` filter
   - replacing model static with exported helper function
 
-- [ ] **Step 3: Verify**
+- [ ] **Step 3: Run the full MongoDB integration suite**
+
+  This is the suite that must pass before using the package to migrate
+  ExampleApp off Mongoose:
+
+  ```sh
+  cd bifrost-ts
+  bun run test:integration -- src/mongodb/client.integration.spec.ts src/mongodb/registry.integration.spec.ts src/mongodb/helpers.integration.spec.ts src/mongodb/driver-parity.integration.spec.ts
+  ```
+
+  Run the change-stream file too when the local MongoDB instance is a replica
+  set:
+
+  ```sh
+  cd bifrost-ts
+  bun run test:integration -- src/mongodb/change-streams.integration.spec.ts
+  ```
+
+- [ ] **Step 4: Verify**
 
   Run:
 
   ```sh
   cd bifrost-ts
-  bun run test:integration -- src/mongodb/driver-parity.integration.spec.ts
+  bun run test:integration -- src/mongodb
   bun run typecheck
   bun run build
   ```
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
   ```sh
-  git add bifrost-ts/src/mongodb/driver-parity.integration.spec.ts
+  git add bifrost-ts/src/mongodb/driver-parity.integration.spec.ts bifrost-ts/src/mongodb/test/mongodb-test-utility.ts
   git commit -m "test: cover driver-first mongodb workflows"
   ```
 
-### Task 10: Document Design And Decision
+### Task 11: Document Design And Decision
 
 **Files:**
 - Create: `bifrost-ts/src/mongodb/README.md` if package-local docs are accepted by the repo
@@ -1233,7 +1425,7 @@ Create this decision after implementation:
   git commit -m "docs: explain driver-first mongodb integration"
   ```
 
-### Task 11: Full Verification And Release-Surface Review
+### Task 12: Full Verification And Release-Surface Review
 
 **Files:**
 - Analyze all changed Bifrost files
@@ -1245,6 +1437,11 @@ Create this decision after implementation:
 - Verification: full Bifrost checks plus Cortex regression risk report
 
 - [ ] **Step 1: Run focused checks**
+
+  These checks assume MongoDB is reachable at `mongodb://127.0.0.1:27017`
+  unless `BIFROST_MONGODB_TEST_URI` overrides it. The suite uses
+  `bifrost_mongodb_integration_test` by default and must not touch any other
+  database.
 
   ```sh
   cd bifrost-ts
@@ -1820,7 +2017,33 @@ Migrate patterns as follows:
 - Fix exports or `prepare-dist.mjs` before publishing.
 - Bump package version before retrying an immutable publish.
 
-### 20. Change Stream Tests Depend On Unavailable Replica Sets
+### 20. MongoDB Integration Tests Hit The Wrong Database
+
+**Failure:** The full integration suite runs destructive cleanup against a
+developer, staging, or production database instead of the isolated test
+database.
+
+**Symptoms:**
+
+- Test setup drops collections that were not created by the test suite.
+- Developers avoid running integration tests because the target database is unclear.
+- CI uses a shared database name and leaks state between runs.
+
+**Prevention:**
+
+- Default to `mongodb://127.0.0.1:27017` and `bifrost_mongodb_integration_test`.
+- Guard cleanup with `assertSafeMongoTestDatabase()`.
+- Drop only the configured test database in `beforeEach` and `afterAll`.
+- Keep `fileParallelism: false` for the integration runner unless collection suffixing is broadened.
+- Document `BIFROST_MONGODB_TEST_URI` and `BIFROST_MONGODB_TEST_DB` in package docs.
+
+**Recovery:**
+
+- Stop the suite immediately.
+- Restore the affected database from backup if cleanup touched non-test data.
+- Tighten the guard before re-running integration tests.
+
+### 21. Change Stream Tests Depend On Unavailable Replica Sets
 
 **Failure:** Integration tests assume MongoDB change streams are available, but the local or CI MongoDB instance is standalone.
 
@@ -1842,7 +2065,7 @@ Migrate patterns as follows:
 - Add a CI setup step for a single-node replica set.
 - Keep the unit tests as the correctness floor until CI topology is fixed.
 
-### 21. Raw Driver Writes Drift Away From Schema Contracts
+### 22. Raw Driver Writes Drift Away From Schema Contracts
 
 **Failure:** Because native collections are primary, application code can bypass Zod helpers and write malformed data.
 
@@ -1864,7 +2087,7 @@ Migrate patterns as follows:
 - Backfill malformed documents through explicit migrations.
 - Add Zod parsing at the service boundary that produced bad writes.
 
-### 22. ObjectId And EJSON Compatibility Drifts
+### 23. ObjectId And EJSON Compatibility Drifts
 
 **Failure:** Moving from Mongoose `Types.ObjectId` to driver `ObjectId` changes serialization, equality checks, channel names, or EJSON handling.
 
@@ -1887,7 +2110,7 @@ Migrate patterns as follows:
 - Add an ObjectId compatibility adapter at serialization boundaries.
 - Normalize channel names and map keys to hex strings everywhere.
 
-### 23. Watch Channel Authorization Is Incorrect
+### 24. Watch Channel Authorization Is Incorrect
 
 **Failure:** `@MongoWatch` emits sensitive document changes on channels that unauthorized clients can subscribe to.
 
@@ -1910,7 +2133,7 @@ Migrate patterns as follows:
 - Re-emit only on authorized channels.
 - Add Bifrost subscription authorization tests before reenabling.
 
-### 24. Explicit Services Duplicate Business Rules
+### 25. Explicit Services Duplicate Business Rules
 
 **Failure:** Replacing statics/plugins with explicit functions creates several similar helpers that drift apart.
 
@@ -1931,7 +2154,7 @@ Migrate patterns as follows:
 - Consolidate duplicate helpers into one service.
 - Add lint or import-boundary guidance if direct collection writes are unsafe in a domain.
 
-### 25. Sessions Are Dropped By Helper Functions
+### 26. Sessions Are Dropped By Helper Functions
 
 **Failure:** Pure helpers like `findOneOrCreate`, timestamped updates, or service functions forget to accept and pass through `ClientSession`.
 
@@ -1952,7 +2175,7 @@ Migrate patterns as follows:
 - Patch helper signatures before broad migration.
 - Audit transaction-sensitive ExampleApp paths for direct session forwarding.
 
-### 26. Driver Version Or Module Format Breaks Consumers
+### 27. Driver Version Or Module Format Breaks Consumers
 
 **Failure:** The package relies on a MongoDB driver API, ESM behavior, or type export that differs across supported driver versions.
 
@@ -1987,6 +2210,8 @@ Migrate patterns as follows:
 - Schema helpers validate inserts, replacements, and explicit `$set` payloads.
 - Timestamp and soft-delete helpers are explicit pure functions.
 - Change streams emit Bifrost events and close cleanly.
+- A full MongoDB integration suite runs against `mongodb://127.0.0.1:27017` and the guarded `bifrost_mongodb_integration_test` database by default.
+- Integration cleanup refuses to drop databases that are not explicitly named as Bifrost MongoDB test databases.
 - Driver sessions, transactions, aggregation, and bulk operations remain normal driver APIs.
 - ExampleApp migration examples reduce Mongoose concepts to explicit native driver calls.
 - Bifrost typecheck, focused tests, full tests, lint, and build pass before release.
@@ -2024,6 +2249,15 @@ bun run test:unit -- src/mongodb
 bun run test:integration -- src/mongodb
 ```
 
+Run the full MongoDB integration suite against the default local instance:
+
+```sh
+cd bifrost-ts
+BIFROST_MONGODB_TEST_URI=mongodb://127.0.0.1:27017 \
+BIFROST_MONGODB_TEST_DB=bifrost_mongodb_integration_test \
+bun run test:integration -- src/mongodb
+```
+
 Run in ExampleApp after migration:
 
 ```sh
@@ -2038,9 +2272,9 @@ The final `rg` command must return no production imports before removing `mongoo
 
 ## Self-Review
 
-- Spec coverage: The revised plan covers package exports, decorator metadata, type completeness, native collection registry, ObjectId/schema helpers, timestamp/filter helpers, find-one-or-create, change streams, ExampleApp migration, risk analysis, and verification.
+- Spec coverage: The revised plan covers package exports, decorator metadata, type completeness, native collection registry, MongoDB integration harnessing, ObjectId/schema helpers, timestamp/filter helpers, find-one-or-create, change streams, ExampleApp migration, risk analysis, and verification.
 - Scope correction: The plan explicitly removes repository/query/document/populate/plugin abstractions from version one and keeps the official driver as the application API.
-- Risk coverage: The Praemeditatio Malorum section documents risks around accidental ORM rebuild, driver type weakening, overly broad inference, decorator side effects, validation overreach, soft delete hidden behavior, relationship exposure, watcher lifecycle, replica-set testing, raw-write drift, ObjectId/EJSON compatibility, watch authorization, explicit-service duplication, session forwarding, driver version compatibility, side effects, migrations, auth/session drift, performance, protocol, and release surface.
+- Risk coverage: The Praemeditatio Malorum section documents risks around accidental ORM rebuild, driver type weakening, overly broad inference, decorator side effects, validation overreach, soft delete hidden behavior, relationship exposure, watcher lifecycle, wrong-database cleanup, replica-set testing, raw-write drift, ObjectId/EJSON compatibility, watch authorization, explicit-service duplication, session forwarding, driver version compatibility, side effects, migrations, auth/session drift, performance, protocol, and release surface.
 - Placeholder scan: The document avoids incomplete placeholders and gives concrete files, APIs, commands, exclusions, migration examples, prevention paths, and recovery paths.
 - Type consistency: Public names are aligned around `createBifrostMongo`, `typedMongoCollection`, `MongoCollectionToken`, `MongoDocumentOf`, `MongoCollection`, `MongoSchema`, `MongoIndex`, `MongoWatch`, `objectId`, `toObjectId`, `withInsertTimestamps`, `withUpdateTimestamp`, `active`, and native `Collection<T>`.
 - Delegation readiness: Each task includes owner, support role, risk tier, files, and verification commands.
