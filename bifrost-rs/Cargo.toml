@@ -15,7 +15,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.0.1"
+version = "0.1.0"
 edition = "2024"
 license = "UNLICENSED"
 repository = "https://forgejo.example-app.com/leonardoventurini/bifrost"
@@ -34,14 +34,14 @@ publish = ["forgejo"]
 # cargo strips the `path` at publish time, falls back to the default
 # registry, and fails with "no matching package named `bifrost-*`
 # found, location searched: crates.io index".
-bifrost-protocol = { path = "crates/bifrost-protocol", version = "0.0.1", registry = "forgejo" }
-bifrost-ejson    = { path = "crates/bifrost-ejson",    version = "0.0.1", registry = "forgejo" }
-bifrost-runtime  = { path = "crates/bifrost-runtime",  version = "0.0.1", registry = "forgejo" }
-bifrost-http     = { path = "crates/bifrost-http",     version = "0.0.1", registry = "forgejo" }
-bifrost-ws       = { path = "crates/bifrost-ws",       version = "0.0.1", registry = "forgejo" }
-bifrost-redis    = { path = "crates/bifrost-redis",    version = "0.0.1", registry = "forgejo" }
-bifrost-auth     = { path = "crates/bifrost-auth",     version = "0.0.1", registry = "forgejo" }
-bifrost-macros   = { path = "crates/bifrost-macros",   version = "0.0.1", registry = "forgejo" }
+bifrost-protocol = { path = "crates/bifrost-protocol", version = "0.1.0", registry = "forgejo" }
+bifrost-ejson    = { path = "crates/bifrost-ejson",    version = "0.1.0", registry = "forgejo" }
+bifrost-runtime  = { path = "crates/bifrost-runtime",  version = "0.1.0", registry = "forgejo" }
+bifrost-http     = { path = "crates/bifrost-http",     version = "0.1.0", registry = "forgejo" }
+bifrost-ws       = { path = "crates/bifrost-ws",       version = "0.1.0", registry = "forgejo" }
+bifrost-redis    = { path = "crates/bifrost-redis",    version = "0.1.0", registry = "forgejo" }
+bifrost-auth     = { path = "crates/bifrost-auth",     version = "0.1.0", registry = "forgejo" }
+bifrost-macros   = { path = "crates/bifrost-macros",   version = "0.1.0", registry = "forgejo" }
 
 # Shared runtime dependencies. Pin conservatively; individual crates
 # opt in via their own Cargo.toml.
