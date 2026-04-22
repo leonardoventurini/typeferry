@@ -13,6 +13,7 @@
     "node_modules",
     "dist",
     "src/test/**/*",
+    "src/**/test/**/*",
     "src/**/*.unit.spec.ts",
     "src/**/*.unit.spec.tsx",
     "src/**/*.integration.spec.ts",

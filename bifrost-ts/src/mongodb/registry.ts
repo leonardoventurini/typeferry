@@ -68,6 +68,8 @@ export class BifrostMongoRegistry implements BifrostMongo {
   collectionByName<TDocument extends Document = Document>(
     name: string,
   ): Collection<TDocument> {
+    const registered = this.collections.get(name)
+    if (registered) return registered as unknown as Collection<TDocument>
     return this.db.collection<TDocument>(name)
   }
 
