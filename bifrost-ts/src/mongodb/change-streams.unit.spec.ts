@@ -98,6 +98,68 @@ describe('mongodb change stream bridge', () => {
     ).toBe(false)
   })
 
+  it('uses delete pre-images to resolve channels while keeping delete payloads lean', async () => {
+    const author = new ObjectId()
+    const board = { _id: new ObjectId(), name: 'Roadmap', author }
+    const events: Array<{ readonly channel: string; readonly payload: unknown }> =
+      []
+    const close = vi.fn().mockResolvedValue(undefined)
+    const stream = {
+      close,
+      async *[Symbol.asyncIterator]() {
+        yield {
+          _id: { token: 'delete' },
+          operationType: 'delete',
+          documentKey: { _id: board._id },
+          fullDocumentBeforeChange: board,
+          ns: { db: 'test', coll: 'boards' },
+        } as unknown as ChangeStreamDocument<Board>
+      },
+    }
+    const collection = {
+      watch: vi.fn().mockReturnValue(stream),
+    } as unknown as Collection<Board>
+    const server = {
+      addEvent: vi.fn(),
+      channel: (channel: string) => ({
+        emit(_event: string, payload: unknown): void {
+          events.push({ channel, payload })
+        },
+      }),
+    }
+
+    const handle = startMongoWatch({
+      collection,
+      definition: {
+        Class: class BoardsCollectionDefinition {},
+        name: 'boards',
+        indexes: [],
+        watches: [],
+      },
+      watch: {
+        event: 'boards.changed',
+        getChannel: doc => doc.author.toHexString(),
+        fullDocumentBeforeChange: 'whenAvailable',
+      },
+      server: server as never,
+      reconnectDelayMs: 1,
+    })
+
+    await new Promise(resolve => setTimeout(resolve, 0))
+    await handle.close()
+
+    expect(events).toEqual([
+      {
+        channel: author.toHexString(),
+        payload: expect.objectContaining({
+          _id: board._id,
+          doc: null,
+          deleted: true,
+        }),
+      },
+    ])
+  })
+
   it('registers events and closes the active stream', async () => {
     const close = vi.fn().mockResolvedValue(undefined)
     const stream = {

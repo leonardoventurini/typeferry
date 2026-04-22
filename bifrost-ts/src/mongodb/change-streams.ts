@@ -53,6 +53,7 @@ export function startMongoWatch<TDocument extends Document>(
     while (!closed) {
       const streamOptions = {
         fullDocument: options.watch.fullDocument ?? 'updateLookup',
+        fullDocumentBeforeChange: options.watch.fullDocumentBeforeChange,
         ...options.watch.options,
       }
       const pipeline = options.watch.pipeline
@@ -68,6 +69,7 @@ export function startMongoWatch<TDocument extends Document>(
           if (closed) break
           await emitChange(options, change)
         }
+        break
       } catch (error) {
         if (closed) break
         await delay(options.reconnectDelayMs ?? DEFAULT_RECONNECT_DELAY_MS)
@@ -140,7 +142,11 @@ async function emitChange<TDocument extends Document>(
   const payload = toMongoWatchPayload(change)
   if (!payload) return
 
-  const channels = await resolveChannels(options.watch, change, payload.doc)
+  const channels = await resolveChannels(
+    options.watch,
+    change,
+    payload.doc ?? readBeforeDocument(change),
+  )
   for (const channel of channels) {
     options.server.channel(channel).emit(options.watch.event, payload)
   }
@@ -169,6 +175,13 @@ function readFullDocument<TDocument extends Document>(
     return change.fullDocument ?? null
   }
   return null
+}
+
+function readBeforeDocument<TDocument extends Document>(
+  change: ChangeStreamDocument<TDocument>,
+): TDocument | null {
+  if (!('fullDocumentBeforeChange' in change)) return null
+  return change.fullDocumentBeforeChange ?? null
 }
 
 function extractObjectId<TDocument extends Document>(

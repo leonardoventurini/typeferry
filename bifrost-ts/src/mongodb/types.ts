@@ -83,6 +83,8 @@ export interface MongoWatchDefinition<TDocument extends Document = Document> {
   readonly pipeline?: readonly Document[]
   /** Native `fullDocument` option; defaults to `updateLookup`. */
   readonly fullDocument?: ChangeStreamOptions['fullDocument']
+  /** Native pre-image option used to resolve delete channels when enabled. */
+  readonly fullDocumentBeforeChange?: ChangeStreamOptions['fullDocumentBeforeChange']
   /** Native change-stream options passed through unchanged. */
   readonly options?: ChangeStreamOptions
 }
