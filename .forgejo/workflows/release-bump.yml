@@ -14,6 +14,8 @@ on:
       - 'bifrost-ts/**'
       - 'bifrost-py/**'
       - 'bifrost-rs/**'
+      - 'scripts/bump-versions.py'
+      - '.forgejo/workflows/release-bump.yml'
 
 concurrency:
   group: release-bump
@@ -51,6 +53,9 @@ jobs:
           fi
           echo "PYTHON=$python_bin" >> "$FORGEJO_ENV"
           $python_bin --version
+
+      - name: Test bump script
+        run: $PYTHON -m unittest scripts/test_bump_versions.py
 
       - name: Compute bumps
         id: bump

@@ -154,11 +154,23 @@ def commits_in_range(base: str | None, head: str) -> list[Commit]:
 
 
 def files_in_range(base: str | None, head: str) -> list[str]:
-    rev_range = f"{base}..{head}" if base else head
-    out = subprocess.check_output(
-        ["git", "diff", "--name-only", rev_range], cwd=REPO_ROOT, text=True
-    )
-    return [line for line in out.splitlines() if line.strip()]
+    if base:
+        out = subprocess.check_output(
+            ["git", "diff", "--name-only", f"{base}..{head}"],
+            cwd=REPO_ROOT,
+            text=True,
+        )
+    else:
+        # First-run bootstrap has no release commit anchor. `git diff HEAD`
+        # compares the worktree to HEAD and returns no files in CI, even
+        # though `git log HEAD` finds the full commit set. Read touched files
+        # from the commits themselves so path-based package detection works.
+        out = subprocess.check_output(
+            ["git", "log", "--format=", "--name-only", head],
+            cwd=REPO_ROOT,
+            text=True,
+        )
+    return sorted({line for line in out.splitlines() if line.strip()})
 
 
 # ---------------------------------------------------------------------------
