@@ -232,9 +232,18 @@ export class Server<
       })
   }
 
-  isReady() {
+  /**
+   * Resolves when startup transports have emitted their readiness signals.
+   *
+   * Already-ready servers must not retain `READY` listeners because callers
+   * commonly use this as a low-cost guard before request handling.
+   */
+  isReady(): Promise<boolean> {
     return new Promise(resolve => {
-      if (this.ready) resolve(true)
+      if (this.ready) {
+        resolve(true)
+        return
+      }
 
       this.once(ServerEvents.READY, resolve)
     })

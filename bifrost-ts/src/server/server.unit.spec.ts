@@ -157,6 +157,15 @@ describe('Server', () => {
       expect(result).toBe(true)
     })
 
+    it('does not retain READY listeners after immediate resolution', async () => {
+      const s = createServer()
+      s.ready = true
+
+      await Promise.all([s.isReady(), s.isReady(), s.isReady()])
+
+      expect(s.listenerCount(ServerEvents.READY)).toBe(0)
+    })
+
     it('resolves when READY event fires', async () => {
       const s = createServer()
       s.ready = false
