@@ -24,9 +24,37 @@ jobs:
       - uses: https://data.forgejo.org/actions/checkout@v4
 
       - name: Install Bun
+        shell: bash
         run: |
-          curl -fsSL https://bun.sh/install | bash
-          echo "$HOME/.bun/bin" >> "$FORGEJO_PATH"
+          set -euo pipefail
+          profile_state() {
+            for profile in "$HOME/.zshrc" "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile" "$HOME/.zprofile"; do
+              if [ -f "$profile" ]; then
+                cksum "$profile"
+              else
+                printf 'missing %s\n' "$profile"
+              fi
+            done
+          }
+
+          profiles_before="$(profile_state)"
+          BUN_INSTALL_ROOT="${RUNNER_TOOL_CACHE:-${AGENT_TOOLSDIRECTORY:-${RUNNER_TEMP:-$PWD/.forgejo-tools}}}/bun"
+          BUN_INSTALL_HOME="$BUN_INSTALL_ROOT/home"
+          BUN_INSTALL_BIN="$BUN_INSTALL_ROOT/bin"
+          mkdir -p "$BUN_INSTALL_ROOT" "$BUN_INSTALL_HOME"
+
+          if [ ! -x "$BUN_INSTALL_BIN/bun" ]; then
+            curl -fsSL https://bun.sh/install \
+              | HOME="$BUN_INSTALL_HOME" BUN_INSTALL="$BUN_INSTALL_ROOT" bash
+          fi
+
+          profiles_after="$(profile_state)"
+          if [ "$profiles_before" != "$profiles_after" ]; then
+            echo "Bun installer modified a real shell profile; refusing to continue." >&2
+            exit 1
+          fi
+
+          echo "$BUN_INSTALL_BIN" >> "$FORGEJO_PATH"
 
       - uses: https://data.forgejo.org/actions/cache@v4
         with:
