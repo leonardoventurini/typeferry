@@ -14,6 +14,7 @@ jobs:
   ci-ts:
     name: CI (bifrost-ts)
     runs-on: arm64
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: bifrost-ts
@@ -25,6 +26,7 @@ jobs:
 
       - name: Install Bun
         shell: bash
+        timeout-minutes: 5
         run: |
           set -euo pipefail
           profile_state() {
@@ -64,18 +66,22 @@ jobs:
             deps-${{ runner.os }}-
 
       - run: bun install --frozen-lockfile
+        timeout-minutes: 10
 
       # TypeScript
       - name: TypeScript
         run: bun run typecheck
+        timeout-minutes: 5
 
       # Unit tests
       - name: Unit Tests
         run: bun run test:unit
+        timeout-minutes: 10
 
       # Integration tests (Redis required)
       - name: Integration Tests
         run: bun run test:integration
+        timeout-minutes: 10
 
       # Browser tests
       - uses: https://data.forgejo.org/actions/cache@v4
@@ -87,9 +93,11 @@ jobs:
             playwright-${{ runner.os }}-
 
       - run: bunx playwright install --with-deps
+        timeout-minutes: 10
         if: steps.playwright-cache.outputs.cache-hit != 'true'
 
       - run: bunx playwright install-deps
+        timeout-minutes: 10
         if: steps.playwright-cache.outputs.cache-hit == 'true'
 
       - name: Browser Tests
