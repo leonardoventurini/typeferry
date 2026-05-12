@@ -4,7 +4,17 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'bifrost-ts/**'
+      - 'docs/conformance/**'
+      - 'PROTOCOL.md'
+      - '.forgejo/workflows/ci.yml'
   pull_request:
+    paths:
+      - 'bifrost-ts/**'
+      - 'docs/conformance/**'
+      - 'PROTOCOL.md'
+      - '.forgejo/workflows/ci.yml'
 
 concurrency:
   group: ci-${{ forgejo.ref }}
