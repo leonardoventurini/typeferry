@@ -69,6 +69,8 @@ export type ServerOptions = {
   globalInstance?: boolean
   allowedContextKeys?: string[]
   rateLimit?: RateLimit
+  /** Overrides Bun's request-body limit for applications with streaming routes. */
+  maxRequestBodySize?: number
   shouldAllowChannelSubscribe?: ChannelChecker
 }
 
@@ -91,6 +93,8 @@ export class Server<
   auth: AuthFunction
   debug = false
   rateLimit: RateLimit
+  /** Maximum request body accepted by the Bun HTTP transport. */
+  maxRequestBodySize?: number
 
   methods: Map<string, Method<any, any>> = new Map()
   allClients: Map<string, ClientNode> = new Map()
@@ -156,6 +160,7 @@ export class Server<
       origins,
       this.rateLimit,
       wsTransport,
+      this.maxRequestBodySize,
     ) as BunHonoTransport
   }
 
@@ -190,6 +195,7 @@ export class Server<
     globalInstance = true,
     allowedContextKeys = [],
     rateLimit = false,
+    maxRequestBodySize,
   }: ServerOptions = {}) {
     super(NO_CHANNEL)
 
@@ -208,6 +214,7 @@ export class Server<
     this.debug = debug
     this.uuid = Presentation.uuid()
     this.rateLimit = rateLimit
+    this.maxRequestBodySize = maxRequestBodySize
     this.allowedContextKeys = allowedContextKeys
 
     this.initializeTransports(origins, ws, redis)

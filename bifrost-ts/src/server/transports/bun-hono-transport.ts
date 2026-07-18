@@ -43,6 +43,7 @@ export class BunHonoTransport {
     origins: string[],
     limit: RateLimit,
     wsTransport: BunWebSocketTransport,
+    maxRequestBodySize?: number,
   ) {
     this.server = server
     this.wsTransport = wsTransport
@@ -56,6 +57,7 @@ export class BunHonoTransport {
       fetch: (req, bunSrv) => this.handleFetch(req, bunSrv),
       websocket: wsTransport.getWebSocketHandlers(),
       idleTimeout: 60,
+      maxRequestBodySize,
     })
 
     server.port = this.bunServer.port

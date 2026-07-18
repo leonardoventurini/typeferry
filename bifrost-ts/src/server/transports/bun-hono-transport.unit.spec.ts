@@ -71,6 +71,8 @@ vi.mock('../client-node', () => {
 })
 
 import { BunHonoTransport } from './bun-hono-transport'
+
+const LARGE_REQUEST_BODY_SIZE_BYTES = 10 * 1024 * 1024 * 1024
 import { HttpTransportEvents } from './http-transport'
 import { cors } from 'hono/cors'
 import { rateLimiter } from './hono-rate-limit'
@@ -175,6 +177,23 @@ describe('BunHonoTransport', () => {
           port: 3000,
           hostname: 'localhost',
           idleTimeout: 60,
+        }),
+      )
+    })
+
+    it('passes the configured request body limit to Bun', () => {
+      vi.clearAllMocks()
+      new BunHonoTransport(
+        server,
+        [],
+        false,
+        wsTransport,
+        LARGE_REQUEST_BODY_SIZE_BYTES,
+      )
+
+      expect(Bun.serve).toHaveBeenCalledWith(
+        expect.objectContaining({
+          maxRequestBodySize: LARGE_REQUEST_BODY_SIZE_BYTES,
         }),
       )
     })
