@@ -24,7 +24,7 @@ import type { Server } from './server'
  */
 export type MethodFunction<T = any, R = any> = (
   this: ClientNode,
-  parameters?: MethodParameters<T>,
+  parameters?: MethodParameters<T>
 ) => Promise<R> | R
 
 /**
@@ -58,6 +58,25 @@ export interface MethodOptions<Schema extends z.ZodType = z.ZodType> {
   middleware?: AnyFunction[]
   /** Zod schema for input validation and type inference */
   schema?: Schema
+  /**
+   * Redact parameters, results, and errors from method telemetry.
+   *
+   * Use this for RPCs whose payloads contain credentials, authorization
+   * scopes, private query arguments, or other data that must not reach
+   * METHOD_EXECUTION/METHOD_ERROR observers.
+   */
+  sensitive?: boolean
+}
+
+/** Stable marker used when sensitive method telemetry is intentionally hidden. */
+export const REDACTED_METHOD_TELEMETRY = '[REDACTED]' as const
+
+/** Returns a method telemetry field with the configured sensitivity applied. */
+export function redactMethodTelemetry(
+  method: Pick<Method<z.ZodType, unknown>, 'isSensitive'>,
+  value: unknown
+): unknown {
+  return method.isSensitive ? REDACTED_METHOD_TELEMETRY : value
 }
 
 interface MemoizeOptions {
@@ -66,7 +85,7 @@ interface MemoizeOptions {
 
 function customMemoize<T extends (...args: any[]) => any>(
   fn: T,
-  options: MemoizeOptions = {},
+  options: MemoizeOptions = {}
 ): T {
   const cache = new Map<string, { value: any; timestamp: number }>()
   const { maxAge = 60000 } = options
@@ -102,6 +121,7 @@ export class Method<Schema extends z.ZodType, Result> {
   uuid: string
   fn: MethodFunction
   isProtected: boolean
+  isSensitive: boolean
   middleware: AnyFunction[]
   schema: z.ZodSchema | null = null
   name: string
@@ -111,7 +131,7 @@ export class Method<Schema extends z.ZodType, Result> {
     server: Server,
     name: string,
     fn: MethodFunction<z.input<Schema> | any, Result>,
-    opts: MethodOptions<Schema>,
+    opts: MethodOptions<Schema>
   ) {
     const { cache, maxAge = 60000, schema } = opts ?? {}
 
@@ -119,6 +139,7 @@ export class Method<Schema extends z.ZodType, Result> {
     this.name = name
     this.uuid = Presentation.uuid()
     this.isProtected = opts?.protected
+    this.isSensitive = opts?.sensitive ?? false
     this.middleware = opts?.middleware
     this.fn = cache ? customMemoize(fn, { maxAge }) : fn
 
@@ -131,11 +152,11 @@ export class Method<Schema extends z.ZodType, Result> {
    */
   async runMiddleware(
     parameters: MethodParameters,
-    node?: ClientNode,
+    node?: ClientNode
   ): Promise<MethodParameters> {
     if (isEmpty(this.middleware)) return parameters
 
-    const wrapped = this.middleware.map(m => intercept(m))
+    const wrapped = this.middleware.map((m) => intercept(m))
 
     let buffer = parameters
 
@@ -169,15 +190,15 @@ export class Method<Schema extends z.ZodType, Result> {
       const result = this.schema.safeParse(parametersToValidate)
       if (!result.success) {
         const errorMessages = result.error.issues.map(
-          issue => `${issue.path.join('.')}: ${issue.message}`,
+          (issue) => `${issue.path.join('.')}: ${issue.message}`
         )
         console.error(
           `Schema validation failed for ${this.name}:`,
-          errorMessages,
+          errorMessages
         )
         throw new SchemaValidationError(
           `${Errors.INVALID_PARAMS}: ${errorMessages.join(', ')}`,
-          errorMessages,
+          errorMessages
         )
       }
       cleanParameters = result.data
@@ -189,7 +210,7 @@ export class Method<Schema extends z.ZodType, Result> {
         const middlewareResult = await this.runMiddleware(cleanParameters, node)
 
         return this.fn.call(node, middlewareResult)
-      },
+      }
     )
 
     const end = perf_hooks.performance.now()
@@ -197,8 +218,8 @@ export class Method<Schema extends z.ZodType, Result> {
     this.server.emit(ServerEvents.METHOD_EXECUTION, {
       method: this.name,
       time: end - start,
-      params: cleanParameters,
-      result,
+      params: redactMethodTelemetry(this, cleanParameters),
+      result: redactMethodTelemetry(this, result),
     })
 
     return result

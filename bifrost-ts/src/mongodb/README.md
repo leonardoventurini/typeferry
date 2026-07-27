@@ -135,3 +135,119 @@ The harness refuses to clean a database unless its name starts with
 Standalone MongoDB instances can run all non-watch integration tests.
 Change-stream assertions require a replica set and return early with a
 diagnostic when the local server does not support change streams.
+
+## Live publications
+
+Live publications materialize a named, server-owned MongoDB query in a Bifrost
+client. They return one authoritative snapshot and then apply `added`,
+`changed`, and `removed` operations over the existing WebSocket event
+transport. Clients never submit collection names, MongoDB selectors,
+projections, or aggregation pipelines.
+
+```ts
+import { ObjectId } from 'mongodb'
+import { z } from 'zod'
+import {
+  createBifrostMongo,
+  createMongoLiveView,
+  defineMongoLivePublication,
+  mongoLivePublication,
+  type MongoLiveClientDocument,
+} from '@example-app/bifrost/mongodb'
+
+interface BoardFields {
+  readonly name: string
+}
+
+type LiveBoard = MongoLiveClientDocument<BoardFields>
+
+export const BoardsForOwner = mongoLivePublication<
+  { readonly owner: string },
+  LiveBoard
+>()('boards.for-owner')
+
+const boardsForOwner = defineMongoLivePublication(BoardsForOwner, {
+  collection: BoardsCollection,
+  args: z.object({ owner: z.string() }),
+  authorize: (context, args) => {
+    if (context.client.userId !== args.owner) {
+      throw new Error('forbidden')
+    }
+    return { owner: args.owner }
+  },
+  filter: scope => ({ owner: scope.owner }),
+  project: board => ({ name: board.name }),
+})
+
+const mongo = await createBifrostMongo({
+  uri: process.env.DATABASE,
+  dbName: 'example-app',
+  server,
+  collections: [BoardsCollection],
+  live: {
+    publications: [boardsForOwner],
+  },
+})
+```
+
+The projector cannot own `_id`; the engine injects the stable source identity.
+MongoDB `ObjectId` values materialize as their canonical hexadecimal string on
+the client, matching Bifrost's existing EJSON wire behavior.
+Publications require authentication by default. Set `protected: false`
+explicitly for public data.
+
+The framework-independent client is available from the same package:
+
+```ts
+const view = createMongoLiveView({
+  client,
+  publication: BoardsForOwner,
+  args: { owner: userId },
+})
+
+view.subscribe(() => {
+  const { status, documents, error } = view.getSnapshot()
+  // Render connecting, ready, resyncing, stopped, and error states precisely.
+})
+
+await view.start()
+```
+
+React applications can use the thin adapter:
+
+```tsx
+import { useMongoLivePublication } from '@example-app/bifrost/react'
+
+const boards = useMongoLivePublication({
+  publication: BoardsForOwner,
+  args: { owner: userId },
+})
+```
+
+### MVP consistency and limits
+
+- Results are unordered. Reactive `sort`, `skip`, `limit`, joins, and
+  aggregation windows are not supported.
+- Snapshot and membership reads use MongoDB majority read concern.
+- Every connection subscription has its own observer and generation.
+- A sequence gap, source discontinuity, or slow WebSocket moves the client out
+  of `ready` and requires a complete resnapshot.
+- Subscribe, resync, and unsubscribe are WebSocket-only and never fall back to
+  HTTP.
+- Defaults: 32 subscriptions per connection, 10,000 snapshot documents, and a
+  2 MiB native WebSocket buffer threshold.
+- The document-count bound is enforced before the cursor materializes more
+  than 10,001 results. The MVP does not yet impose a separate encoded-byte
+  bound on a snapshot.
+- Live views require a replica set or sharded MongoDB deployment. They do not
+  fall back to polling.
+- Call `mongo.close()` before `server.close()` so observers, server listeners,
+  reserved methods, and streams drain in order.
+
+Run the live integration against a replica set:
+
+```sh
+BIFROST_MONGODB_TEST_URI='mongodb://127.0.0.1:27017/?replicaSet=rs0' \
+BIFROST_MONGODB_TEST_DB=bifrost_mongodb_live_test \
+bun run test:integration -- src/mongodb/live
+```

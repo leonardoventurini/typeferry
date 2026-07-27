@@ -3,6 +3,7 @@ import type { Collection, Db, Document, MongoClient } from 'mongodb'
 import { startMongoWatch, type MongoWatchHandle } from './change-streams'
 import { resolveMongoConnection } from './client'
 import { getMongoCollectionDefinition } from './decorators'
+import { MongoLiveEngine } from './live/engine'
 import type {
   BifrostMongo,
   BifrostMongoOptions,
@@ -34,6 +35,7 @@ export class BifrostMongoRegistry implements BifrostMongo {
   >()
   private readonly collections = new Map<string, Collection<Document>>()
   private readonly watchHandles: MongoWatchHandle[] = []
+  private readonly liveEngine: MongoLiveEngine | null
 
   /** Creates a registry from resolved MongoDB handles. */
   constructor(
@@ -50,6 +52,28 @@ export class BifrostMongoRegistry implements BifrostMongo {
       this.definitions.set(Class, definition)
       this.collections.set(definition.name, this.db.collection(definition.name))
     }
+
+    if (options.live && !options.server) {
+      throw new Error('MongoDB live publications require a Bifrost server.')
+    }
+
+    if (options.live) {
+      for (const publication of options.live.publications) {
+        this.meta(publication.collection)
+      }
+    }
+
+    this.liveEngine =
+      options.server && options.live
+        ? new MongoLiveEngine({
+            server: options.server,
+            options: options.live,
+            resolveCollection: publication =>
+              this.collection(publication.collection),
+            collectionName: publication =>
+              this.meta(publication.collection).name,
+          })
+        : null
 
     if (options.server) {
       this.startWatches(options)
@@ -95,6 +119,7 @@ export class BifrostMongoRegistry implements BifrostMongo {
 
   /** Closes change streams and the owned MongoDB client when applicable. */
   async close(): Promise<void> {
+    await this.liveEngine?.close()
     await Promise.all(this.watchHandles.map(handle => handle.close()))
     this.watchHandles.length = 0
     if (this.closeClient) {
@@ -127,9 +152,19 @@ export async function createBifrostMongo(
   options: BifrostMongoOptions,
 ): Promise<BifrostMongo> {
   const connection = await resolveMongoConnection(options)
-  const registry = new BifrostMongoRegistry(options, connection)
-  if (options.ensureIndexes) {
-    await registry.ensureIndexes()
+  let registry: BifrostMongoRegistry | null = null
+  try {
+    registry = new BifrostMongoRegistry(options, connection)
+    if (options.ensureIndexes) {
+      await registry.ensureIndexes()
+    }
+    return registry
+  } catch (error) {
+    if (registry) {
+      await registry.close()
+    } else if (connection.ownsClient) {
+      await connection.client?.close()
+    }
+    throw error
   }
-  return registry
 }

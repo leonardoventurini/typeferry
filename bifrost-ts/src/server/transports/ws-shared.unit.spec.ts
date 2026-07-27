@@ -47,6 +47,7 @@ function createMockNode(overrides: Record<string, any> = {}) {
 function createMockMethod(overrides: Record<string, any> = {}) {
   return {
     isProtected: false,
+    isSensitive: false,
     exec: vi.fn().mockResolvedValue('result'),
     ...overrides,
   }
@@ -175,7 +176,7 @@ describe('validateMeta', () => {
 
     expect(validateMeta(bigMeta)).toEqual({})
     expect(warnSpy).toHaveBeenCalledWith(
-      '[Bifrost] Meta object too large, ignoring',
+      '[Bifrost] Meta object too large, ignoring'
     )
 
     warnSpy.mockRestore()
@@ -349,7 +350,7 @@ describe('handleRpc', () => {
     await handleRpc(server as any, node as any, 'id-1', 'testMethod')
 
     const decoded = Presentation.decode(
-      node.socket.send.mock.calls[0][0],
+      node.socket.send.mock.calls[0][0]
     ) as any
     expect(decoded.error).toBe(Errors.RATE_LIMIT_EXCEEDED)
   })
@@ -361,7 +362,7 @@ describe('handleRpc', () => {
     await handleRpc(server as any, node as any, 'id-1', 'testMethod')
 
     const decoded = Presentation.decode(
-      node.socket.send.mock.calls[0][0],
+      node.socket.send.mock.calls[0][0]
     ) as any
     expect(decoded.result).toBe('result')
   })
@@ -375,7 +376,7 @@ describe('handleRpc', () => {
     await handleRpc(server as any, node as any, 'id-1', 'testMethod')
 
     const decoded = Presentation.decode(
-      node.socket.send.mock.calls[0][0],
+      node.socket.send.mock.calls[0][0]
     ) as any
     expect(decoded.result).toBe('result')
   })
@@ -387,7 +388,7 @@ describe('handleRpc', () => {
     await handleRpc(server as any, node as any, 'id-2', 'nonExistentMethod')
 
     const decoded = Presentation.decode(
-      node.socket.send.mock.calls[0][0],
+      node.socket.send.mock.calls[0][0]
     ) as any
     expect(decoded.error).toBe(Errors.METHOD_NOT_FOUND)
   })
@@ -402,7 +403,7 @@ describe('handleRpc', () => {
     await handleRpc(server as any, node as any, 'id-3', 'protectedMethod')
 
     const decoded = Presentation.decode(
-      node.socket.send.mock.calls[0][0],
+      node.socket.send.mock.calls[0][0]
     ) as any
     expect(decoded.error).toBe(Errors.METHOD_FORBIDDEN)
   })
@@ -414,18 +415,14 @@ describe('handleRpc', () => {
       methods: new Map([['protectedMethod', method]]),
     })
 
-    await handleRpc(
-      server as any,
-      node as any,
-      'id-4',
-      'protectedMethod',
-      { arg: 1 },
-    )
+    await handleRpc(server as any, node as any, 'id-4', 'protectedMethod', {
+      arg: 1,
+    })
 
     expect(method.exec).toHaveBeenCalledWith({ arg: 1 }, node)
 
     const decoded = Presentation.decode(
-      node.socket.send.mock.calls[0][0],
+      node.socket.send.mock.calls[0][0]
     ) as any
     expect(decoded.result).toBe('result')
   })
@@ -434,13 +431,9 @@ describe('handleRpc', () => {
     const node = createMockNode()
     const server = createMockServer()
 
-    await handleRpc(
-      server as any,
-      node as any,
-      'id-5',
-      'testMethod',
-      { x: 10 },
-    )
+    await handleRpc(server as any, node as any, 'id-5', 'testMethod', {
+      x: 10,
+    })
 
     expect(server._method.exec).toHaveBeenCalledWith({ x: 10 }, node)
   })
@@ -457,7 +450,7 @@ describe('handleRpc', () => {
     await handleRpc(server as any, node as any, 'id-6', 'm')
 
     const decoded = Presentation.decode(
-      node.socket.send.mock.calls[0][0],
+      node.socket.send.mock.calls[0][0]
     ) as any
     expect(decoded.result).toEqual({ hello: 'world' })
   })
@@ -474,14 +467,14 @@ describe('handleRpc', () => {
     await handleRpc(server as any, node as any, 'id-7', 'm')
 
     const decoded = Presentation.decode(
-      node.socket.send.mock.calls[0][0],
+      node.socket.send.mock.calls[0][0]
     ) as any
     expect(decoded.error).toBe('User-facing error')
 
     expect(errorSpy).not.toHaveBeenCalled()
     expect(server.emit).not.toHaveBeenCalledWith(
       ServerEvents.METHOD_ERROR,
-      expect.anything(),
+      expect.anything()
     )
   })
 
@@ -501,13 +494,10 @@ describe('handleRpc', () => {
     await handleRpc(server as any, node as any, 'id-8', 'm')
 
     const decoded = Presentation.decode(
-      node.socket.send.mock.calls[0][0],
+      node.socket.send.mock.calls[0][0]
     ) as any
     expect(decoded.error).toBe('Validation failed')
-    expect(decoded.errors).toEqual([
-      'name is required',
-      'age must be positive',
-    ])
+    expect(decoded.errors).toEqual(['name is required', 'age must be positive'])
   })
 
   it('handles generic errors by sending INTERNAL_ERROR', async () => {
@@ -522,7 +512,7 @@ describe('handleRpc', () => {
     await handleRpc(server as any, node as any, 'id-9', 'm')
 
     const decoded = Presentation.decode(
-      node.socket.send.mock.calls[0][0],
+      node.socket.send.mock.calls[0][0]
     ) as any
     expect(decoded.error).toBe(Errors.INTERNAL_ERROR)
   })
@@ -550,6 +540,30 @@ describe('handleRpc', () => {
       remoteAddress: '127.0.0.1',
       userAgent: 'test',
     })
+  })
+
+  it('redacts error and parameters for sensitive method telemetry', async () => {
+    const node = createMockNode()
+    const method = createMockMethod({
+      isSensitive: true,
+      exec: vi.fn().mockRejectedValue(new Error('private failure')),
+    })
+    const server = createMockServer({
+      methods: new Map([['m', method]]),
+    })
+
+    await handleRpc(server as any, node as any, 'id-sensitive', 'm', {
+      secret: 'private-value',
+    })
+
+    expect(server.emit).toHaveBeenCalledWith(
+      ServerEvents.METHOD_ERROR,
+      expect.objectContaining({
+        error: '[REDACTED]',
+        method: 'm',
+        params: '[REDACTED]',
+      })
+    )
   })
 })
 
@@ -581,7 +595,7 @@ describe('handleRpcVoid', () => {
 
     expect(warnSpy).toHaveBeenCalledWith(
       '[Bifrost] Rate limit exceeded for void call:',
-      'testMethod',
+      'testMethod'
     )
     expect(server._method.exec).not.toHaveBeenCalled()
   })
@@ -603,7 +617,7 @@ describe('handleRpcVoid', () => {
 
     expect(warnSpy).toHaveBeenCalledWith(
       '[Bifrost] Method not found for void call:',
-      'unknownMethod',
+      'unknownMethod'
     )
   })
 
@@ -618,7 +632,7 @@ describe('handleRpcVoid', () => {
 
     expect(warnSpy).toHaveBeenCalledWith(
       '[Bifrost] Method forbidden for void call:',
-      'protectedMethod',
+      'protectedMethod'
     )
     expect(method.exec).not.toHaveBeenCalled()
   })
@@ -630,12 +644,9 @@ describe('handleRpcVoid', () => {
       methods: new Map([['protectedMethod', method]]),
     })
 
-    await handleRpcVoid(
-      server as any,
-      node as any,
-      'protectedMethod',
-      { arg: 1 },
-    )
+    await handleRpcVoid(server as any, node as any, 'protectedMethod', {
+      arg: 1,
+    })
 
     expect(method.exec).toHaveBeenCalledWith({ arg: 1 }, node)
   })
@@ -670,7 +681,7 @@ describe('handleRpcVoid', () => {
 
     expect(errorSpy).toHaveBeenCalledWith(
       '[Bifrost] Void method execution error:',
-      error,
+      error
     )
 
     expect(server.emit).toHaveBeenCalledWith(ServerEvents.METHOD_ERROR, {
@@ -687,6 +698,29 @@ describe('handleRpcVoid', () => {
     expect(node.socket.send).not.toHaveBeenCalled()
   })
 
+  it('redacts sensitive void method error telemetry', async () => {
+    const node = createMockNode()
+    const method = createMockMethod({
+      isSensitive: true,
+      exec: vi.fn().mockRejectedValue(new Error('private failure')),
+    })
+    const server = createMockServer({
+      methods: new Map([['failMethod', method]]),
+    })
+
+    await handleRpcVoid(server as any, node as any, 'failMethod', {
+      secret: 'private-value',
+    })
+
+    expect(server.emit).toHaveBeenCalledWith(
+      ServerEvents.METHOD_ERROR,
+      expect.objectContaining({
+        error: '[REDACTED]',
+        params: '[REDACTED]',
+      })
+    )
+  })
+
   it('handles error when context is null (no userEmail)', async () => {
     const node = createMockNode({ context: null })
     const method = createMockMethod({
@@ -700,7 +734,7 @@ describe('handleRpcVoid', () => {
 
     expect(server.emit).toHaveBeenCalledWith(
       ServerEvents.METHOD_ERROR,
-      expect.objectContaining({ userEmail: undefined }),
+      expect.objectContaining({ userEmail: undefined })
     )
   })
 })
@@ -763,10 +797,7 @@ describe('authenticateNode', () => {
     })
     expect(node.authenticated).toBe(true)
     expect(node.setContext).toHaveBeenCalledWith(authResult)
-    expect(server.emit).toHaveBeenCalledWith(
-      ServerEvents.AUTHENTICATION,
-      node,
-    )
+    expect(server.emit).toHaveBeenCalledWith(ServerEvents.AUTHENTICATION, node)
     expect(node.emitAuthResult).toHaveBeenCalledWith(true)
   })
 
@@ -845,7 +876,7 @@ describe('authenticateNode', () => {
             new Promise((resolve) => {
               // Never resolves
               setTimeout(resolve, AUTH_TIMEOUT_MS + 1000)
-            }),
+            })
         ),
       },
     })
@@ -853,7 +884,7 @@ describe('authenticateNode', () => {
     const authPromise = authenticateNode(
       server as any,
       node as any,
-      'slow-token',
+      'slow-token'
     )
 
     // Advance time past the timeout
@@ -863,7 +894,7 @@ describe('authenticateNode', () => {
 
     expect(errorSpy).toHaveBeenCalledWith(
       '[Bifrost] Auth error:',
-      expect.any(Error),
+      expect.any(Error)
     )
     expect(node.emitAuthResult).toHaveBeenCalledWith(false)
 
@@ -883,7 +914,7 @@ describe('authenticateNode', () => {
 
     expect(errorSpy).toHaveBeenCalledWith(
       '[Bifrost] Auth error:',
-      expect.any(Error),
+      expect.any(Error)
     )
     expect(node.emitAuthResult).toHaveBeenCalledWith(false)
   })

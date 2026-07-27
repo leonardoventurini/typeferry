@@ -11,6 +11,7 @@ import {
   ServerEvents,
 } from '../../utils'
 import type { ClientNode } from '../client-node'
+import { redactMethodTelemetry, type Method } from '../method'
 import type { Server } from '../server'
 import { SocketState } from '../types'
 
@@ -32,7 +33,7 @@ export async function handleRpc(
   node: ClientNode,
   id: string,
   method: string,
-  params?: unknown,
+  params?: unknown
 ): Promise<void> {
   if (node.limiter && !node.limiter.tryRemoveTokens(1)) {
     return sendResponse(node, id, undefined, Errors.RATE_LIMIT_EXCEEDED)
@@ -52,7 +53,7 @@ export async function handleRpc(
     const result = await methodInstance.exec(params, node)
     sendResponse(node, id, result)
   } catch (error) {
-    handleRpcError(server, node, error, id, method, params)
+    handleRpcError(server, node, methodInstance, error, id, method, params)
   }
 }
 
@@ -61,7 +62,7 @@ export async function handleRpcVoid(
   server: Server,
   node: ClientNode,
   method: string,
-  params?: unknown,
+  params?: unknown
 ): Promise<void> {
   if (node.limiter && !node.limiter.tryRemoveTokens(1)) {
     console.warn('[Bifrost] Rate limit exceeded for void call:', method)
@@ -83,12 +84,16 @@ export async function handleRpcVoid(
   try {
     await methodInstance.exec(params, node)
   } catch (error) {
-    console.error('[Bifrost] Void method execution error:', error)
+    if (methodInstance.isSensitive) {
+      console.error(`[Bifrost] Sensitive void method "${method}" failed`)
+    } else {
+      console.error('[Bifrost] Void method execution error:', error)
+    }
 
     server.emit(ServerEvents.METHOD_ERROR, {
-      error,
+      error: redactMethodTelemetry(methodInstance, error),
       method,
-      params,
+      params: redactMethodTelemetry(methodInstance, params),
       userId: node.userId,
       userEmail: node.context?.user?.email,
       remoteAddress: node.remoteAddress,
@@ -103,7 +108,7 @@ export function sendResponse(
   id: string,
   result?: unknown,
   error?: string,
-  errors?: unknown,
+  errors?: unknown
 ): void {
   if (!node.socket || node.socket.readyState !== SocketState.OPEN) return
 
@@ -125,21 +130,26 @@ export function sendResponse(
 function handleRpcError(
   server: Server,
   node: ClientNode,
+  methodInstance: Method<any, any>,
   error: unknown,
   id: string,
   method: string,
-  params: unknown,
+  params: unknown
 ): void {
   if (error instanceof PublicError) {
     return sendResponse(node, id, undefined, error.message)
   }
 
-  console.error(error)
+  if (methodInstance.isSensitive) {
+    console.error(`[Bifrost] Sensitive method "${method}" failed`)
+  } else {
+    console.error(error)
+  }
 
   server.emit(ServerEvents.METHOD_ERROR, {
-    error,
+    error: redactMethodTelemetry(methodInstance, error),
     method,
-    params,
+    params: redactMethodTelemetry(methodInstance, params),
     userId: node.userId,
     userEmail: node.context?.user?.email,
     remoteAddress: node.remoteAddress,
@@ -164,7 +174,7 @@ function handleRpcError(
 export async function authenticateNode(
   server: Server,
   node: ClientNode,
-  token: string | undefined,
+  token: string | undefined
 ): Promise<void> {
   if (!server.isAuthEnabled || !token) {
     node.emitAuthResult(false)
@@ -174,7 +184,7 @@ export async function authenticateNode(
   try {
     const authPromise = server.auth.call(node, { token })
     const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Auth timeout')), AUTH_TIMEOUT_MS),
+      setTimeout(() => reject(new Error('Auth timeout')), AUTH_TIMEOUT_MS)
     )
 
     const result = await Promise.race([authPromise, timeoutPromise])

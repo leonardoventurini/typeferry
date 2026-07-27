@@ -18,8 +18,20 @@ export const SocketState = {
  */
 export interface BifrostSocket {
   readonly readyState: number
+  /** Bytes accepted by the runtime but not yet flushed to the network. */
+  readonly bufferedAmount?: number
+  /** Bun-native read-only buffered-byte accessor. */
+  getBufferedAmount?(): number
   send(data: string | Buffer): void
   close(code?: number, reason?: string): void
+}
+
+/** Result of a direct server-to-client event send. */
+export interface BifrostSendState {
+  /** Whether the frame was accepted by an open socket. */
+  readonly accepted: boolean
+  /** Native bytes waiting to flush after the send. */
+  readonly bufferedBytes: number
 }
 
 /**

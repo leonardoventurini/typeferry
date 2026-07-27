@@ -4,7 +4,7 @@ import { MessageType, Presentation, ServerEvents } from '../utils'
 import EventEmitter2 from '../utils/event-emitter'
 import type { BifrostRequest, BifrostResponse } from './request-types'
 import type { RateLimit, Server } from './server'
-import type { BifrostSocket } from './types'
+import type { BifrostSendState, BifrostSocket } from './types'
 import { SocketState } from './types'
 
 export type ClientNodeContext = Record<string, any>
@@ -33,7 +33,7 @@ export class ClientNode extends EventEmitter2 {
     socket?: BifrostSocket,
     req?: BifrostRequest,
     res?: BifrostResponse,
-    limit?: RateLimit,
+    limit?: RateLimit
   ) {
     super()
 
@@ -52,7 +52,7 @@ export class ClientNode extends EventEmitter2 {
           : {
               tokensPerInterval: limit.max,
               interval: limit.interval,
-            },
+            }
       )
     }
   }
@@ -103,7 +103,7 @@ export class ClientNode extends EventEmitter2 {
 
     if (!userId) {
       throw new Error(
-        'The auth function must return a user object with a valid "_id" property',
+        'The auth function must return a user object with a valid "_id" property'
       )
     }
 
@@ -121,17 +121,59 @@ export class ClientNode extends EventEmitter2 {
    * Uses the wire protocol `{ t: "event", ... }` envelope.
    */
   emitBifrostEvent(event: string, channel?: string, params?: unknown): void {
-    if (!this.socket || this.socket.readyState !== SocketState.OPEN) return
+    this.sendBifrostEvent(event, channel, params)
+  }
 
-    this.socket.send(
-      Presentation.encode({
-        t: MessageType.EVENT,
-        uuid: Presentation.uuid(),
-        event,
-        channel,
-        params,
-      }),
+  /**
+   * Sends a push event and returns the native transport pressure.
+   *
+   * Live data delivery uses this result to avoid hiding slow consumers behind
+   * the WebSocket runtime's own queue.
+   */
+  sendBifrostEvent(
+    event: string,
+    channel?: string,
+    params?: unknown
+  ): BifrostSendState {
+    if (!this.socket || this.socket.readyState !== SocketState.OPEN) {
+      return { accepted: false, bufferedBytes: this.bufferedBytes }
+    }
+
+    try {
+      this.socket.send(
+        Presentation.encode({
+          t: MessageType.EVENT,
+          uuid: Presentation.uuid(),
+          event,
+          channel,
+          params,
+        })
+      )
+    } catch {
+      return { accepted: false, bufferedBytes: this.bufferedBytes }
+    }
+
+    return { accepted: true, bufferedBytes: this.bufferedBytes }
+  }
+
+  /** Whether the transport exposes native queued-byte pressure. */
+  get supportsBufferedBytes(): boolean {
+    return Boolean(
+      this.socket &&
+        (typeof this.socket.getBufferedAmount === 'function' ||
+          typeof this.socket.bufferedAmount === 'number')
     )
+  }
+
+  /** Returns native bytes queued by the WebSocket runtime without sending. */
+  get bufferedBytes(): number {
+    try {
+      return (
+        this.socket?.getBufferedAmount?.() ?? this.socket?.bufferedAmount ?? 0
+      )
+    } catch {
+      return 0
+    }
   }
 
   /**
@@ -156,7 +198,7 @@ export class ClientNode extends EventEmitter2 {
     if (!this.socket || this.socket.readyState !== SocketState.OPEN) return
 
     this.socket.send(
-      Presentation.encode({ t: MessageType.AUTH, authenticated }),
+      Presentation.encode({ t: MessageType.AUTH, authenticated })
     )
   }
 

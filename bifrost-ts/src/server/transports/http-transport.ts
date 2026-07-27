@@ -15,6 +15,7 @@ import {
   TOKEN_HEADER_KEY,
 } from '../../utils'
 import { ClientNode } from '../client-node'
+import { redactMethodTelemetry } from '../method'
 import type { RateLimit, Server } from '../server'
 
 declare module 'express' {
@@ -77,13 +78,13 @@ export class HttpTransport {
         credentials: true,
         origin: function (
           origin: string | undefined,
-          callback: (err: Error | null, result?: boolean) => void,
+          callback: (err: Error | null, result?: boolean) => void
         ) {
           if (!origin || origins.includes(origin)) return callback(null, true)
 
           callback(new Error('Not allowed by CORS'))
         },
-      }),
+      })
     )
   }
 
@@ -107,7 +108,7 @@ export class HttpTransport {
 
   private sendError(res: express.Response, message: string, extra?: object) {
     return res.send(
-      Presentation.encode({ type: PayloadType.ERROR, message, ...extra }),
+      Presentation.encode({ type: PayloadType.ERROR, message, ...extra })
     )
   }
 
@@ -123,7 +124,8 @@ export class HttpTransport {
       userEmail?: string
       remoteAddress?: string | string[]
       userAgent?: string
-    },
+      sensitive?: boolean
+    }
   ) {
     if (error instanceof PublicError) {
       if (isVoid) return res.status(200).end()
@@ -131,13 +133,23 @@ export class HttpTransport {
       return this.sendError(res, error.message, uuid)
     }
 
-    console.error(error)
+    if (context?.sensitive) {
+      console.error(`[Bifrost] Sensitive method "${context.method}" failed`)
+    } else {
+      console.error(error)
+    }
 
     if (context?.method) {
       this.server.emit(ServerEvents.METHOD_ERROR, {
-        error,
+        error: redactMethodTelemetry(
+          { isSensitive: context.sensitive ?? false },
+          error
+        ),
         method: context.method,
-        params: context.params,
+        params: redactMethodTelemetry(
+          { isSensitive: context.sensitive ?? false },
+          context.params
+        ),
         userId: context.userId,
         userEmail: context.userEmail,
         remoteAddress: context.remoteAddress,
@@ -166,7 +178,7 @@ export class HttpTransport {
   private async createAuthenticatedClient(
     req: express.Request,
     res: express.Response,
-    context: any,
+    context: any
   ) {
     const clientNode = new ClientNode(this.server, null, req, res)
     clientNode.uuid = req.headers[CLIENT_ID_HEADER_KEY] as string
@@ -179,10 +191,11 @@ export class HttpTransport {
 
   private buildErrorContext(
     payload?: Record<string, unknown>,
-    clientNode?: ClientNode,
+    clientNode?: ClientNode
   ): {
     method?: string
     params?: unknown
+    sensitive?: boolean
     userId?: string
     userEmail?: string
     remoteAddress?: string | string[]
@@ -191,6 +204,7 @@ export class HttpTransport {
     return {
       method: payload?.method as string | undefined,
       params: payload?.params,
+      sensitive: this.server.getMethod(payload?.method as string)?.isSensitive,
       userId: clientNode?.userId,
       userEmail: clientNode?.context?.user?.email,
       remoteAddress: clientNode?.remoteAddress,
@@ -219,7 +233,7 @@ export class HttpTransport {
       clientNode = await this.createAuthenticatedClient(
         req,
         res,
-        transport.context,
+        transport.context
       )
 
       if (method.isProtected && !clientNode.authenticated) {
@@ -236,7 +250,7 @@ export class HttpTransport {
           uuid: payload.uuid,
           method: payload.method,
           result,
-        }),
+        })
       )
     } catch (error) {
       this.handleRequestError(
@@ -244,7 +258,7 @@ export class HttpTransport {
         error,
         payload?.void,
         uuid,
-        this.buildErrorContext(payload, clientNode),
+        this.buildErrorContext(payload, clientNode)
       )
     }
   }
@@ -287,7 +301,7 @@ export class HttpTransport {
    * Need to close WebSocket server first.
    */
   close() {
-    return new Promise<void>(resolve => {
+    return new Promise<void>((resolve) => {
       if (!this.http) {
         this.server.emit(HttpTransportEvents.HTTP_SERVER_CLOSED)
         return resolve()

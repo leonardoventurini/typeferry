@@ -9,8 +9,7 @@ filters.
 The direct rollout adds named, typed publications to
 `@example-app/bifrost/mongodb`, maintains an authoritative result set for each
 active subscription, sends an initial snapshot followed by semantic document
-deltas, and exposes framework-independent client state with React and Lit
-adapters.
+deltas, and exposes framework-independent client state with a React adapter.
 
 This is intentionally more capable than the current `@MongoWatch` bridge:
 
@@ -161,8 +160,11 @@ export interface MongoLiveQuery<
   ) => TClientFields | Promise<TClientFields>
 }
 
-/** Canonical identifier preserved from the source document by the live engine. */
-export type MongoLiveId = ObjectId | string | number
+/** Identifier accepted from a stored MongoDB document. */
+export type MongoLiveSourceId = ObjectId | string | number
+
+/** Identifier materialized after Bifrost EJSON wire conversion. */
+export type MongoLiveId = string | number
 
 /** Client-visible document assembled from the source identity and projected fields. */
 export type MongoLiveClientDocument<
@@ -610,9 +612,8 @@ There is no implicit cross-publication merge. Consumers that need a combined
 domain view compose subscription-local results explicitly with application
 rules.
 
-React exposes `useMongoLivePublication`; Lit exposes a
-`BifrostMongoLiveController`. Both reuse the core handle and contain no MongoDB
-or transport logic.
+React exposes `useMongoLivePublication`. It reuses the core handle and contains
+no MongoDB or transport logic.
 
 ### 8. Backpressure is bounded and observable
 
@@ -947,11 +948,10 @@ All listed checks are hard gates unless explicitly marked diagnostic.
       resubscription — files: `bifrost-ts/src/client/mongodb-live-view.ts`;
       verify property tests with duplicates, gaps, generation changes, early
       deltas, and reconnect; done when invalid sequences always resync.
-- [ ] Add thin React and Lit adapters — files:
-      `bifrost-ts/src/react/hooks/use-mongodb-live-publication.tsx`,
-      `bifrost-ts/src/lit/mongodb-live-controller.ts` and package exports;
-      verify unit, integration, and browser tests; done when both adapters
-      expose identical core state and clean up deterministically.
+- [ ] Add the thin React adapter — files:
+      `bifrost-ts/src/react/hooks/use-mongodb-live-publication.tsx` and package
+      exports; verify unit, integration, and browser tests; done when the
+      adapter exposes core state and cleans up deterministically.
 - [ ] Verify ordered, idempotent shutdown — files:
       `bifrost-ts/src/mongodb/live/engine.ts`,
       `bifrost-ts/src/mongodb/registry.ts`; stop accepting subscriptions, mark
@@ -1008,3 +1008,131 @@ returns consumers to explicit RPC refetch plus the existing `@MongoWatch`
 event bridge. Because live views do not mutate MongoDB schemas, create
 collections, require pre-images, or own application data, rollback requires no
 data migration.
+
+## MVP implementation record
+
+This section is the durable execution log for the direct rollout. It records
+evidence, contract adjustments, verification, and commits rather than serving
+as a separate phased plan.
+
+### 2026-07-27 — implementation started
+
+- **Scope adjustment:** Lit is fully retired and removed from this rollout.
+  The framework-independent client remains the contract; React is the only
+  adapter implemented and verified.
+- **MVP sharing boundary:** the MVP creates one authoritative observer per
+  connection subscription. This avoids cross-principal sharing risk while
+  retaining exact snapshot/delta semantics. Capacity limits make the cost
+  explicit; a future server-side sharing key can be added without changing
+  the wire or client contracts.
+- **Evidence:** the current repository already provides direct per-node event
+  frames, connection-scoped RPC execution, logout/disconnection events,
+  WebSocket-only call options, MongoDB change streams, and guarded replica-set
+  integration tests.
+- **Risk:** high, because this crosses authentication, persistent query state,
+  WebSocket delivery, MongoDB stream recovery, and a public package surface.
+- **Primary correctness invariant:** whenever a client state is `ready`, its
+  document map equals the latest observer membership after all delivered
+  sequences; any gap, source discontinuity, or pressure overflow moves it out
+  of `ready` and requires a complete resnapshot.
+
+### 2026-07-27 — core and boundary implementation
+
+- Added typed publication descriptors and server definitions with Zod argument
+  parsing, protected-by-default authorization, detached scope, MongoDB-native
+  filters, field projectors, and engine-owned identity.
+- Added one restartable collection change source per registered MongoDB
+  collection and one connection-private observer per subscription. Source
+  discontinuity deliberately invalidates dependent views and forces a full
+  resnapshot; the MVP does not promise seamless client delivery continuation.
+- Added majority-read snapshots, buffered snapshot/change replay, targeted
+  membership reads, semantic operations, generations, and contiguous
+  sequences.
+- Added WebSocket-only subscribe/resync/unsubscribe methods, direct internal
+  events, connection ownership, logout/disconnect teardown, collision
+  preflight, identity-guarded unregister, native buffer inspection, slow
+  consumer resync, and close-code 1013 termination after bounded grace.
+- Added the framework-independent client materializer and React
+  `useMongoLivePublication`; no Lit source or export was added.
+- A React unit test found and drove a fix for handle churn when callers pass an
+  inline argument object. The adapter now keys arguments by canonical EJSON.
+
+### 2026-07-27 — verification in progress
+
+- `bun run typecheck` — passed after the initial public-type corrections.
+- Targeted unit suite — publication, observer, engine, client, React, and
+  MongoDB export tests passed.
+- Live replica-set integration — snapshot, secrecy, insert, update, membership
+  exit, delete, and a write injected while snapshot projection was blocked all
+  passed.
+- Remaining gates: lint, build and emitted ESM imports, complete unit and
+  integration suites, browser suite, full `bun run test`, diff review, and
+  independent adversarial review.
+
+### 2026-07-27 — verification gauntlet
+
+- `bun run lint` — passed.
+- `bun run typecheck` — passed, including heterogeneous descriptor argument
+  and result inference with negative `@ts-expect-error` assertions.
+- `bun run build` — passed.
+- Direct Node ESM imports of `dist/mongodb/index.js`,
+  `dist/react/index.js`, and `dist/client/index.js` — passed.
+- `bun run test:unit` — 107 files and 1,514 tests passed.
+- Initial `bun run test:integration` — product tests passed, but the Rust
+  conformance suite failed before execution because Cargo workspace
+  dependencies named the `forgejo` registry without defining its index.
+- Added repository-scoped `bifrost-rs/.cargo/config.toml`, matching the
+  publishing workflow's sparse Forgejo registry. `cargo build -p
+  bifrost-conformance-server` then passed.
+- Re-run `bun run test:integration` — 11 files and 54 tests passed; one
+  existing file and five tests remained capability-skipped.
+- `bun run test:browser` — 2 files and 9 tests passed.
+- Live-view integration now treats a missing replica set as a hard CI failure
+  while retaining a clear local diagnostic for developers using standalone
+  MongoDB.
+- Remaining gates: complete `bun run test`, independent adversarial review,
+  final diff audit, and task-owned semantic commits.
+
+### 2026-07-27 — adversarial review corrections
+
+- Redacted live arguments, snapshots, and errors from generic method telemetry
+  across WebSocket, Express, and Bun/Hono transports.
+- Added explicit source readiness during recovery, reset-invalidated snapshot
+  handoff, bounded handoff notices, isolated listeners, and deterministic
+  recovery tests.
+- Made subscribe allocation transactional, aborted pending authorization on
+  logout/disconnect, serialized per-connection mutations, and made duplicate
+  resync requests reuse the authoritative result.
+- Added early-delta gap recovery, reconnect epochs, bounded early buffering,
+  and corrected the client identity contract: MongoDB `ObjectId` is a
+  hexadecimal string after Bifrost EJSON decoding.
+- Rejected transports without native pressure reporting and handled
+  synchronous send failures as rejected delivery.
+- Bounded snapshot cursor materialization to the configured document limit
+  plus one sentinel result and documented the remaining lack of an independent
+  encoded-byte cap.
+- Kept batching, coalescing, metrics, load benchmarks, shared observers, and
+  seamless source-error continuation as explicit post-MVP work rather than
+  claiming them as completed gates.
+
+### 2026-07-27 — final verification
+
+- Independent adversarial review initially blocked release on telemetry,
+  recovery readiness, transactional lifecycle, idempotent resync, early-gap
+  handling, transport pressure capability, and documentation accuracy. Every
+  critical finding was corrected and covered by targeted regression tests.
+- `bun run lint` — passed.
+- `bun run typecheck` — passed.
+- `bun run build` plus direct Node ESM imports of the MongoDB, React, and
+  client entry points — passed. The React runtime has no import of the optional
+  MongoDB peer.
+- `bun run test` — passed end to end:
+  - unit: 108 files, 1,525 tests;
+  - integration: 11 files passed, 1 capability-skipped; 54 tests passed and 5
+    existing capability-dependent tests skipped;
+  - browser: 2 files, 9 tests.
+- Real replica-set live integration passed snapshot/secrecy, all semantic
+  membership transitions, and the write-during-snapshot handoff race.
+- Final `git diff --check` passed. Cargo registry repair is committed
+  separately because it fixes pre-existing Rust conformance infrastructure,
+  not MongoDB live behavior.

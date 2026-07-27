@@ -883,6 +883,85 @@ If a future revision of this spec opts `@Cached` into canonical mode,
 this section will be updated and a `PROTOCOL.md` version bump will
 follow.
 
+### 11.4 Optional MongoDB live-view extension
+
+`@example-app/bifrost/mongodb` MAY register a TypeScript-only live-view
+extension. It reuses revision-1 `rpc`, `rpc:res`, and `event` envelopes and
+does not add a message type, so servers without this optional capability
+remain protocol-conformant.
+
+Reserved methods and event:
+
+- `mongo:live:subscribe`
+- `mongo:live:resync`
+- `mongo:live:unsubscribe`
+- `mongo:live:delta`
+
+All three methods are WebSocket-only. Clients MUST call them with HTTP fallback
+disabled. The server MUST reject calls from a transient HTTP node and MUST bind
+each subscription identifier to the calling WebSocket connection.
+
+Subscribe params:
+
+```ts
+{
+  subscriptionId: string, // 1–64 chars, [a-zA-Z0-9-]
+  publication: string,    // registered server-owned publication
+  args: unknown,          // validated by that publication
+}
+```
+
+Subscribe and resync return a complete snapshot:
+
+```ts
+{
+  subscriptionId: string,
+  generation: string,
+  sequence: number,
+  documents: Array<{ _id: string | number, ...fields }>,
+}
+```
+
+The server sends deltas directly to the owning node using the existing event
+envelope with `event: "mongo:live:delta"` and `channel: "NO_CHANNEL"`:
+
+```ts
+{
+  type: "delta",
+  subscriptionId: string,
+  generation: string,
+  sequence: number,
+  operations: Array<
+    | { type: "added", document: object }
+    | { type: "changed", document: object }
+    | { type: "removed", id: string | number }
+  >,
+}
+```
+
+`sequence` MUST increase by one for every delivered delta in a generation.
+Clients MUST ignore already-applied sequences and request a complete resync
+after a gap or generation mismatch. Source discontinuity or transport pressure
+uses this control payload:
+
+```ts
+{
+  type: "resync-required",
+  subscriptionId: string,
+  staleGeneration: string,
+}
+```
+
+Resync params are `{ subscriptionId, staleGeneration }`; unsubscribe params
+are `{ subscriptionId }`. Logout, disconnect, replacement, and MongoDB
+registry shutdown MUST release connection-owned observers.
+
+Publications are protected by default and MAY explicitly permit
+unauthenticated access. Clients never provide MongoDB collection names,
+selectors, projections, or pipelines. The MVP result contract is unordered
+and does not include reactive `sort`, `skip`, `limit`, joins, or aggregation
+windows.
+
 ---
 
 ## 12. Constants reference

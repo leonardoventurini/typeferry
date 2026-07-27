@@ -31,6 +31,8 @@ jobs:
     env:
       NODE_OPTIONS: --max-old-space-size=4096
       REDIS_URL: redis://m3ultra-256g.tail17a045.ts.net:6379
+      BIFROST_MONGODB_TEST_URI: mongodb://127.0.0.1:27018/?replicaSet=bifrost-ci
+      BIFROST_MONGODB_TEST_DB: bifrost_mongodb_ci_test
     steps:
       - uses: https://data.forgejo.org/actions/checkout@v4
 
@@ -88,7 +90,35 @@ jobs:
         run: bun run test:unit
         timeout-minutes: 10
 
-      # Integration tests (Redis required)
+      # Integration tests (Redis and a MongoDB replica set required)
+      - name: MongoDB replica set
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v mongod
+          command -v mongosh
+          MONGO_DATA_DIR="${RUNNER_TEMP}/bifrost-mongodb"
+          mkdir -p "$MONGO_DATA_DIR"
+          mongod \
+            --bind_ip 127.0.0.1 \
+            --dbpath "$MONGO_DATA_DIR" \
+            --fork \
+            --logpath "$MONGO_DATA_DIR/mongod.log" \
+            --port 27018 \
+            --replSet bifrost-ci
+          mongosh --quiet --port 27018 --eval \
+            'rs.initiate({_id:"bifrost-ci",members:[{_id:0,host:"127.0.0.1:27018"}]})'
+          for attempt in $(seq 1 30); do
+            if mongosh --quiet --port 27018 --eval \
+              'if (!db.hello().isWritablePrimary) quit(1)' >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat "$MONGO_DATA_DIR/mongod.log"
+          exit 1
+        timeout-minutes: 3
+
       - name: Integration Tests
         run: bun run test:integration
         timeout-minutes: 10

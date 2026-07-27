@@ -17,5 +17,8 @@ describe('mongodb package surface', () => {
     expect(mongodb.withUpdateTimestamp).toBeTypeOf('function')
     expect(mongodb.active).toBeTypeOf('function')
     expect(mongodb.findOneOrCreate).toBeTypeOf('function')
+    expect(mongodb.mongoLivePublication).toBeTypeOf('function')
+    expect(mongodb.defineMongoLivePublication).toBeTypeOf('function')
+    expect(mongodb.createMongoLiveView).toBeTypeOf('function')
   })
 })

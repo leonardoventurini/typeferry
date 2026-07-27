@@ -14,6 +14,7 @@ import type {
 import type { z } from 'zod'
 
 import type { EventOptions, Server } from '../server'
+import type { MongoLiveOptions } from './live/types'
 
 /** Runtime brand used by typed collection tokens to carry document types. */
 export const MONGO_COLLECTION_DOCUMENT: unique symbol = Symbol(
@@ -125,6 +126,8 @@ export interface BifrostMongoOptions {
   readonly ensureIndexes?: boolean
   /** Whether `close()` should close an externally supplied client. */
   readonly closeExternalClient?: boolean
+  /** Optional named MongoDB live-view extension. */
+  readonly live?: MongoLiveOptions
 }
 
 /** Runtime returned by `createBifrostMongo`. */

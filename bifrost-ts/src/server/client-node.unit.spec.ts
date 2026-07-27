@@ -61,25 +61,16 @@ describe('ClientNode', () => {
     })
 
     it('creates rate limiter with boolean limit', () => {
-      const node = new ClientNode(
-        server,
-        undefined,
-        undefined,
-        undefined,
-        true,
-      )
+      const node = new ClientNode(server, undefined, undefined, undefined, true)
 
       expect(node.limiter).toBeDefined()
     })
 
     it('creates rate limiter with custom limit', () => {
-      const node = new ClientNode(
-        server,
-        undefined,
-        undefined,
-        undefined,
-        { max: 100, interval: 30000 },
-      )
+      const node = new ClientNode(server, undefined, undefined, undefined, {
+        max: 100,
+        interval: 30000,
+      })
 
       expect(node.limiter).toBeDefined()
     })
@@ -216,7 +207,7 @@ describe('ClientNode', () => {
       node.context = { user: {} }
 
       expect(() => node.setUserId()).toThrow(
-        'The auth function must return a user object with a valid "_id" property',
+        'The auth function must return a user object with a valid "_id" property'
       )
     })
 
@@ -226,7 +217,7 @@ describe('ClientNode', () => {
       node.context = {}
 
       expect(() => node.setUserId()).toThrow(
-        'The auth function must return a user object with a valid "_id" property',
+        'The auth function must return a user object with a valid "_id" property'
       )
     })
 
@@ -283,6 +274,41 @@ describe('ClientNode', () => {
       node.emitBifrostEvent('event')
 
       expect(socket.send).not.toHaveBeenCalled()
+    })
+
+    it('reports a synchronous socket send failure without throwing', () => {
+      const socket = createMockSocket(SocketState.OPEN)
+      socket.send.mockImplementation(() => {
+        throw new Error('socket queue rejected frame')
+      })
+      const node = new ClientNode(server, socket as any)
+
+      expect(node.sendBifrostEvent('event')).toEqual({
+        accepted: false,
+        bufferedBytes: 0,
+      })
+    })
+
+    it('detects native pressure support for Node and Bun sockets', () => {
+      const nodeSocket = {
+        ...createMockSocket(SocketState.OPEN),
+        bufferedAmount: 12,
+      }
+      const bunSocket = {
+        ...createMockSocket(SocketState.OPEN),
+        getBufferedAmount: () => 34,
+      }
+
+      expect(
+        new ClientNode(server, nodeSocket as any).supportsBufferedBytes
+      ).toBe(true)
+      expect(
+        new ClientNode(server, bunSocket as any).supportsBufferedBytes
+      ).toBe(true)
+      expect(
+        new ClientNode(server, createMockSocket(SocketState.OPEN) as any)
+          .supportsBufferedBytes
+      ).toBe(false)
     })
   })
 
@@ -371,10 +397,7 @@ describe('ClientNode', () => {
 
       expect(socket.close).toHaveBeenCalled()
       expect(emitSpy).toHaveBeenCalledWith(ServerEvents.DISCONNECT)
-      expect(server.emit).toHaveBeenCalledWith(
-        ServerEvents.DISCONNECTION,
-        node,
-      )
+      expect(server.emit).toHaveBeenCalledWith(ServerEvents.DISCONNECTION, node)
     })
 
     it('is idempotent - only closes once', () => {
@@ -394,10 +417,7 @@ describe('ClientNode', () => {
       node.close()
 
       expect(emitSpy).toHaveBeenCalledWith(ServerEvents.DISCONNECT)
-      expect(server.emit).toHaveBeenCalledWith(
-        ServerEvents.DISCONNECTION,
-        node,
-      )
+      expect(server.emit).toHaveBeenCalledWith(ServerEvents.DISCONNECTION, node)
     })
   })
 })

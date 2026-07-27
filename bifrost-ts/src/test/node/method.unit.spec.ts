@@ -5,7 +5,11 @@ import { z } from 'zod'
 import { range } from '../../utils/lodash'
 
 import { Client } from '../../client'
-import { BifrostAsyncLocalStorage, ClientNode } from '../../server'
+import {
+  BifrostAsyncLocalStorage,
+  ClientNode,
+  REDACTED_METHOD_TELEMETRY,
+} from '../../server'
 import {
   Errors,
   getPromise,
@@ -45,7 +49,7 @@ describe('Methods', () => {
 
     // Errors now come as plain Error objects via acknowledgments
     await expect(test.client.call('test:error')).rejects.toThrow(
-      Errors.INTERNAL_ERROR,
+      Errors.INTERNAL_ERROR
     )
   })
 
@@ -84,7 +88,7 @@ describe('Methods', () => {
             return { hello: true }
           },
         ],
-      },
+      }
     )
 
     await test.client.void('test:method:middleware', { world: true })
@@ -113,7 +117,7 @@ describe('Methods', () => {
             return 'world'
           },
         ],
-      },
+      }
     )
 
     const result = await test.client.call('test:method:middleware', 'hello')
@@ -131,7 +135,7 @@ describe('Methods', () => {
     })
 
     await expect(
-      test.client.call('test:method:middleware:reject'),
+      test.client.call('test:method:middleware:reject')
     ).rejects.toThrow('Authentication Failed')
   })
 
@@ -146,11 +150,11 @@ describe('Methods', () => {
         schema: z.object({
           knownProperty: z.boolean(),
         }),
-      },
+      }
     )
 
     await expect(client.call('validated:zod:method')).rejects.toThrow(
-      Errors.INVALID_PARAMS,
+      Errors.INVALID_PARAMS
     )
 
     const result = await client.call('validated:zod:method', {
@@ -172,7 +176,7 @@ describe('Methods', () => {
           name: z.string().min(2),
           age: z.number().min(0).max(150),
         }),
-      },
+      }
     )
 
     // Test wrong type - error includes field path and type mismatch
@@ -180,17 +184,17 @@ describe('Methods', () => {
       test.client.call('validated:detailed:error', {
         name: 'Jo',
         age: 'not-a-number',
-      }),
+      })
     ).rejects.toThrow(/age:.*expected number/)
 
     // Test string too short - error includes field path and constraint
     await expect(
-      test.client.call('validated:detailed:error', { name: 'A', age: 25 }),
+      test.client.call('validated:detailed:error', { name: 'A', age: 25 })
     ).rejects.toThrow(/name:.*Too small/)
 
     // Test number out of range - error includes field path and constraint
     await expect(
-      test.client.call('validated:detailed:error', { name: 'John', age: 200 }),
+      test.client.call('validated:detailed:error', { name: 'John', age: 200 })
     ).rejects.toThrow(/age:.*150/)
   })
 
@@ -203,7 +207,7 @@ describe('Methods', () => {
           email: z.string().email(),
           count: z.number().positive(),
         }),
-      },
+      }
     )
 
     // Both fields invalid - error should mention both
@@ -244,7 +248,7 @@ describe('Methods', () => {
             return BifrostAsyncLocalStorage.getStore()
           },
         ],
-      },
+      }
     )
 
     const result1 = await test.client.call('get:async:ls')
@@ -275,7 +279,7 @@ describe('Methods', () => {
 
     const client = await test.createClient({ port: server.port })
 
-    server.addMethod('test:method', v => v)
+    server.addMethod('test:method', (v) => v)
 
     const call = async () => {
       for (const v of range(1, 200)) {
@@ -317,10 +321,28 @@ describe('Methods', () => {
     expect(result.result).toEqual(42)
   })
 
+  it('redacts parameters and results from sensitive method telemetry', async () => {
+    test.server.addMethod(
+      'test:sensitive',
+      async ({ secret }) => ({ token: secret }),
+      { sensitive: true }
+    )
+
+    test.client.call('test:sensitive', { secret: 'private-value' })
+
+    const [result] = await test.server.waitFor(ServerEvents.METHOD_EXECUTION)
+
+    expect(result).toMatchObject({
+      method: 'test:sensitive',
+      params: REDACTED_METHOD_TELEMETRY,
+      result: REDACTED_METHOD_TELEMETRY,
+    })
+  })
+
   it('should only call a method if the client has initialized', async () => {
     const calls = []
 
-    test.server.addMethod('test:method', async param => {
+    test.server.addMethod('test:method', async (param) => {
       calls.push(param)
       return 42
     })
@@ -335,7 +357,7 @@ describe('Methods', () => {
       })
 
       await expect(
-        client.call('test:method', 1, { timeout: 1500 }),
+        client.call('test:method', 1, { timeout: 1500 })
       ).rejects.toThrow(/Bifrost: Client not initialized/)
 
       expect(calls).toEqual([])
@@ -358,7 +380,7 @@ describe('Methods', () => {
     const calls = []
     let shouldFail = true
 
-    test.server.addMethod('test:method', async param => {
+    test.server.addMethod('test:method', async (param) => {
       calls.push(param)
       if (shouldFail) {
         shouldFail = false
@@ -385,7 +407,7 @@ describe('Methods', () => {
       test.client.call('test:method', 1, {
         maxRetries: 3,
         delayBetweenRetriesMs: 100,
-      }),
+      })
     ).rejects.toThrow(Errors.INTERNAL_ERROR)
   })
 })

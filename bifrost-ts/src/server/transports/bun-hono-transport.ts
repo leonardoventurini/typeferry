@@ -16,6 +16,7 @@ import {
   TOKEN_HEADER_KEY,
 } from '../../utils'
 import { ClientNode } from '../client-node'
+import { redactMethodTelemetry, type Method } from '../method'
 import type { BifrostRequest, BifrostResponse } from '../request-types'
 import type { RateLimit, Server } from '../server'
 import type { ConnectionData } from '../types'
@@ -43,7 +44,7 @@ export class BunHonoTransport {
     origins: string[],
     limit: RateLimit,
     wsTransport: BunWebSocketTransport,
-    maxRequestBodySize?: number,
+    maxRequestBodySize?: number
   ) {
     this.server = server
     this.wsTransport = wsTransport
@@ -77,7 +78,7 @@ export class BunHonoTransport {
           origin: (origin: string) =>
             origins.includes(origin) ? origin : null,
           credentials: true,
-        }),
+        })
       )
     }
 
@@ -89,7 +90,7 @@ export class BunHonoTransport {
       this.app.use('/__h', rateLimiter(opts))
     }
 
-    this.app.post('/__h', c => this.handleRpc(c))
+    this.app.post('/__h', (c) => this.handleRpc(c))
   }
 
   // ---------------------------------------------------------------------------
@@ -98,7 +99,7 @@ export class BunHonoTransport {
 
   private handleFetch(
     req: Request,
-    bunSrv: BunServer<ConnectionData>,
+    bunSrv: BunServer<ConnectionData>
   ): Promise<Response> | Response | undefined {
     if (this.wsTransport.handleUpgrade(req, bunSrv)) {
       return undefined
@@ -120,7 +121,7 @@ export class BunHonoTransport {
         Presentation.encode({
           type: PayloadType.ERROR,
           message: Errors.INVALID_REQUEST,
-        }),
+        })
       )
     }
 
@@ -132,7 +133,7 @@ export class BunHonoTransport {
 
   private async dispatchRpc(
     c: Context,
-    transport: { payload: Record<string, unknown>; context: unknown },
+    transport: { payload: Record<string, unknown>; context: unknown }
   ): Promise<Response> {
     const { payload } = transport
 
@@ -151,7 +152,7 @@ export class BunHonoTransport {
       const result = await method.exec(payload.params, clientNode)
       return this.rpcSuccess(c, result, payload, clientNode)
     } catch (error) {
-      return this.handleRpcError(c, error, payload, clientNode)
+      return this.handleRpcError(c, error, payload, clientNode, method)
     }
   }
 
@@ -209,13 +210,13 @@ export class BunHonoTransport {
 
   private async buildClientNode(
     c: Context,
-    context: unknown,
+    context: unknown
   ): Promise<ClientNode> {
     const node = this.buildClientNodeFromContext(c)
     node.uuid = c.req.header(CLIENT_ID_HEADER_KEY) ?? ''
     const serverContext = await this.getServerContext(
       node,
-      (context ?? {}) as Record<string, unknown>,
+      (context ?? {}) as Record<string, unknown>
     )
     node.authenticated = Boolean(serverContext)
     node.setContext(serverContext)
@@ -224,7 +225,7 @@ export class BunHonoTransport {
 
   private async getServerContext(
     clientNode: ClientNode,
-    context: Record<string, unknown> = {},
+    context: Record<string, unknown> = {}
   ): Promise<unknown> {
     const token = clientNode.req?.headers?.[TOKEN_HEADER_KEY] as
       | string
@@ -268,7 +269,7 @@ export class BunHonoTransport {
     c: Context,
     result: unknown,
     payload: Record<string, unknown>,
-    clientNode: ClientNode,
+    clientNode: ClientNode
   ): Response {
     // Apply any pending response headers (e.g., Set-Cookie from auth)
     const res = clientNode.res as BifrostResponse & {
@@ -284,7 +285,7 @@ export class BunHonoTransport {
         uuid: payload.uuid,
         method: payload.method,
         result,
-      }),
+      })
     )
   }
 
@@ -293,6 +294,7 @@ export class BunHonoTransport {
     error: unknown,
     payload: Record<string, unknown>,
     clientNode: ClientNode,
+    method: Method<any, any>
   ): Response {
     if (error instanceof PublicError) {
       if (payload.void) return c.text('', 200)
@@ -300,12 +302,18 @@ export class BunHonoTransport {
       return this.rpcError(c, error.message, payload.uuid)
     }
 
-    console.error(error)
+    if (method.isSensitive) {
+      console.error(
+        `[Bifrost] Sensitive method "${String(payload.method)}" failed`
+      )
+    } else {
+      console.error(error)
+    }
 
     this.server.emit(ServerEvents.METHOD_ERROR, {
-      error,
+      error: redactMethodTelemetry(method, error),
       method: payload.method,
-      params: payload.params,
+      params: redactMethodTelemetry(method, payload.params),
       userId: clientNode.userId,
       userEmail: clientNode.context?.user?.email,
       remoteAddress: clientNode.remoteAddress,
