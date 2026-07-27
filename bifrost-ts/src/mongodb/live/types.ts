@@ -20,6 +20,14 @@ export const MONGO_LIVE_UNSUBSCRIBE_METHOD = 'mongo:live:unsubscribe' as const
 /** Reserved event carrying live deltas and resynchronization controls. */
 export const MONGO_LIVE_EVENT = 'mongo:live:delta' as const
 
+/** Client capability required before an ordered splice can be delivered. */
+export const MONGO_LIVE_ORDERED_WINDOW_CAPABILITY =
+  'ordered-window-splice-v1' as const
+
+/** Client capability for collision-proof ObjectId materialization. */
+export const MONGO_LIVE_TYPED_OBJECT_ID_CAPABILITY =
+  'typed-object-id-v1' as const
+
 /** Default maximum live subscriptions owned by one WebSocket connection. */
 export const MONGO_LIVE_MAX_SUBSCRIPTIONS_PER_CONNECTION = 32
 
@@ -35,11 +43,20 @@ export const MONGO_LIVE_SLOW_CONSUMER_GRACE_MS = 30_000
 /** Delay between change-stream reconnect attempts. */
 export const MONGO_LIVE_SOURCE_RETRY_MS = 250
 
+/** Default maximum number of documents skipped by an ordered window. */
+export const MONGO_LIVE_MAX_WINDOW_SKIP = 100_000
+
 /** MongoDB identifiers accepted by the server-side source. */
 export type MongoLiveSourceId = ObjectId | string | number
 
+/** Collision-proof ObjectId representation produced on the client wire. */
+export interface MongoLiveObjectId {
+  /** Canonical MongoDB ObjectId hexadecimal value. */
+  readonly $objectId: string
+}
+
 /** Identifiers produced by Bifrost EJSON on the client wire. */
-export type MongoLiveId = string | number
+export type MongoLiveId = MongoLiveObjectId | string | number
 
 /** Removes source identity from fields returned by a publication projector. */
 export type MongoLiveProjectedFields<TFields extends object = object> =
@@ -119,6 +136,15 @@ export interface MongoLivePublicationConfig<
   ) => TScope | Promise<TScope>
   /** Builds the authoritative MongoDB selector. */
   readonly filter: (scope: TScope, args: TArgs) => Filter<TStoredDocument>
+  /**
+   * Builds one bounded ordered window. Omit for unordered set semantics.
+   *
+   * The runtime appends `_id`; application code must not declare it.
+   */
+  readonly window?: (
+    scope: NoInfer<TScope>,
+    args: NoInfer<TArgs>,
+  ) => MongoLiveWindow<TStoredDocument>
   /** Projects stored data into client-visible fields without `_id`. */
   readonly project: (
     document: TStoredDocument,
@@ -143,6 +169,8 @@ export interface MongoLiveRuntimePublication {
   ): Promise<unknown>
   /** Builds the MongoDB selector from validated state. */
   filter(scope: unknown, args: unknown): Filter<Document>
+  /** Builds the optional server-owned ordered window. */
+  window?(scope: unknown, args: unknown): MongoLiveWindowInput | null
   /** Projects one stored document and injects no identity. */
   project(
     document: Document,
@@ -166,6 +194,8 @@ export interface MongoLiveSubscribeRequest {
   readonly publication: string
   /** Publication-specific arguments validated by the server. */
   readonly args: unknown
+  /** Optional wire extensions understood by the subscribing client. */
+  readonly capabilities?: readonly string[]
 }
 
 /** Request to replace a stale subscription generation. */
@@ -192,7 +222,76 @@ export interface MongoLiveSnapshot<
   readonly generation: string
   /** Last sequence represented by the snapshot. */
   readonly sequence: number
-  /** Complete unordered result set. */
+  /** Whether document order is part of the authoritative contract. */
+  readonly ordered?: boolean
+  /** Complete authoritative result set or ordered window. */
+  readonly documents: readonly TDocument[]
+}
+
+/** Direction accepted for one ordered publication sort field. */
+export type MongoLiveSortDirection = 1 | -1
+
+/** Top-level stored-document field accepted by an ordered publication. */
+type MongoLiveDeclaredDocumentKeys<TDocument extends Document> = keyof {
+  [TKey in keyof TDocument as string extends TKey
+    ? never
+    : number extends TKey
+      ? never
+      : TKey]: TDocument[TKey]
+}
+
+/** Top-level stored-document field accepted by an ordered publication. */
+export type MongoLiveSortField<TDocument extends Document> = Exclude<
+  Extract<MongoLiveDeclaredDocumentKeys<TDocument>, string>,
+  '_id'
+>
+
+/** Stable application sort owned by an ordered publication. */
+export type MongoLiveSort<TDocument extends Document> = Readonly<
+  Partial<Record<MongoLiveSortField<TDocument>, MongoLiveSortDirection>>
+> & { readonly _id?: never }
+
+/** Stable, bounded server-owned ordered MongoDB query window. */
+export interface MongoLiveWindow<TDocument extends Document = Document> {
+  /** Non-empty top-level sort fields; the runtime appends `_id: 1`. */
+  readonly sort: MongoLiveSort<TDocument>
+  /** Number of matching documents omitted before the visible window. */
+  readonly skip?: number
+  /** Maximum number of visible documents. */
+  readonly limit: number
+}
+
+/** Runtime-erased ordered-window input awaiting capacity validation. */
+export interface MongoLiveWindowInput {
+  /** Application fields before the runtime identity tie-breaker. */
+  readonly sort: Readonly<Record<string, MongoLiveSortDirection>>
+  /** Requested offset. */
+  readonly skip?: number
+  /** Requested visible bound. */
+  readonly limit: number
+}
+
+/** Runtime-erased and validated ordered window. */
+export interface MongoLiveRuntimeWindow {
+  /** Unique application fields followed by the runtime `_id` tie-breaker. */
+  readonly sort: readonly (readonly [string, MongoLiveSortDirection])[]
+  /** Validated non-negative offset. */
+  readonly skip: number
+  /** Validated positive bound. */
+  readonly limit: number
+}
+
+/** Atomic ordered-window replacement operation. */
+export interface MongoLiveWindowSpliceOperation<
+  TDocument extends MongoLiveClientDocument = MongoLiveClientDocument,
+> {
+  /** Positional operation discriminator. */
+  readonly type: 'window-splice'
+  /** Zero-based index in the current ordered array. */
+  readonly index: number
+  /** Number of current documents removed at `index`. */
+  readonly deleteCount: number
+  /** Authoritative replacement documents inserted at `index`. */
   readonly documents: readonly TDocument[]
 }
 
@@ -203,6 +302,7 @@ export type MongoLiveOperation<
   | { readonly type: 'added'; readonly document: TDocument }
   | { readonly type: 'changed'; readonly document: TDocument }
   | { readonly type: 'removed'; readonly id: MongoLiveId }
+  | MongoLiveWindowSpliceOperation<TDocument>
 
 /** Ordered operation batch for one subscription generation. */
 export interface MongoLiveDelta<
@@ -243,6 +343,8 @@ export interface MongoLiveOptions {
   readonly maxSubscriptionsPerConnection?: number
   /** Maximum documents accepted in one snapshot. */
   readonly maxSnapshotDocuments?: number
+  /** Maximum `skip` accepted from a server-owned ordered publication. */
+  readonly maxWindowSkip?: number
   /** Native WebSocket queue threshold before resync is required. */
   readonly maxBufferedBytes?: number
   /** Slow-consumer recovery grace period. */
@@ -260,7 +362,7 @@ export interface MongoLiveViewSnapshot<
     | 'resyncing'
     | 'stopped'
     | 'error'
-  /** Complete immutable unordered result set. */
+  /** Complete immutable result set in authoritative order when configured. */
   readonly documents: readonly TDocument[]
   /** Current failure, when status is `error`. */
   readonly error: Error | null

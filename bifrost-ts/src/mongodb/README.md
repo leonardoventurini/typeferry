@@ -159,6 +159,13 @@ interface BoardFields {
   readonly name: string
 }
 
+interface Board {
+  readonly _id: ObjectId
+  readonly owner: ObjectId
+  readonly name: string
+  readonly priority: number
+}
+
 type LiveBoard = MongoLiveClientDocument<BoardFields>
 
 export const BoardsForOwner = mongoLivePublication<
@@ -176,6 +183,11 @@ const boardsForOwner = defineMongoLivePublication(BoardsForOwner, {
     return { owner: args.owner }
   },
   filter: scope => ({ owner: scope.owner }),
+  window: () => ({
+    sort: { priority: -1 as const },
+    skip: 0,
+    limit: 25,
+  }),
   project: board => ({ name: board.name }),
 })
 
@@ -191,8 +203,11 @@ const mongo = await createBifrostMongo({
 ```
 
 The projector cannot own `_id`; the engine injects the stable source identity.
-MongoDB `ObjectId` values materialize as their canonical hexadecimal string on
-the client, matching Bifrost's existing EJSON wire behavior.
+MongoDB `ObjectId` values materialize as `{ $objectId: "<hex>" }` on the
+client. The discriminated form cannot collide with a native string `_id`
+containing the same hexadecimal value. Legacy clients that do not advertise
+typed ObjectId support retain bare hexadecimal strings for unordered
+publications; ordered windows require the collision-proof form.
 Publications require authentication by default. Set `protected: false`
 explicitly for public data.
 
@@ -226,8 +241,21 @@ const boards = useMongoLivePublication({
 
 ### MVP consistency and limits
 
-- Results are unordered. Reactive `sort`, `skip`, `limit`, joins, and
-  aggregation windows are not supported.
+- Publications without `window` remain unordered sets.
+- A publication can define a stable reactive `sort`, bounded `skip`, and
+  required `limit`. The runtime appends `_id: 1` as a deterministic final
+  tie-breaker, so `_id` cannot be supplied in the application sort.
+- Ordered delivery is capability-negotiated; legacy clients are rejected
+  before the server can send a positional splice they do not understand.
+- Ordered observers coalesce a write burst to at most one running and one
+  pending complete indexed window query. This preserves exact boundary
+  membership while bounding observer work; query amplification remains
+  proportional to active ordered subscriptions.
+- Ordered window defaults allow at most 100,000 skipped documents and use the
+  snapshot document limit as the maximum `limit`.
+- Joins, aggregation pipelines/windows, collation-specific ordering, nested
+  sort paths, unbounded ordered results, and keyset/cursor windows are not
+  supported.
 - Snapshot and membership reads use MongoDB majority read concern.
 - Every connection subscription has its own observer and generation.
 - A sequence gap, source discontinuity, or slow WebSocket moves the client out
@@ -243,6 +271,11 @@ const boards = useMongoLivePublication({
   fall back to polling.
 - Call `mongo.close()` before `server.close()` so observers, server listeners,
   reserved methods, and streams drain in order.
+
+Create a compound index beginning with the publication filter fields and
+continuing through its declared sort fields plus `_id`. Inspect the native
+MongoDB query plan before enabling an ordered publication on a write-heavy
+collection.
 
 Run the live integration against a replica set:
 

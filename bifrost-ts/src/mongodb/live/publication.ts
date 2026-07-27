@@ -6,6 +6,7 @@ import type {
   MongoLivePublicationConfig,
   MongoLivePublicationDefinition,
   MongoLivePublicationDescriptor,
+  MongoLiveWindowInput,
 } from './types'
 
 /** Binds a client descriptor to its validated server-owned MongoDB query. */
@@ -44,6 +45,10 @@ export function defineMongoLivePublication<
     },
     filter(scope, args) {
       return config.filter(scope as TScope, args as TArgs)
+    },
+    window(scope, args) {
+      const window = config.window?.(scope as TScope, args as TArgs)
+      return (window as MongoLiveWindowInput | undefined) ?? null
     },
     async project(
       document,

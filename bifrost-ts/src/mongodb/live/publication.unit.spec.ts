@@ -13,6 +13,7 @@ interface Board extends Document {
   _id: ObjectId
   owner: string
   name: string
+  score: number
   secret: string
 }
 
@@ -34,8 +35,15 @@ describe('MongoDB live publication contracts', () => {
     const publication = defineMongoLivePublication(boardDescriptor, {
       collection: Boards,
       args: z.object({ owner: z.string() }),
-      authorize: (_context, args) => ({ owner: args.owner }),
-      filter: scope => ({ owner: scope.owner }),
+      authorize: (_context, args): { readonly owner: string } => ({
+        owner: args.owner,
+      }),
+      filter: (scope: { readonly owner: string }) => ({ owner: scope.owner }),
+      window: () => ({
+        sort: { score: -1 as const },
+        skip: 2,
+        limit: 5,
+      }),
       project: document => ({ name: document.name }),
     })
 
@@ -46,6 +54,11 @@ describe('MongoDB live publication contracts', () => {
       owner: 'owner-1',
     })
     expect(() => publication.parseArgs({ owner: 1 })).toThrow()
+    expect(publication.window({}, {})).toEqual({
+      sort: { score: -1 },
+      skip: 2,
+      limit: 5,
+    })
   })
 
   it('requires public access to be explicit and rejects projected identity', async () => {
@@ -66,6 +79,7 @@ describe('MongoDB live publication contracts', () => {
           _id: new ObjectId(),
           owner: 'owner-1',
           name: 'Roadmap',
+          score: 1,
           secret: 'hidden',
         },
         { owner: 'owner-1' },

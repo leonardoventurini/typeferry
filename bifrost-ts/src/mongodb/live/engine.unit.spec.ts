@@ -140,6 +140,61 @@ describe('MongoLiveEngine registration and ownership', () => {
     await expect(subscribing).rejects.toThrow('cancelled')
     await engine.close()
   })
+
+  it('rejects unsafe capacity configuration before registration', () => {
+    const server = createServer()
+    servers.push(server)
+
+    expect(
+      () =>
+        new MongoLiveEngine({
+          server,
+          options: {
+            publications: [publication],
+            maxWindowSkip: Number.NaN,
+          },
+          resolveCollection: () => ({}) as Collection<Document>,
+          collectionName: () => 'boards',
+        }),
+    ).toThrow('"maxWindowSkip" must be a non-negative integer')
+    expect(server.methods.has(MONGO_LIVE_SUBSCRIBE_METHOD)).toBe(false)
+  })
+
+  it('rejects legacy clients before delivering ordered operations', async () => {
+    const server = createServer()
+    servers.push(server)
+    const orderedPublication: MongoLiveRuntimePublication = {
+      ...publication,
+      protected: false,
+      window: () => ({ sort: { score: 1 }, limit: 3 }),
+    }
+    const engine = createEngine(server, orderedPublication)
+    const node = new ClientNode(server, createSocket())
+    const method = server.methods.get(MONGO_LIVE_SUBSCRIBE_METHOD)
+
+    await expect(
+      method?.exec(
+        {
+          subscriptionId: 'legacy-client',
+          publication: 'boards.mine',
+          args: {},
+        },
+        node,
+      ),
+    ).rejects.toThrow('capability negotiation')
+    await expect(
+      method?.exec(
+        {
+          subscriptionId: 'partially-capable-client',
+          publication: 'boards.mine',
+          args: {},
+          capabilities: ['ordered-window-splice-v1'],
+        },
+        node,
+      ),
+    ).rejects.toThrow('typed ObjectId capability')
+    await engine.close()
+  })
 })
 
 function createServer(): Server {

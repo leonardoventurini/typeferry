@@ -79,6 +79,16 @@ describe('MongoLiveView', () => {
     await starting
 
     expect(view.getSnapshot().status).toBe('ready')
+    expect(client.call).toHaveBeenCalledWith(
+      MONGO_LIVE_SUBSCRIBE_METHOD,
+      expect.objectContaining({
+        capabilities: expect.arrayContaining([
+          'ordered-window-splice-v1',
+          'typed-object-id-v1',
+        ]),
+      }),
+      expect.anything(),
+    )
     expect(view.getSnapshot().documents.map(document => document.name)).toEqual([
       'Initial',
       'Early',
@@ -198,6 +208,89 @@ describe('MongoLiveView', () => {
     await starting
     await waitFor(() => view.getSnapshot().status === 'ready')
 
+    expect(
+      client.call.mock.calls.filter(
+        ([method]) => method === MONGO_LIVE_RESYNC_METHOD,
+      ),
+    ).toHaveLength(1)
+    await view.stop()
+  })
+
+  it('applies ordered splices and resyncs once on duplicate identity', async () => {
+    const client = createClient()
+    client.call.mockImplementation((method: string) => {
+      if (method === MONGO_LIVE_SUBSCRIBE_METHOD) {
+        return Promise.resolve({
+          subscriptionId: readSubscriptionId(client),
+          generation: 'generation-1',
+          sequence: 0,
+          ordered: true,
+          documents: [
+            { _id: 'a', name: 'A' },
+            { _id: 'b', name: 'B' },
+            { _id: 'c', name: 'C' },
+          ],
+        })
+      }
+      if (method === MONGO_LIVE_RESYNC_METHOD) {
+        return Promise.resolve({
+          subscriptionId: readSubscriptionId(client),
+          generation: 'generation-2',
+          sequence: 0,
+          ordered: true,
+          documents: [{ _id: 'r', name: 'Recovered' }],
+        })
+      }
+      return Promise.resolve(true)
+    })
+    const view = createMongoLiveView({
+      client: client as unknown as Client,
+      publication: boardsPublication,
+      args: { owner: 'owner-1' },
+    })
+    await view.start()
+
+    client.emit(MONGO_LIVE_EVENT, {
+      type: 'delta',
+      subscriptionId: readSubscriptionId(client),
+      generation: 'generation-1',
+      sequence: 1,
+      operations: [
+        {
+          type: 'window-splice',
+          index: 1,
+          deleteCount: 2,
+          documents: [
+            { _id: 'x', name: 'X' },
+            { _id: 'b', name: 'B' },
+          ],
+        },
+      ],
+    })
+    expect(view.getSnapshot().documents.map(document => document.name)).toEqual([
+      'A',
+      'X',
+      'B',
+    ])
+
+    client.emit(MONGO_LIVE_EVENT, {
+      type: 'delta',
+      subscriptionId: readSubscriptionId(client),
+      generation: 'generation-1',
+      sequence: 2,
+      operations: [
+        {
+          type: 'window-splice',
+          index: 1,
+          deleteCount: 0,
+          documents: [{ _id: 'a', name: 'Duplicate' }],
+        },
+      ],
+    })
+    await waitFor(() => view.getSnapshot().status === 'ready')
+    expect(view.getSnapshot().documents).toEqual([
+      { _id: 'r', name: 'Recovered' },
+    ])
     expect(
       client.call.mock.calls.filter(
         ([method]) => method === MONGO_LIVE_RESYNC_METHOD,

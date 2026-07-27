@@ -19,6 +19,9 @@ import {
   MONGO_LIVE_MAX_BUFFERED_BYTES,
   MONGO_LIVE_MAX_SNAPSHOT_DOCUMENTS,
   MONGO_LIVE_MAX_SUBSCRIPTIONS_PER_CONNECTION,
+  MONGO_LIVE_MAX_WINDOW_SKIP,
+  MONGO_LIVE_ORDERED_WINDOW_CAPABILITY,
+  MONGO_LIVE_TYPED_OBJECT_ID_CAPABILITY,
   MONGO_LIVE_RESYNC_METHOD,
   MONGO_LIVE_SLOW_CONSUMER_GRACE_MS,
   MONGO_LIVE_SUBSCRIBE_METHOD,
@@ -31,6 +34,7 @@ import {
   type MongoLiveSubscribeRequest,
   type MongoLiveUnsubscribeRequest,
 } from "./types";
+import { normalizeMongoLiveWindow } from "./window";
 
 const subscriptionIdSchema = z
   .string()
@@ -42,6 +46,7 @@ const subscribeSchema = z.object({
   subscriptionId: subscriptionIdSchema,
   publication: z.string().min(1).max(128),
   args: z.unknown(),
+  capabilities: z.array(z.string().max(64)).max(16).optional(),
 });
 
 const resyncSchema = z.object({
@@ -59,6 +64,8 @@ interface MongoLiveSubscription {
   readonly publication: MongoLiveRuntimePublication;
   readonly args: unknown;
   readonly authorization: AbortController;
+  readonly supportsOrderedWindows: boolean;
+  readonly supportsTypedObjectIds: boolean;
   observer: MongoLiveObserver;
   generation: string;
   stale: boolean;
@@ -106,6 +113,7 @@ export class MongoLiveEngine {
 
   private readonly maxSubscriptionsPerConnection: number;
   private readonly maxSnapshotDocuments: number;
+  private readonly maxWindowSkip: number;
   private readonly maxBufferedBytes: number;
   private readonly slowConsumerGraceMs: number;
 
@@ -117,11 +125,24 @@ export class MongoLiveEngine {
     this.maxSnapshotDocuments =
       dependencies.options.maxSnapshotDocuments ??
       MONGO_LIVE_MAX_SNAPSHOT_DOCUMENTS;
+    this.maxWindowSkip =
+      dependencies.options.maxWindowSkip ?? MONGO_LIVE_MAX_WINDOW_SKIP;
     this.maxBufferedBytes =
       dependencies.options.maxBufferedBytes ?? MONGO_LIVE_MAX_BUFFERED_BYTES;
     this.slowConsumerGraceMs =
       dependencies.options.slowConsumerGraceMs ??
       MONGO_LIVE_SLOW_CONSUMER_GRACE_MS;
+    assertPositiveCapacity(
+      "maxSubscriptionsPerConnection",
+      this.maxSubscriptionsPerConnection,
+    );
+    assertPositiveCapacity("maxSnapshotDocuments", this.maxSnapshotDocuments);
+    assertNonNegativeCapacity("maxWindowSkip", this.maxWindowSkip);
+    assertNonNegativeCapacity("maxBufferedBytes", this.maxBufferedBytes);
+    assertNonNegativeCapacity(
+      "slowConsumerGraceMs",
+      this.slowConsumerGraceMs,
+    );
 
     for (const publication of dependencies.options.publications) {
       if (this.publications.has(publication.name)) {
@@ -288,7 +309,15 @@ export class MongoLiveEngine {
         publication,
         args,
         scope,
-        authorization,
+      authorization,
+      supportsOrderedWindows:
+        request.capabilities?.includes(
+          MONGO_LIVE_ORDERED_WINDOW_CAPABILITY,
+        ) ?? false,
+      supportsTypedObjectIds:
+        request.capabilities?.includes(
+          MONGO_LIVE_TYPED_OBJECT_ID_CAPABILITY,
+        ) ?? false,
       });
       this.assertActive(node, authorization);
       const snapshot = await subscription.observer.start();
@@ -335,6 +364,8 @@ export class MongoLiveEngine {
       args: previous.args,
       scope,
       authorization: previous.authorization,
+      supportsOrderedWindows: previous.supportsOrderedWindows,
+      supportsTypedObjectIds: previous.supportsTypedObjectIds,
     });
     try {
       const snapshot = await replacement.observer.start();
@@ -377,8 +408,31 @@ export class MongoLiveEngine {
     readonly args: unknown;
     readonly scope: unknown;
     readonly authorization: AbortController;
+    readonly supportsOrderedWindows: boolean;
+    readonly supportsTypedObjectIds: boolean;
   }): Promise<MongoLiveSubscription> {
     const collection = this.dependencies.resolveCollection(input.publication);
+    const configuredWindow = input.publication.window?.(
+      input.scope,
+      input.args,
+    );
+    const window = configuredWindow
+      ? normalizeMongoLiveWindow(
+          configuredWindow,
+          this.maxSnapshotDocuments,
+          this.maxWindowSkip,
+        )
+      : null;
+    if (window && !input.supportsOrderedWindows) {
+      throw new Error(
+        "MongoDB ordered live windows require client capability negotiation.",
+      );
+    }
+    if (window && !input.supportsTypedObjectIds) {
+      throw new Error(
+        "MongoDB ordered live windows require typed ObjectId capability negotiation.",
+      );
+    }
     const source = await this.getSource(
       input.publication,
       input.authorization.signal,
@@ -391,6 +445,8 @@ export class MongoLiveEngine {
       publication: input.publication,
       args: input.args,
       authorization: input.authorization,
+      supportsOrderedWindows: input.supportsOrderedWindows,
+      supportsTypedObjectIds: input.supportsTypedObjectIds,
       observer: null as unknown as MongoLiveObserver,
       generation,
       stale: false,
@@ -405,6 +461,8 @@ export class MongoLiveEngine {
         input.scope,
         input.args,
       ) as Filter<Document>,
+      window,
+      typedObjectIds: input.supportsTypedObjectIds,
       project: (document) => input.publication.project(document, input.scope),
       source,
       maxSnapshotDocuments: this.maxSnapshotDocuments,
@@ -589,6 +647,20 @@ export class MongoLiveEngine {
       [...nodeSubscriptions.values()].map((subscription) =>
         this.stopSubscription(subscription),
       ),
+    );
+  }
+}
+
+function assertPositiveCapacity(name: string, value: number): void {
+  if (!Number.isSafeInteger(value) || value < 1) {
+    throw new Error(`MongoDB live option "${name}" must be a positive integer.`);
+  }
+}
+
+function assertNonNegativeCapacity(name: string, value: number): void {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new Error(
+      `MongoDB live option "${name}" must be a non-negative integer.`,
     );
   }
 }

@@ -164,7 +164,10 @@ export interface MongoLiveQuery<
 export type MongoLiveSourceId = ObjectId | string | number
 
 /** Identifier materialized after Bifrost EJSON wire conversion. */
-export type MongoLiveId = string | number
+export type MongoLiveId =
+  | { readonly $objectId: string }
+  | string
+  | number
 
 /** Client-visible document assembled from the source identity and projected fields. */
 export type MongoLiveClientDocument<
@@ -1105,7 +1108,7 @@ as a separate phased plan.
   resync requests reuse the authoritative result.
 - Added early-delta gap recovery, reconnect epochs, bounded early buffering,
   and corrected the client identity contract: MongoDB `ObjectId` is a
-  hexadecimal string after Bifrost EJSON decoding.
+  collision-proof `{ $objectId: string }` value after live-view decoding.
 - Rejected transports without native pressure reporting and handled
   synchronous send failures as rejected delivery.
 - Bounded snapshot cursor materialization to the configured document limit

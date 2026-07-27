@@ -40,10 +40,26 @@ interface BoardFields {
 
 type ClientBoard = MongoLiveClientDocument<BoardFields>
 
+interface OrderedBoard extends Board {
+  score: number
+}
+
+interface OrderedBoardFields {
+  readonly name: string
+  readonly score: number
+}
+
+type ClientOrderedBoard = MongoLiveClientDocument<OrderedBoardFields>
+
 const boardsDescriptor = mongoLivePublication<
   { readonly owner: string },
   ClientBoard
 >()('boards.mine')
+
+const orderedBoardsDescriptor = mongoLivePublication<
+  { readonly owner: string },
+  ClientOrderedBoard
+>()('boards.ordered')
 
 describe('MongoDB live views integration', () => {
   let harness: MongoIntegrationHarness
@@ -86,8 +102,10 @@ describe('MongoDB live views integration', () => {
       collection: BoardsToken,
       args: z.object({ owner: z.string() }),
       protected: false,
-      authorize: (_context, args) => ({ owner: args.owner }),
-      filter: scope => ({ owner: scope.owner }),
+      authorize: (_context, args): { readonly owner: string } => ({
+        owner: args.owner,
+      }),
+      filter: (scope: { readonly owner: string }) => ({ owner: scope.owner }),
       project: document => ({ name: document.name }),
     })
 
@@ -119,7 +137,7 @@ describe('MongoDB live views integration', () => {
       expect(view.getSnapshot()).toMatchObject({
         status: 'ready',
         documents: [
-          { _id: initial._id.toHexString(), name: 'Initial' },
+          { _id: { $objectId: initial._id.toHexString() }, name: 'Initial' },
         ],
       })
       expect(view.getSnapshot().documents[0]).not.toHaveProperty('secret')
@@ -194,8 +212,14 @@ describe('MongoDB live views integration', () => {
       collection: BoardsToken,
       args: z.object({ owner: z.string() }),
       protected: false,
-      authorize: (_context, args) => ({ owner: args.owner }),
-      filter: scope => ({ owner: scope.owner }),
+      authorize: (_context, args): { readonly owner: string } => ({
+        owner: args.owner,
+      }),
+      filter: (scope: { readonly owner: string }) => ({ owner: scope.owner }),
+      window: () => ({
+        sort: { name: 1 as const },
+        limit: 10,
+      }),
       project: async document => {
         if (document.name === 'Initial') {
           signalProjectionStarted?.()
@@ -242,8 +266,7 @@ describe('MongoDB live views integration', () => {
       expect(
         view
           .getSnapshot()
-          .documents.map(document => document.name)
-          .sort(),
+          .documents.map(document => document.name),
       ).toEqual(['During snapshot', 'Initial'])
     } finally {
       releaseProjection?.()
@@ -253,7 +276,132 @@ describe('MongoDB live views integration', () => {
       await server.close()
     }
   })
+
+  it('maintains exact sorted, skipped, and limited boundaries', async () => {
+    if (!(await harness.supportsChangeStreams())) {
+      if (process.env.CI) {
+        throw new Error(
+          'MongoDB ordered live-window integration requires a replica set in CI.',
+        )
+      }
+      console.warn(
+        '[Bifrost MongoDB] Skipping ordered live-window integration: local MongoDB is not a replica set.',
+      )
+      return
+    }
+
+    globalThis.WebSocket = NodeWebSocket as unknown as typeof WebSocket
+    const collectionName = harness.collectionName('ordered_boards')
+
+    @MongoCollection(collectionName)
+    class OrderedBoardsCollectionDefinition {}
+
+    const BoardsToken = typedMongoCollection<OrderedBoard>(
+      OrderedBoardsCollectionDefinition,
+    )
+    const publication = defineMongoLivePublication(orderedBoardsDescriptor, {
+      collection: BoardsToken,
+      args: z.object({ owner: z.string() }),
+      protected: false,
+      authorize: (_context, args): { readonly owner: string } => ({
+        owner: args.owner,
+      }),
+      filter: (scope: { readonly owner: string }) => ({ owner: scope.owner }),
+      window: () => ({
+        sort: { score: 1 as const },
+        skip: 1,
+        limit: 3,
+      }),
+      project: document => ({
+        name: document.name,
+        score: document.score,
+      }),
+    })
+
+    const server = await createServer()
+    const mongo = await createBifrostMongo({
+      db: harness.db,
+      server,
+      collections: [BoardsToken],
+      live: { publications: [publication] },
+    })
+    const Boards = mongo.collection(BoardsToken)
+    const ids = Array.from({ length: 6 }, (_, index) =>
+      new ObjectId((index + 1).toString(16).padStart(24, '0')),
+    )
+    await Boards.insertMany(
+      ids.slice(0, 5).map((id, index) => ({
+        _id: id,
+        owner: 'owner-1',
+        name: String.fromCharCode(65 + index),
+        score: (index + 1) * 10,
+        secret: 'hidden',
+      })),
+    )
+
+    const client = await createClient(server.port)
+    const view = createMongoLiveView({
+      client,
+      publication: orderedBoardsDescriptor,
+      args: { owner: 'owner-1' },
+    })
+
+    try {
+      await view.start()
+      expect(readOrderedNames(view)).toEqual(['B', 'C', 'D'])
+
+      await Boards.insertOne({
+        _id: ids[5],
+        owner: 'owner-1',
+        name: 'X',
+        score: 5,
+        secret: 'hidden',
+      })
+      await waitFor(() => readOrderedNames(view).join() === 'A,B,C')
+
+      await Boards.updateOne({ _id: ids[4] }, { $set: { score: 20 } })
+      await waitFor(() => readOrderedNames(view).join() === 'A,B,E')
+
+      await Boards.deleteOne({ _id: ids[0] })
+      await waitFor(() => readOrderedNames(view).join() === 'B,E,C')
+
+      await Boards.updateOne(
+        { _id: ids[1] },
+        { $set: { name: 'B updated' } },
+      )
+      await waitFor(
+        () => readOrderedNames(view).join() === 'B updated,E,C',
+      )
+
+      const authoritative = await Boards.find(
+        { owner: 'owner-1' },
+        { readConcern: { level: 'majority' } },
+      )
+        .sort([
+          ['score', 1],
+          ['_id', 1],
+        ])
+        .skip(1)
+        .limit(3)
+        .toArray()
+      expect(readOrderedNames(view)).toEqual(
+        authoritative.map(document => document.name),
+      )
+      expect(view.getSnapshot().documents[0]).not.toHaveProperty('secret')
+    } finally {
+      await view.stop()
+      await client.close()
+      await mongo.close()
+      await server.close()
+    }
+  })
 })
+
+function readOrderedNames(
+  view: ReturnType<typeof createMongoLiveView<typeof orderedBoardsDescriptor>>,
+): string[] {
+  return view.getSnapshot().documents.map(document => document.name)
+}
 
 async function createServer(): Promise<Server> {
   const server = new Server({

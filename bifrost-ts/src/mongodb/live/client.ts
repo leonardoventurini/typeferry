@@ -3,6 +3,8 @@ import { ClientEvents, NO_CHANNEL, Presentation } from '../../utils'
 import { canonicalId } from './observer'
 import {
   MONGO_LIVE_EVENT,
+  MONGO_LIVE_ORDERED_WINDOW_CAPABILITY,
+  MONGO_LIVE_TYPED_OBJECT_ID_CAPABILITY,
   MONGO_LIVE_RESYNC_METHOD,
   MONGO_LIVE_SUBSCRIBE_METHOD,
   MONGO_LIVE_UNSUBSCRIBE_METHOD,
@@ -15,6 +17,7 @@ import {
   type MongoLiveSnapshot,
   type MongoLiveViewSnapshot,
 } from './types'
+import { applyMongoLiveWindowSplice } from './window'
 
 const MONGO_LIVE_MAX_EARLY_DELTAS = 1_000
 
@@ -58,6 +61,8 @@ export class MongoLiveView<
   private startPromise: Promise<void> | null = null
   private resyncPromise: Promise<void> | null = null
   private connectionEpoch = 0
+  private ordered = false
+  private orderedDocuments: readonly MongoLiveDocumentOf<TDescriptor>[] = []
   private snapshot: MongoLiveViewSnapshot<MongoLiveDocumentOf<TDescriptor>> = {
     status: 'connecting',
     documents: [],
@@ -139,6 +144,7 @@ export class MongoLiveView<
     this.options.client.off(ClientEvents.WEBSOCKET_CLOSED, this.handleClosed)
     this.options.client.off(ClientEvents.LOGOUT, this.handleClosed)
     this.documents.clear()
+    this.orderedDocuments = []
     this.bufferedDeltas.length = 0
     this.updateSnapshot('stopped')
 
@@ -165,6 +171,10 @@ export class MongoLiveView<
           subscriptionId: this.subscriptionId,
           publication: this.options.publication.name,
           args: this.options.args,
+          capabilities: [
+            MONGO_LIVE_ORDERED_WINDOW_CAPABILITY,
+            MONGO_LIVE_TYPED_OBJECT_ID_CAPABILITY,
+          ],
         },
         liveCallOptions,
       )
@@ -179,8 +189,14 @@ export class MongoLiveView<
   ): void {
     if (this.stopped) return
     this.documents.clear()
-    for (const document of snapshot.documents) {
-      this.documents.set(canonicalId(document._id), document)
+    this.ordered = snapshot.ordered ?? false
+    if (this.ordered) {
+      this.orderedDocuments = [...snapshot.documents]
+    } else {
+      this.orderedDocuments = []
+      for (const document of snapshot.documents) {
+        this.documents.set(canonicalId(document._id), document)
+      }
     }
     this.generation = snapshot.generation
     this.sequence = snapshot.sequence
@@ -236,6 +252,17 @@ export class MongoLiveView<
   ): boolean {
     if (delta.sequence !== this.sequence + 1) return false
     for (const operation of delta.operations) {
+      if (operation.type === 'window-splice') {
+        if (!this.ordered) return false
+        const applied = applyMongoLiveWindowSplice(
+          this.orderedDocuments,
+          operation,
+        )
+        if (!applied) return false
+        this.orderedDocuments = applied
+        continue
+      }
+      if (this.ordered) return false
       if (operation.type === 'removed') {
         this.documents.delete(canonicalId(operation.id))
       } else {
@@ -270,7 +297,7 @@ export class MongoLiveView<
     const normalized = error instanceof Error ? error : new Error(String(error))
     this.snapshot = {
       status: 'error',
-      documents: [...this.documents.values()],
+      documents: this.currentDocuments(),
       error: normalized,
     }
     this.notify()
@@ -283,10 +310,16 @@ export class MongoLiveView<
   ): void {
     this.snapshot = {
       status,
-      documents: [...this.documents.values()],
+      documents: this.currentDocuments(),
       error: null,
     }
     this.notify()
+  }
+
+  private currentDocuments(): readonly MongoLiveDocumentOf<TDescriptor>[] {
+    return this.ordered
+      ? [...this.orderedDocuments]
+      : [...this.documents.values()]
   }
 
   private notify(): void {

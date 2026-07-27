@@ -1,11 +1,14 @@
 import { describe, expectTypeOf, it } from 'vitest'
+import type { Document, ObjectId } from 'mongodb'
 
 import {
   mongoLivePublication,
   type MongoLiveArgsOf,
   type MongoLiveClientDocument,
   type MongoLiveDocumentOf,
+  type MongoLiveId,
   type MongoLivePublicationDescriptor,
+  type MongoLiveWindow,
 } from './types'
 
 interface BoardFields {
@@ -16,6 +19,26 @@ interface MessageFields {
   readonly body: string
   readonly unread: boolean
 }
+
+interface StoredBoard extends Document {
+  readonly _id: ObjectId
+  readonly score: number
+  readonly name: string
+}
+
+const validWindow: MongoLiveWindow<StoredBoard> = {
+  sort: { score: -1, name: 1 },
+  limit: 10,
+}
+
+const invalidIdentityWindow: MongoLiveWindow<StoredBoard> = {
+  // @ts-expect-error identity ordering is appended by the runtime.
+  sort: { _id: 1 },
+  limit: 10,
+}
+
+void validWindow
+void invalidIdentityWindow
 
 const boards = mongoLivePublication<
   { readonly owner: string },
@@ -35,7 +58,7 @@ describe('MongoDB live public type contract', () => {
       readonly owner: string
     }>()
     expectTypeOf<MongoLiveDocumentOf<typeof messages>>().toEqualTypeOf<
-      Readonly<{ _id: string | number } & MessageFields>
+      Readonly<{ _id: MongoLiveId } & MessageFields>
     >()
 
     acceptPublicationArgs(boards, { owner: 'owner-1' })
@@ -52,7 +75,7 @@ function acceptPublicationArgs<
   TDescriptor extends MongoLivePublicationDescriptor<
     string,
     unknown,
-    { readonly _id: string | number }
+    { readonly _id: MongoLiveId }
   >,
 >(
   _descriptor: TDescriptor,

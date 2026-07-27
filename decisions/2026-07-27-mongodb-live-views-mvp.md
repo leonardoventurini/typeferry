@@ -89,9 +89,11 @@ latency and capacity behavior without an explicit product contract.
   reserved server registrations.
 - Default limits are 32 subscriptions per connection, 10,000 documents per
   snapshot, and 2 MiB of native WebSocket buffering.
-- Results are unordered. Reactive sorting, pagination windows, joins,
-  optimistic/offline writes, and a Minimongo-compatible collection layer are
-  outside the MVP.
+- Publications remain unordered unless they opt into the ordered-window
+  extension recorded in
+  `decisions/2026-07-27-mongodb-ordered-live-windows.md`. Joins,
+  optimistic/offline writes, and a Minimongo-compatible collection layer
+  remain outside the product contract.
 - MongoDB live integration tests require a replica set. A standalone local
   deployment can still run ordinary MongoDB integration tests.
 

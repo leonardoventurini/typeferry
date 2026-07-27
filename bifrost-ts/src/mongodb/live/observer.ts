@@ -1,4 +1,4 @@
-import type { Collection, Document, Filter } from 'mongodb'
+import type { Collection, Document, Filter, Sort } from 'mongodb'
 
 import { EJSON } from '../../ejson'
 import type {
@@ -12,8 +12,10 @@ import type {
   MongoLiveOperation,
   MongoLiveProjectedFields,
   MongoLiveSnapshot,
+  MongoLiveRuntimeWindow,
 } from './types'
 import { readLiveId } from './source'
+import { createMongoLiveWindowSplice } from './window'
 
 const MAX_HANDOFF_NOTICES = 10_000
 
@@ -27,6 +29,10 @@ export interface MongoLiveObserverOptions {
   readonly collection: Collection<Document>
   /** Server-owned MongoDB filter. */
   readonly filter: Filter<Document>
+  /** Optional stable bounded ordering contract. */
+  readonly window?: MongoLiveRuntimeWindow | null
+  /** Whether ObjectIds use the collision-proof discriminated wire form. */
+  readonly typedObjectIds?: boolean
   /** Server-owned projection. */
   readonly project: (
     document: Document,
@@ -44,6 +50,7 @@ export interface MongoLiveObserverOptions {
 /** Maintains query membership and emits semantic document operations. */
 export class MongoLiveObserver {
   private readonly documents = new Map<string, MongoLiveClientDocument>()
+  private orderedDocuments: readonly MongoLiveClientDocument[] = []
   private readonly bufferedNotices: MongoLiveSourceNotice[] = []
   private unsubscribeSource: (() => void) | null = null
   private initializing = true
@@ -51,6 +58,8 @@ export class MongoLiveObserver {
   private stopped = false
   private sequence = 0
   private work: Promise<void> = Promise.resolve()
+  private orderedRefreshRunning = false
+  private orderedRefreshPending = false
 
   /** Creates one connection-private observer. */
   constructor(private readonly options: MongoLiveObserverOptions) {}
@@ -70,26 +79,43 @@ export class MongoLiveObserver {
         this.bufferedNotices.push(notice)
         return
       }
+      if (notice.type === 'reset') {
+        this.options.onStale()
+        void this.stop()
+        return
+      }
+      if (this.options.window) {
+        this.enqueueOrderedRefresh()
+        return
+      }
       this.enqueue(notice)
     })
 
-    const snapshotDocuments = await this.options.collection
-      .find(this.options.filter, { readConcern: { level: 'majority' } })
-      .limit(this.options.maxSnapshotDocuments + 1)
-      .toArray()
+    const snapshotDocuments = await this.readSnapshotDocuments()
     this.assertInitializationValid()
 
-    if (snapshotDocuments.length > this.options.maxSnapshotDocuments) {
+    if (
+      !this.options.window &&
+      snapshotDocuments.length > this.options.maxSnapshotDocuments
+    ) {
       await this.stop()
       throw new Error(
         `MongoDB live snapshot exceeds ${this.options.maxSnapshotDocuments} documents.`,
       )
     }
 
+    const projectedDocuments: MongoLiveClientDocument[] = []
     for (const document of snapshotDocuments) {
       const projected = await this.project(document)
       this.assertInitializationValid()
-      this.documents.set(canonicalId(projected._id), projected)
+      projectedDocuments.push(projected)
+    }
+    if (this.options.window) {
+      this.orderedDocuments = projectedDocuments
+    } else {
+      for (const projected of projectedDocuments) {
+        this.documents.set(canonicalId(projected._id), projected)
+      }
     }
 
     while (this.bufferedNotices.length > 0) {
@@ -108,7 +134,10 @@ export class MongoLiveObserver {
       subscriptionId: this.options.subscriptionId,
       generation: this.options.generation,
       sequence: this.sequence,
-      documents: [...this.documents.values()],
+      ordered: Boolean(this.options.window),
+      documents: this.options.window
+        ? this.orderedDocuments
+        : [...this.documents.values()],
     }
   }
 
@@ -130,6 +159,28 @@ export class MongoLiveObserver {
       })
   }
 
+  private enqueueOrderedRefresh(): void {
+    if (this.orderedRefreshRunning) {
+      this.orderedRefreshPending = true
+      return
+    }
+    this.orderedRefreshRunning = true
+    this.work = this.work
+      .then(async () => {
+        do {
+          this.orderedRefreshPending = false
+          await this.refreshOrderedWindow(true)
+        } while (this.orderedRefreshPending && !this.stopped)
+      })
+      .catch(() => {
+        if (!this.stopped) this.options.onStale()
+      })
+      .finally(() => {
+        this.orderedRefreshRunning = false
+        this.orderedRefreshPending = false
+      })
+  }
+
   private assertInitializationValid(): void {
     if (!this.initializationInvalidated) return
     void this.stop()
@@ -147,8 +198,12 @@ export class MongoLiveObserver {
       if (emit) this.options.onStale()
       return
     }
+    if (this.options.window) {
+      await this.refreshOrderedWindow(emit)
+      return
+    }
 
-    const clientId = toClientId(notice.id)
+    const clientId = toClientId(notice.id, this.options.typedObjectIds ?? false)
     const key = canonicalId(clientId)
     const previous = this.documents.get(key)
     let operation: MongoLiveOperation | null = null
@@ -193,6 +248,43 @@ export class MongoLiveObserver {
     })
   }
 
+  private async readSnapshotDocuments(): Promise<Document[]> {
+    let cursor = this.options.collection.find(this.options.filter, {
+      readConcern: { level: 'majority' },
+    })
+    if (this.options.window) {
+      cursor = cursor
+        .sort(this.options.window.sort as Sort)
+        .skip(this.options.window.skip)
+        .limit(this.options.window.limit)
+    } else {
+      cursor = cursor.limit(this.options.maxSnapshotDocuments + 1)
+    }
+    return cursor.toArray()
+  }
+
+  private async refreshOrderedWindow(emit: boolean): Promise<void> {
+    const storedDocuments = await this.readSnapshotDocuments()
+    const current: MongoLiveClientDocument[] = []
+    for (const document of storedDocuments) {
+      current.push(await this.project(document))
+    }
+    if (this.stopped) return
+    const operation = createMongoLiveWindowSplice(
+      this.orderedDocuments,
+      current,
+    )
+    this.orderedDocuments = current
+    if (!operation || !emit) return
+    this.options.onDelta({
+      type: 'delta',
+      subscriptionId: this.options.subscriptionId,
+      generation: this.options.generation,
+      sequence: ++this.sequence,
+      operations: [operation],
+    })
+  }
+
   private async project(
     document: Document,
   ): Promise<MongoLiveClientDocument> {
@@ -207,7 +299,7 @@ export class MongoLiveObserver {
       throw new Error('MongoDB live projectors must not return "_id".')
     }
     return Object.assign(
-      { _id: toClientId(sourceId) },
+      { _id: toClientId(sourceId, this.options.typedObjectIds ?? false) },
       fields,
     ) as unknown as MongoLiveClientDocument
   }
@@ -215,8 +307,10 @@ export class MongoLiveObserver {
 
 function toClientId(
   id: import('./types').MongoLiveSourceId,
+  typedObjectIds: boolean,
 ): MongoLiveId {
-  return typeof id === 'object' ? id.toHexString() : id
+  if (typeof id !== 'object') return id
+  return typedObjectIds ? { $objectId: id.toHexString() } : id.toHexString()
 }
 
 /** Creates a stable type-tagged EJSON identity key. */

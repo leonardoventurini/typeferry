@@ -908,6 +908,7 @@ Subscribe params:
   subscriptionId: string, // 1–64 chars, [a-zA-Z0-9-]
   publication: string,    // registered server-owned publication
   args: unknown,          // validated by that publication
+  capabilities?: string[], // understood optional wire extensions
 }
 ```
 
@@ -918,7 +919,11 @@ Subscribe and resync return a complete snapshot:
   subscriptionId: string,
   generation: string,
   sequence: number,
-  documents: Array<{ _id: string | number, ...fields }>,
+  ordered?: boolean, // true when array position is authoritative
+  documents: Array<{
+    _id: string | number | { $objectId: string },
+    ...fields
+  }>,
 }
 ```
 
@@ -934,7 +939,16 @@ envelope with `event: "mongo:live:delta"` and `channel: "NO_CHANNEL"`:
   operations: Array<
     | { type: "added", document: object }
     | { type: "changed", document: object }
-    | { type: "removed", id: string | number }
+    | {
+        type: "removed",
+        id: string | number | { $objectId: string }
+      }
+    | {
+        type: "window-splice",
+        index: number,
+        deleteCount: number,
+        documents: object[]
+      }
   >,
 }
 ```
@@ -958,9 +972,21 @@ registry shutdown MUST release connection-owned observers.
 
 Publications are protected by default and MAY explicitly permit
 unauthenticated access. Clients never provide MongoDB collection names,
-selectors, projections, or pipelines. The MVP result contract is unordered
-and does not include reactive `sort`, `skip`, `limit`, joins, or aggregation
-windows.
+selectors, projections, sorts, or pipelines.
+
+A publication MAY define a server-owned ordered window with stable `sort`,
+bounded `skip`, and required `limit`. Ordered snapshots set `ordered: true`.
+The client MUST advertise `"ordered-window-splice-v1"` in `capabilities`; the
+server MUST reject ordered allocation when it is absent. Current clients also
+advertise `"typed-object-id-v1"` so ObjectIds materialize as
+`{ $objectId: string }`. Without that capability, unordered publications retain
+the legacy bare-hex string representation; ordered allocation requires both
+capabilities.
+The server appends `_id: 1` to the application sort as its unique final
+tie-breaker. `window-splice` atomically replaces
+`documents[index:index + deleteCount]`; invalid indices or duplicate resulting
+identities MUST trigger complete resynchronization. Joins and aggregation
+windows are not part of this extension.
 
 ---
 
