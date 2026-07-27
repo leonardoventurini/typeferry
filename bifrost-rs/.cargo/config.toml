@@ -1,0 +1,3 @@
+[registries.forgejo]
+index = "sparse+https://forgejo.example-app.com/api/packages/leonardoventurini/cargo/"
+
