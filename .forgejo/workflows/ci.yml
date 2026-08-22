@@ -4,16 +4,16 @@ on:
   push:
     branches: [main]
     paths:
-      - 'bifrost-ts/**'
-      - 'docs/conformance/**'
-      - 'PROTOCOL.md'
-      - '.forgejo/workflows/ci.yml'
+      - "bifrost-ts/**"
+      - "docs/conformance/**"
+      - "PROTOCOL.md"
+      - ".forgejo/workflows/ci.yml"
   pull_request:
     paths:
-      - 'bifrost-ts/**'
-      - 'docs/conformance/**'
-      - 'PROTOCOL.md'
-      - '.forgejo/workflows/ci.yml'
+      - "bifrost-ts/**"
+      - "docs/conformance/**"
+      - "PROTOCOL.md"
+      - ".forgejo/workflows/ci.yml"
 
 concurrency:
   group: ci-${{ forgejo.ref }}
@@ -29,7 +29,7 @@ jobs:
         working-directory: bifrost-ts
     env:
       NODE_OPTIONS: --max-old-space-size=4096
-      REDIS_URL: redis://m3ultra-256g.tail17a045.ts.net:6379
+      REDIS_URL: redis://127.0.0.1:16379
       BIFROST_MONGODB_TEST_URI: mongodb://127.0.0.1:27018/?replicaSet=bifrost-ci
       BIFROST_MONGODB_TEST_DB: bifrost_mongodb_ci_test
     steps:
@@ -99,8 +99,32 @@ jobs:
         timeout-minutes: 3
 
       - name: Integration tests
-        run: npm run test:integration
+        env:
+          REDIS_CONTAINER: bifrost-redis-ci
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker rm --force "$REDIS_CONTAINER" >/dev/null 2>&1 || true
+          docker run --detach --rm \
+            --name "$REDIS_CONTAINER" \
+            --publish 127.0.0.1:16379:6379 \
+            redis:7.4-alpine
+          for attempt in $(seq 1 30); do
+            if docker exec "$REDIS_CONTAINER" redis-cli ping | grep -q PONG; then
+              npm run test:integration
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs "$REDIS_CONTAINER"
+          exit 1
         timeout-minutes: 10
+
+      - name: Stop integration Redis
+        if: always()
+        env:
+          REDIS_CONTAINER: bifrost-redis-ci
+        run: docker stop "$REDIS_CONTAINER" || true
 
       - uses: https://data.forgejo.org/actions/cache@v4
         id: playwright-cache

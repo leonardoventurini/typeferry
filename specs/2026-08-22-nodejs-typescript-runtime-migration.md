@@ -69,7 +69,7 @@ release.
    `.forgejo/workflows/release-bump.yml` to Node/npm while preserving Python/Rust
    jobs and release ownership. Require CI before publication of the exact SHA.
 5. Run lint, typecheck, unit, integration, browser, audit, build, `npm pack
-   --dry-run`, tarball extraction/import smoke, declaration inspection, clean
+--dry-run`, tarball extraction/import smoke, declaration inspection, clean
    install, consumer audit, and independent review. Record results below.
 6. Set version `0.4.0` through npm, commit the verified source/lock/workflows,
    push with explicit authority, publish once, confirm Forgejo metadata/tarball,
@@ -93,7 +93,7 @@ release.
 ## Verification gauntlet
 
 - Hard gate: `npm exec -- vitest --config vitest.config.unit.ts --run
-  src/server` passes including Node Hono and WebSocket sensitivity cases.
+src/server` passes including Node Hono and WebSocket sensitivity cases.
 - Hard gate: `npm run test:integration` and `npm run test:browser` pass.
 - Hard gate: `npm run lint`, `npm run typecheck`, `npm run build`, and
   `npm audit --audit-level=low` pass.
@@ -143,3 +143,6 @@ with the Bifrost change.
   summary. The same suite passed locally both in parallel and with serial files;
   CI now serializes files to eliminate that worker-shutdown race before a fresh
   exact-SHA release run.
+- Integration CI now provisions and removes an isolated Redis 7.4 container.
+  This replaces the shared endpoint whose new authentication requirement made
+  the otherwise-passing Redis suite depend on unavailable external state.
