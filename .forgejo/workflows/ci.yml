@@ -70,61 +70,62 @@ jobs:
         run: npm run test:unit -- --no-file-parallelism
         timeout-minutes: 10
 
-      - name: MongoDB replica set
-        shell: bash
-        run: |
-          set -euo pipefail
-          command -v mongod
-          command -v mongosh
-          MONGO_DATA_DIR="${RUNNER_TEMP}/bifrost-mongodb"
-          mkdir -p "$MONGO_DATA_DIR"
-          mongod \
-            --bind_ip 127.0.0.1 \
-            --dbpath "$MONGO_DATA_DIR" \
-            --fork \
-            --logpath "$MONGO_DATA_DIR/mongod.log" \
-            --port 27018 \
-            --replSet bifrost-ci
-          mongosh --quiet --port 27018 --eval \
-            'rs.initiate({_id:"bifrost-ci",members:[{_id:0,host:"127.0.0.1:27018"}]})'
-          for attempt in $(seq 1 30); do
-            if mongosh --quiet --port 27018 --eval \
-              'if (!db.hello().isWritablePrimary) quit(1)' >/dev/null; then
-              exit 0
-            fi
-            sleep 1
-          done
-          cat "$MONGO_DATA_DIR/mongod.log"
-          exit 1
-        timeout-minutes: 3
-
-      - name: Integration tests
+      - name: Start integration services
         env:
+          MONGO_CONTAINER: bifrost-mongodb-ci
           REDIS_CONTAINER: bifrost-redis-ci
         shell: bash
         run: |
           set -euo pipefail
-          docker rm --force "$REDIS_CONTAINER" >/dev/null 2>&1 || true
+          docker rm --force "$MONGO_CONTAINER" "$REDIS_CONTAINER" >/dev/null 2>&1 || true
+          docker run --detach --rm \
+            --name "$MONGO_CONTAINER" \
+            --publish 127.0.0.1:27018:27018 \
+            mongo:7.0 \
+            mongod --bind_ip_all --port 27018 --replSet bifrost-ci
           docker run --detach --rm \
             --name "$REDIS_CONTAINER" \
             --publish 127.0.0.1:16379:6379 \
             redis:7.4-alpine
+          for attempt in $(seq 1 60); do
+            if docker exec "$MONGO_CONTAINER" mongosh --quiet --port 27018 --eval \
+              'db.adminCommand({ping:1})' >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          docker exec "$MONGO_CONTAINER" mongosh --quiet --port 27018 --eval \
+            'rs.initiate({_id:"bifrost-ci",members:[{_id:0,host:"127.0.0.1:27018"}]})'
+          for attempt in $(seq 1 60); do
+            if docker exec "$MONGO_CONTAINER" mongosh --quiet --port 27018 --eval \
+              'if (!db.hello().isWritablePrimary) quit(1)' >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          docker exec "$MONGO_CONTAINER" mongosh --quiet --port 27018 --eval \
+            'if (!db.hello().isWritablePrimary) quit(1)' >/dev/null
           for attempt in $(seq 1 30); do
             if docker exec "$REDIS_CONTAINER" redis-cli ping | grep -q PONG; then
-              npm run test:integration
               exit 0
             fi
             sleep 1
           done
+          docker logs "$MONGO_CONTAINER"
           docker logs "$REDIS_CONTAINER"
           exit 1
+        timeout-minutes: 5
+
+      - name: Integration tests
+        run: npm run test:integration
         timeout-minutes: 10
 
-      - name: Stop integration Redis
+      - name: Stop integration services
         if: always()
         env:
+          MONGO_CONTAINER: bifrost-mongodb-ci
           REDIS_CONTAINER: bifrost-redis-ci
-        run: docker stop "$REDIS_CONTAINER" || true
+        run: docker stop "$MONGO_CONTAINER" "$REDIS_CONTAINER" || true
 
       - uses: https://data.forgejo.org/actions/cache@v4
         id: playwright-cache

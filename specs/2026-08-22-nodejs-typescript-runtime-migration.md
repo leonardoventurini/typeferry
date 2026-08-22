@@ -143,6 +143,8 @@ with the Bifrost change.
   summary. The same suite passed locally both in parallel and with serial files;
   CI now serializes files to eliminate that worker-shutdown race before a fresh
   exact-SHA release run.
-- Integration CI now provisions and removes an isolated Redis 7.4 container.
-  This replaces the shared endpoint whose new authentication requirement made
-  the otherwise-passing Redis suite depend on unavailable external state.
+- Integration CI now provisions and removes isolated MongoDB 7.0 replica-set
+  and Redis 7.4 containers. This replaces both an unavailable host `mongod` and
+  the shared Redis endpoint whose new authentication requirement made the
+  otherwise-passing suite depend on external state. The seven focused database
+  and transport integration files pass against these exact containers.
