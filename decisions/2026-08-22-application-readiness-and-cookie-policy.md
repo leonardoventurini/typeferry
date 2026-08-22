@@ -44,3 +44,7 @@ retryable rather than being misreported as a missing method or anonymous
 session. Cookie deletion can match an application's issued cookie attributes,
 while existing Bifrost consumers and cross-language conformance retain their
 current default.
+
+The decision shipped in `@example-app/bifrost@0.3.4` from signed commit `2847379`.
+ExampleApp consumes the registry artifact directly and carries no downstream
+Bifrost patch.

@@ -113,9 +113,9 @@ real ExampleApp consumer.
 - [x] Implement Bifrost source contracts and focused regression tests.
 - [x] Verify emitted ESM, declarations, dependency audit, and package tarball
       contents.
-- [ ] Commit, push, publish, and confirm `@example-app/bifrost@0.3.4` in Forgejo.
-- [ ] Upgrade ExampleApp and remove every temporary Bifrost patch reference.
-- [ ] Complete consumer verification and commit the direct dependency upgrade.
+- [x] Commit, push, publish, and confirm `@example-app/bifrost@0.3.4` in Forgejo.
+- [x] Upgrade ExampleApp and remove every temporary Bifrost patch reference.
+- [x] Complete consumer verification and commit the direct dependency upgrade.
 
 ## Verification and rollout
 
@@ -151,3 +151,17 @@ Bifrost patch release and normal ExampleApp upgrade.
   contracts. `bun pm pack --dry-run` contains 424 compiled files under `dist`
   plus the release manifest and identifies the artifact as
   `@example-app/bifrost@0.3.4`.
+
+### 2026-08-22 — direct rollout completed
+
+- Published `@example-app/bifrost@0.3.4` from signed commit `2847379`; Forgejo and
+  the package registry both resolve the immutable release and its recorded
+  integrity.
+- ExampleApp now resolves the registry package at `0.3.4`, has no Bifrost patch
+  entry or compiled patch file, and expresses its Strict cookie policy through
+  shared application-owned options.
+- The installed consumer passed a frozen install, 71 Chromium authentication
+  tests, 24 focused unit tests, 18 session integration tests, lint, both strict
+  TypeScript configurations, client/server production builds, and the public
+  dependency audit. The upstream package audit remains clean for the private
+  package graph that ExampleApp's registry audit intentionally skips.
