@@ -64,7 +64,10 @@ jobs:
         run: npm run typecheck
 
       - name: Unit tests
-        run: npm run test:unit
+        # The host runner has returned status 1 after a fully passing parallel
+        # Vitest summary; serial files remove that worker-shutdown race while
+        # retaining Vitest's complete assertion contract.
+        run: npm run test:unit -- --no-file-parallelism
         timeout-minutes: 10
 
       - name: MongoDB replica set

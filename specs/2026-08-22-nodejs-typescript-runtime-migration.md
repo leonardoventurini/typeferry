@@ -107,19 +107,19 @@ release.
 
 ## Execution checklist
 
-- [ ] Implement and test the Node/Hono listener — files:
+- [x] Implement and test the Node/Hono listener — files:
       `bifrost-ts/src/server/transports/node-hono-transport.ts`, focused specs;
       verify: focused Vitest; done when HTTP and WebSocket share one listener.
-- [ ] Remove Bun/Express runtime paths — files: server, transports, socket types,
+- [x] Remove Bun/Express runtime paths — files: server, transports, socket types,
       tests and dependencies; verify: server unit/integration smoke; done when
       the public server path is Node/Hono only.
-- [ ] Move package/tooling to npm — files: manifest, lock, npm config, Node pin,
+- [x] Move package/tooling to npm — files: manifest, lock, npm config, Node pin,
       instructions; verify: clean install, audit, no-Bun contract; done when Bun
       is absent from the active TypeScript package.
-- [ ] Move CI/release workflows to Node/npm — files: Forgejo workflows; verify:
+- [x] Move CI/release workflows to Node/npm — files: Forgejo workflows; verify:
       workflow contract tests/inspection; done when exact-SHA CI owns release
       eligibility.
-- [ ] Pass package and independent-review gauntlet — files: task-owned paths;
+- [x] Pass package and independent-review gauntlet — files: task-owned paths;
       verify: all gates above; done when tarball and declarations work cleanly.
 - [ ] Publish and verify `0.4.0` — files: version/lock and release evidence;
       verify: Forgejo metadata plus clean consumer install; done when ExampleApp can
@@ -131,3 +131,15 @@ No database or protocol migration is involved. Keep `0.3.4` available and do
 not update ExampleApp until the published `0.4.0` tarball passes the clean-consumer
 smoke. Record exact commands/results here while executing and commit this spec
 with the Bifrost change.
+
+### Recorded evidence
+
+- Exact Node 24.19.0/npm 11.17.0 local gates passed: clean install, zero-advisory
+  audit, lint, typecheck, 108 unit files with 1,431 assertions, non-Redis
+  integration coverage, browser coverage, build, package inspection, and an
+  extracted-tarball public-export/typecheck smoke.
+- Forgejo CI run 78 proved the exact release SHA and all 1,431 unit assertions,
+  but its host runner returned status 1 after the fully passing parallel Vitest
+  summary. The same suite passed locally both in parallel and with serial files;
+  CI now serializes files to eliminate that worker-shutdown race before a fresh
+  exact-SHA release run.
