@@ -1,6 +1,7 @@
 import * as assert from 'assert'
 import type { RequestListener } from 'node:http'
 
+import type { Hono } from 'hono'
 import type { RedisClientOptions } from 'redis'
 import type { z } from 'zod'
 
@@ -20,14 +21,11 @@ import type { Event } from './event'
 import type { MethodFunction, MethodOptions } from './method'
 import { Method } from './method'
 import { ServerChannel } from './server-channel'
-import type { BunHonoTransport } from './transports/bun-hono-transport'
-import type { BunWebSocketTransport } from './transports/bun-ws-transport'
-import { HttpTransport, RedisTransport, WebSocketTransport } from './transports'
-
-/** Cached at module load — runtime doesn't change mid-process. */
-const IS_BUN =
-  typeof globalThis.Bun !== 'undefined' &&
-  typeof globalThis.Bun.serve === 'function'
+import {
+  NodeHonoTransport,
+  RedisTransport,
+  WebSocketTransport,
+} from './transports'
 
 declare global {
   var Bifrost: Server
@@ -57,6 +55,9 @@ export type RateLimit =
       interval: number
     }
 
+/** Default request-body ceiling retained across the runtime migration. */
+export const DEFAULT_MAX_REQUEST_BODY_SIZE_BYTES = 128 * 1024 * 1024
+
 export type ServerOptions = {
   host?: string
   port?: number
@@ -69,7 +70,7 @@ export type ServerOptions = {
   globalInstance?: boolean
   allowedContextKeys?: string[]
   rateLimit?: RateLimit
-  /** Overrides Bun's request-body limit for applications with streaming routes. */
+  /** Maximum request body accepted by the HTTP listener. */
   maxRequestBodySize?: number
   shouldAllowChannelSubscribe?: ChannelChecker
 }
@@ -82,8 +83,8 @@ export class Server<
   Methods extends ServerMethods = ServerMethods,
 > extends ServerChannel {
   uuid: string
-  httpTransport: HttpTransport | BunHonoTransport
-  webSocketTransport: WebSocketTransport | BunWebSocketTransport
+  httpTransport: NodeHonoTransport
+  webSocketTransport: WebSocketTransport
   redisTransport: RedisTransport
   host = 'localhost'
   port: number
@@ -93,8 +94,7 @@ export class Server<
   auth: AuthFunction
   debug = false
   rateLimit: RateLimit
-  /** Maximum request body accepted by the Bun HTTP transport. */
-  maxRequestBodySize?: number
+  maxRequestBodySize: number
 
   methods: Map<string, Method<any, any>> = new Map()
   allClients: Map<string, ClientNode> = new Map()
@@ -115,6 +115,8 @@ export class Server<
 
   public handlers: Methods = {} as Methods
 
+  private closePromise?: Promise<boolean>
+
   private initializeGlobalInstance(globalInstance: boolean) {
     if (globalInstance) {
       if (global.Bifrost) {
@@ -126,60 +128,25 @@ export class Server<
 
   private initializeTransports(
     origins: string[] | undefined,
-    ws: unknown,
-    redis: unknown,
+    ws: ServerOptions['ws'],
+    redis: ServerOptions['redis'],
   ): void {
-    if (IS_BUN) {
-      this.initializeBunTransports(origins)
-    } else {
-      this.httpTransport = new HttpTransport(this, origins, this.rateLimit)
-      this.webSocketTransport = new WebSocketTransport(this, origins, ws)
-    }
-    this.redisTransport = redis ? new RedisTransport(this, redis) : null
-  }
-
-  /**
-   * Dynamically imports Bun transports to avoid loading Bun-specific
-   * code under Node.js (vitest). Uses synchronous require since
-   * Bun.serve() must run in the constructor.
-   */
-  private initializeBunTransports(origins: string[] | undefined): void {
-    /* eslint-disable @typescript-eslint/no-require-imports */
-    const {
-      BunWebSocketTransport: BunWs,
-    } = require('./transports/bun-ws-transport')
-    const {
-      BunHonoTransport: BunHono,
-    } = require('./transports/bun-hono-transport')
-    /* eslint-enable @typescript-eslint/no-require-imports */
-
-    const wsTransport = new BunWs(this, origins) as BunWebSocketTransport
-    this.webSocketTransport = wsTransport
-    this.httpTransport = new BunHono(
+    this.httpTransport = new NodeHonoTransport(
       this,
       origins,
       this.rateLimit,
-      wsTransport,
-      this.maxRequestBodySize,
-    ) as BunHonoTransport
+      this.maxRequestBodySize
+    )
+    this.webSocketTransport = new WebSocketTransport(this, origins, ws)
+    this.redisTransport = redis ? new RedisTransport(this, redis) : null
   }
 
   private setupHttpListening(): void {
-    if (IS_BUN) {
-      // BunHttpTransport constructor already calls Bun.serve() and emits HTTP_LISTENING.
-      return
-    }
-
-    const nodeTransport = this.httpTransport as HttpTransport
-    nodeTransport.http.on('error', error => {
+    this.httpTransport.http?.on('error', error => {
       this.emit(Server.ERROR_EVENT, error)
     })
 
-    nodeTransport.http.listen(this.port, this.host, () => {
-      const address = nodeTransport.http.address()
-      if (address && typeof address === 'object') {
-        this.port = address.port
-      }
+    this.httpTransport.listen(() => {
       setTimeout(() => this.server.emit(ServerEvents.HTTP_LISTENING), 0)
     })
   }
@@ -195,7 +162,7 @@ export class Server<
     globalInstance = true,
     allowedContextKeys = [],
     rateLimit = false,
-    maxRequestBodySize,
+    maxRequestBodySize = DEFAULT_MAX_REQUEST_BODY_SIZE_BYTES,
   }: ServerOptions = {}) {
     super(NO_CHANNEL)
 
@@ -256,17 +223,11 @@ export class Server<
     })
   }
 
-  get express() {
-    return (this.httpTransport as HttpTransport).express
-  }
-
   /**
-   * Returns the Hono app (Bun runtime) or Express app (Node/vitest).
-   * Route files should use this for framework-agnostic route registration.
+   * Returns the authoritative Hono application for route registration.
    */
-  get app(): unknown {
-    const transport = this.httpTransport as unknown as Record<string, unknown>
-    return transport.app ?? transport.express
+  get app(): Hono {
+    return this.httpTransport.app
   }
 
   setAuth({ auth, logIn }: AuthSetup) {
@@ -279,7 +240,12 @@ export class Server<
     this.shouldAllowChannelSubscribe = checker
   }
 
-  async close() {
+  close(): Promise<boolean> {
+    this.closePromise ??= this.closeTransports()
+    return this.closePromise
+  }
+
+  private async closeTransports(): Promise<boolean> {
     this.allClients.forEach(node => node.close())
     this.allClients.clear()
     this.clientsByUserId.clear()

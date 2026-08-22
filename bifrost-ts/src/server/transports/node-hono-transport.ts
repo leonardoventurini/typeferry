@@ -1,8 +1,17 @@
-/* eslint-disable no-undef -- Bun global is available at runtime */
-import type { Server as BunServer } from 'bun'
+import { getConnInfo } from '@hono/node-server/conninfo'
+import { getRequestListener, type HttpBindings } from '@hono/node-server'
+import { serveStatic } from '@hono/node-server/serve-static'
 import type { Context, MiddlewareHandler } from 'hono'
 import { Hono } from 'hono'
+import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
+import {
+  createServer,
+  type IncomingMessage,
+  type Server as NodeHttpServer,
+} from 'node:http'
+import type { AddressInfo } from 'node:net'
+import { PassThrough } from 'node:stream'
 
 import { EJSON } from '../../ejson'
 import {
@@ -19,61 +28,97 @@ import { ClientNode } from '../client-node'
 import { redactMethodTelemetry, type Method } from '../method'
 import type { BifrostRequest, BifrostResponse } from '../request-types'
 import type { RateLimit, Server } from '../server'
-import type { ConnectionData } from '../types'
-import type { BunWebSocketTransport } from './bun-ws-transport'
-import { rateLimiter } from './hono-rate-limit'
+import {
+  rateLimiter,
+  type DisposableRateLimiter,
+} from './hono-rate-limit'
 import {
   HttpTransportEvents,
   SERVER_NOT_READY_RESPONSE,
-} from './http-transport'
+} from './node-hono-transport-contract'
 
 /**
- * Bun-native HTTP transport using Hono instead of Express.
+ * Node.js HTTP transport backed by a Hono application.
  *
- * Eliminates the Express-to-Bun bridge entirely — Hono speaks
- * `Request`/`Response` natively, so `Bun.serve({ fetch: app.fetch })`
- * works directly.
+ * The adapter server is created without listening so the WebSocket transport
+ * can attach its upgrade handler before the listener accepts traffic.
  */
-export class BunHonoTransport {
+export class NodeHonoTransport {
   server: Server
   app: Hono
-
-  bunServer: BunServer<ConnectionData>
-
-  private wsTransport: BunWebSocketTransport
+  http?: NodeHttpServer
+  private httpRateLimiter?: DisposableRateLimiter
 
   constructor(
     server: Server,
-    origins: string[],
+    origins: string[] | undefined,
     limit: RateLimit,
-    wsTransport: BunWebSocketTransport,
-    maxRequestBodySize?: number
+    maxRequestBodySize: number
   ) {
     this.server = server
-    this.wsTransport = wsTransport
     this.app = new Hono()
 
-    this.setupMiddleware(origins, limit)
+    this.setupMiddleware(origins, limit, maxRequestBodySize)
+    const honoListener = getRequestListener((request, env) =>
+      this.handleFetch(request, env as HttpBindings)
+    )
+    this.http = createServer((request, response) => {
+      if (!this.server.requestListener) {
+        void honoListener(request, response)
+        return
+      }
 
-    this.bunServer = Bun.serve({
-      port: server.port,
-      hostname: server.host,
-      fetch: (req, bunSrv) => this.handleFetch(req, bunSrv),
-      websocket: wsTransport.getWebSocketHandlers(),
-      idleTimeout: 60,
-      maxRequestBodySize,
+      const honoRequest = this.createRequestMirror(request)
+      const observerRequest = this.createRequestMirror(request)
+      this.server.requestListener(observerRequest, response)
+      void honoListener(honoRequest, response)
+      request.pipe(honoRequest)
+      request.pipe(observerRequest)
+      request.on('error', error => {
+        honoRequest.destroy(error)
+        observerRequest.destroy(error)
+      })
     })
+  }
 
-    server.port = this.bunServer.port
-    wsTransport.startGlobalPing()
-    setTimeout(() => server.emit(ServerEvents.HTTP_LISTENING), 0)
+  /**
+   * Mirrors the incoming stream for observers so consuming its body cannot
+   * race Hono's Fetch adapter. The shared response retains the historical
+   * ability for listeners to attach headers or diagnostics.
+   */
+  private createRequestMirror(
+    request: IncomingMessage
+  ): PassThrough & IncomingMessage {
+    const mirror = new PassThrough() as PassThrough & IncomingMessage
+    Object.assign(mirror, {
+      headers: request.headers,
+      httpVersion: request.httpVersion,
+      method: request.method,
+      rawHeaders: request.rawHeaders,
+      socket: request.socket,
+      trailers: request.trailers,
+      url: request.url,
+    })
+    return mirror
   }
 
   // ---------------------------------------------------------------------------
   // Middleware setup
   // ---------------------------------------------------------------------------
 
-  private setupMiddleware(origins: string[], limit: RateLimit): void {
+  private setupMiddleware(
+    origins: string[] | undefined,
+    limit: RateLimit,
+    maxRequestBodySize: number
+  ): void {
+    this.app.use(
+      '*',
+      bodyLimit({
+        maxSize: maxRequestBodySize,
+        onError: c => c.text('Request Entity Too Large', 413),
+      })
+    )
+
     if (origins?.length) {
       this.app.use(
         '*',
@@ -90,7 +135,8 @@ export class BunHonoTransport {
         limit === true
           ? { windowMs: 60_000, max: 120 }
           : { windowMs: limit.interval, max: limit.max }
-      this.app.use('/__h', rateLimiter(opts))
+      this.httpRateLimiter = rateLimiter(opts)
+      this.app.use('/__h', this.httpRateLimiter)
     }
 
     this.app.post('/__h', (c) => this.handleRpc(c))
@@ -102,12 +148,8 @@ export class BunHonoTransport {
 
   private handleFetch(
     req: Request,
-    bunSrv: BunServer<ConnectionData>
-  ): Promise<Response> | Response | undefined {
-    if (this.wsTransport.handleUpgrade(req, bunSrv)) {
-      return undefined
-    }
-
+    env: HttpBindings
+  ): Promise<Response> | Response {
     if (!this.server.acceptConnections) {
       return new Response(SERVER_NOT_READY_RESPONSE.body, {
         status: SERVER_NOT_READY_RESPONSE.status,
@@ -119,11 +161,20 @@ export class BunHonoTransport {
       })
     }
 
-    return this.app.fetch(req, { ip: bunSrv.requestIP(req)?.address })
+    return this.app.fetch(req, env)
+  }
+
+  /** Starts the listener after all protocol transports have attached. */
+  listen(onListening: () => void): void {
+    this.http?.listen(this.server.port, this.server.host, () => {
+      const address = this.http?.address() as AddressInfo | null | undefined
+      if (address) this.server.port = address.port
+      onListening()
+    })
   }
 
   // ---------------------------------------------------------------------------
-  // Bifrost RPC handler (replaces Express POST /__h)
+  // Bifrost RPC handler
   // ---------------------------------------------------------------------------
 
   private async handleRpc(c: Context): Promise<Response> {
@@ -153,18 +204,22 @@ export class BunHonoTransport {
 
     const method = this.server.getMethod(payload.method as string)
     if (!method) {
-      return this.rpcError(c, Errors.METHOD_NOT_FOUND, payload.uuid)
+      return this.rpcError(c, Errors.METHOD_NOT_FOUND, {
+        method: payload.method,
+      })
     }
 
     const clientNode = await this.buildClientNode(c, transport.context)
 
     if (method.isProtected && !clientNode.authenticated) {
-      return this.rpcError(c, Errors.METHOD_FORBIDDEN, payload.uuid)
+      return this.rpcError(c, Errors.METHOD_FORBIDDEN, {
+        method: payload.method,
+      })
     }
 
     try {
       const result = await method.exec(payload.params, clientNode)
-      return this.rpcSuccess(c, result, payload, clientNode)
+      return this.rpcSuccess(c, result, payload)
     } catch (error) {
       return this.handleRpcError(c, error, payload, clientNode, method)
     }
@@ -201,23 +256,26 @@ export class BunHonoTransport {
   private buildBifrostRequest(c: Context): BifrostRequest {
     return {
       headers: Object.fromEntries(c.req.raw.headers.entries()),
-      ip:
-        (c.env as Record<string, string>)?.ip ??
-        c.req.header('x-forwarded-for'),
+      ip: c.req.header('x-forwarded-for') ?? getConnInfo(c).remote.address,
+      path: c.req.path,
       get: (name: string) => c.req.header(name),
     }
   }
 
   private buildBifrostResponse(c: Context): BifrostResponse {
     return {
-      setHeader: (name: string, value: string) => c.header(name, value),
+      setHeader: (name: string, value: string) => {
+        c.header(name, value, {
+          append: name.toLowerCase() === 'set-cookie',
+        })
+      },
     }
   }
 
   private buildClientNodeFromContext(c: Context): ClientNode {
     const req = this.buildBifrostRequest(c)
     const res = this.buildBifrostResponse(c)
-    const node = new ClientNode(this.server, undefined, req, res)
+    const node = new ClientNode(this.server, null, req, res)
     node.setTrackingProperties(req)
     return node
   }
@@ -270,29 +328,24 @@ export class BunHonoTransport {
     }
   }
 
-  private rpcError(c: Context, message: string, uuid?: unknown): Response {
+  private rpcError(
+    c: Context,
+    message: string,
+    extra?: Record<string, unknown>
+  ): Response {
     const payload: Record<string, unknown> = {
       type: PayloadType.ERROR,
       message,
+      ...extra,
     }
-    if (uuid) payload.uuid = uuid
     return c.text(Presentation.encode(payload))
   }
 
   private rpcSuccess(
     c: Context,
     result: unknown,
-    payload: Record<string, unknown>,
-    clientNode: ClientNode
+    payload: Record<string, unknown>
   ): Response {
-    // Apply any pending response headers (e.g., Set-Cookie from auth)
-    const res = clientNode.res as BifrostResponse & {
-      _pending?: [string, string][]
-    }
-    if (res?._pending) {
-      for (const [k, v] of res._pending) c.header(k, v, { append: true })
-    }
-
     return c.text(
       Presentation.encode({
         type: PayloadType.RESULT,
@@ -313,7 +366,11 @@ export class BunHonoTransport {
     if (error instanceof PublicError) {
       if (payload.void) return c.text('', 200)
 
-      return this.rpcError(c, error.message, payload.uuid)
+      return this.rpcError(
+        c,
+        error.message,
+        payload.uuid ? { uuid: payload.uuid } : undefined
+      )
     }
 
     if (method.isSensitive) {
@@ -346,16 +403,46 @@ export class BunHonoTransport {
       return c.text(Presentation.encode(p))
     }
 
-    return this.rpcError(c, Errors.INTERNAL_ERROR, payload.uuid)
+    return this.rpcError(
+      c,
+      Errors.INTERNAL_ERROR,
+      payload.uuid ? { uuid: payload.uuid } : undefined
+    )
   }
 
-  /** Static file serving — noop here; use serveStatic from hono/bun in routes. */
-  static(_path: string, _catchAll: boolean): void {
-    // Hono uses serveStatic middleware registered on the app directly
+  /** Registers a static root and optional single-page application fallback. */
+  static(path: string, catchAll: boolean): void {
+    this.app.use('*', serveStatic({ root: path }))
+    if (catchAll) {
+      this.app.get('*', serveStatic({ path: `${path}/index.html` }))
+    }
   }
 
   async close(): Promise<void> {
-    this.bunServer.stop(true)
+    this.httpRateLimiter?.close()
+    this.httpRateLimiter = undefined
+
+    const http = this.http
+    this.http = undefined
+    if (!http) {
+      this.server.emit(HttpTransportEvents.HTTP_SERVER_CLOSED)
+      return
+    }
+
+    http.closeAllConnections()
+    await new Promise<void>((resolve, reject) => {
+      http.close(error => {
+        if (
+          error &&
+          (error as NodeJS.ErrnoException).code !== 'ERR_SERVER_NOT_RUNNING'
+        ) {
+          reject(error)
+          return
+        }
+        http.unref()
+        resolve()
+      })
+    })
     this.server.emit(HttpTransportEvents.HTTP_SERVER_CLOSED)
   }
 }

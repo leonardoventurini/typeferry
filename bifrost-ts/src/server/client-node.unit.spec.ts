@@ -289,21 +289,13 @@ describe('ClientNode', () => {
       })
     })
 
-    it('detects native pressure support for Node and Bun sockets', () => {
+    it('detects native pressure support for Node sockets', () => {
       const nodeSocket = {
         ...createMockSocket(SocketState.OPEN),
         bufferedAmount: 12,
       }
-      const bunSocket = {
-        ...createMockSocket(SocketState.OPEN),
-        getBufferedAmount: () => 34,
-      }
-
       expect(
         new ClientNode(server, nodeSocket as any).supportsBufferedBytes
-      ).toBe(true)
-      expect(
-        new ClientNode(server, bunSocket as any).supportsBufferedBytes
       ).toBe(true)
       expect(
         new ClientNode(server, createMockSocket(SocketState.OPEN) as any)

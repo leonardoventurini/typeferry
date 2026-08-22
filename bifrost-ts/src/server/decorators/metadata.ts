@@ -5,9 +5,8 @@
  * keyed by class constructor (namespace) and class prototype (methods).
  *
  * Method decorators push updates to a pending queue instead of using
- * `addInitializer`, because Bun's decorator implementation leaks initializer
- * callbacks across classes defined in the same file. The @Namespace class
- * decorator flushes the queue after all method decorators have run.
+ * `addInitializer` so metadata ownership stays explicit across classes defined
+ * in the same file. The @Namespace decorator flushes the queue after methods.
  *
  * @module bifrost/server/decorators/metadata
  */
@@ -46,7 +45,7 @@ export const METHOD_META = new WeakMap<object, Map<string, MethodMeta>>()
  * Pending method metadata updates, flushed by @Namespace.
  *
  * Each entry is a function that receives the class constructor and applies
- * its metadata. This avoids relying on `addInitializer` which is buggy in Bun.
+ * its metadata. This avoids initializer ordering becoming shared state.
  */
 export const PENDING_METHOD_UPDATES: Array<(Class: object) => void> = []
 

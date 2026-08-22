@@ -16,7 +16,7 @@ import { RoomRegistry } from '../room-registry'
 import type { Server } from '../server'
 import type { BifrostSocket } from '../types'
 import { SocketState } from '../types'
-import type { HttpTransport } from './http-transport'
+import type { NodeHonoTransport } from './node-hono-transport'
 
 import {
   PING_INTERVAL_MS,
@@ -41,10 +41,7 @@ export interface WebSocketTransportOptions {
 }
 
 /**
- * WebSocket transport using the `ws` package (Node.js fallback).
- *
- * Used when running under vitest/Node where Bun.serve() is unavailable.
- * In production (Bun runtime), BunWebSocketTransport is used instead.
+ * Node.js WebSocket transport using the `ws` package.
  */
 export class WebSocketTransport {
   server: Server
@@ -58,7 +55,7 @@ export class WebSocketTransport {
 
   constructor(
     server: Server,
-    origins: string[],
+    origins: string[] | undefined,
     opts?: WebSocketTransportOptions,
   ) {
     this.server = server
@@ -74,7 +71,10 @@ export class WebSocketTransport {
   }
 
   private attachUpgradeHandler(): void {
-    const httpTransport = this.server.httpTransport as HttpTransport
+    const httpTransport = this.server.httpTransport as NodeHonoTransport
+    if (!httpTransport.http) {
+      throw new Error('HTTP transport must exist before WebSocket attachment')
+    }
     httpTransport.http.on(
       'upgrade',
       (req: http.IncomingMessage, socket: Duplex, head: Buffer) => {
@@ -202,7 +202,7 @@ export class WebSocketTransport {
   }
 
   close(): Promise<void> {
-    return new Promise<void>(resolve => {
+    return new Promise<void>((resolve, reject) => {
       for (const [ws, timer] of this.pingTimers) {
         clearInterval(timer)
         if (ws.readyState === SocketState.OPEN) ws.close()
@@ -210,7 +210,17 @@ export class WebSocketTransport {
       this.pingTimers.clear()
       this.pongReceived.clear()
 
-      this.wss.close(() => resolve())
+      this.wss.close(error => {
+        if (
+          error &&
+          (error as NodeJS.ErrnoException).code !== 'ERR_SERVER_NOT_RUNNING' &&
+          error.message !== 'The server is not running'
+        ) {
+          reject(error)
+          return
+        }
+        resolve()
+      })
     })
   }
 }

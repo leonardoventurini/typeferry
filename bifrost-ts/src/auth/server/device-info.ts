@@ -52,7 +52,7 @@ export function parseDeviceInfo(req: RequestLike): DeviceInfo {
 /**
  * Extract client IP address from request.
  * Checks x-forwarded-for header first (for proxied requests),
- * then falls back to socket address or express ip property.
+ * then falls back to the socket address or adapter-provided IP.
  */
 function getIpFromRequest(req: RequestLike): string | undefined {
   return req.headers?.['x-forwarded-for'] || req.socket?.remoteAddress || req.ip

@@ -21,7 +21,7 @@ You **never edit `version` fields by hand**. Versions move forward only through 
   ──────────────                ─────────                  ───────────────────
   $ git push       ──►  release-bump        ──►  chore(release): bump …
                           (parses commits,                │
-                           edits manifests,               ├──►  publish-ts.yml
+                           edits manifests,               ├──►  CI publish-ts job
                            commits as bot,                ├──►  publish-py.yml
                            pushes back to main)           └──►  publish-rs.yml
                                                                 (probe registry,
@@ -30,7 +30,9 @@ You **never edit `version` fields by hand**. Versions move forward only through 
                                                                  don't exist yet)
 ```
 
-Every step is in `.forgejo/workflows/`. The path-filter on each workflow + the `chore(release):` gate on the publish jobs keep the pipeline tight: a `feat(rs):` push fires `release-bump` once, the bot's commit fires the publish jobs, and only `publish-rs` does real work — `publish-ts` and `publish-py` start, see no version changes, and exit clean.
+Every step is in `.forgejo/workflows/`. Path filters plus the `chore(release):` gate keep the pipeline tight: a `feat(rs):` push fires `release-bump` once, and the bot's commit triggers only the publication paths whose package files changed.
+
+The Node.js cutover is the one direct release exception: `bifrost-ts/package.json` and its npm lockfile are prepared as `0.4.0` with npm and committed together as `chore(release): bifrost-ts 0.3.4 → 0.4.0`. That release subject activates publication while the release-bump loop guard prevents an unintended second version increment.
 
 ---
 
@@ -89,20 +91,20 @@ Runs `scripts/bump-versions.py --json`, and if any package needs a bump:
 3. Commits with subject `chore(release): bifrost-py 0.0.1 → 0.1.0, bifrost-rs 0.0.1 → 0.0.2` and a body listing every bump.
 4. Pushes back to main using `secrets.FORGEJO_TOKEN`.
 
-That bot push is what lights up the publish workflows.
+That bot push is what lights up the publication paths.
 
-### `.forgejo/workflows/publish-ts.yml` / `publish-py.yml` / `publish-rs.yml`
+### `.forgejo/workflows/ci.yml` / `publish-py.yml` / `publish-rs.yml`
 
-Each gates on `if: startsWith(forgejo.event.head_commit.message, 'chore(release):')` so they only fire on the bot's commits. Each is **independently idempotent**:
+Each only publishes a `chore(release):` commit and is **independently idempotent**. TypeScript publication is a job in CI that depends on the TypeScript CI job, so it publishes the exact push SHA that passed; the Python and Rust workflows retain their push-event release gates.
 
-- **TS**: `npm view @example-app/bifrost@<version> version --registry $REGISTRY` — skips if the version is already there, otherwise `bun publish`.
+- **TS**: waits for CI to pass on the exact release SHA, then `npm view @example-app/bifrost@<version> version --registry $REGISTRY` skips an existing immutable version; otherwise the workflow runs `npm ci`, audit, build, pack inspection, and `npm publish`.
 - **Python**: `curl …/pypi/simple/example-app-bifrost/` and grep for the version's filename — skips on hit, otherwise `python -m build` + `twine upload`.
 - **Rust**: walks the nine publishable crates in dependency order (`bifrost-protocol → bifrost-ejson → bifrost-runtime → http/ws/redis/auth/macros → bifrost`); for each, hits Forgejo's Cargo API and skips when the version is listed, otherwise `cargo publish -p <crate> --registry forgejo --no-verify`.
 
 Three properties this gives you:
 
 1. **No double-publish.** Re-running a publish workflow against the same versions is a guaranteed no-op.
-2. **Mixed bumps work.** A `chore(release):` that bumps only `bifrost-py` triggers all three publish workflows; only `publish-py` does real work.
+2. **Mixed bumps work.** A release commit triggers publication only for package paths it changed, while each registry probe keeps reruns safe.
 3. **Ordering is mechanical.** The Rust workflow knows the dep graph and publishes accordingly; the Forgejo Cargo registry sees crates in the order their dependents need them.
 
 ---
@@ -116,7 +118,7 @@ cat > .npmrc <<'EOF'
 
 EOF
 
-bun add @example-app/bifrost     # or: npm install @example-app/bifrost
+npm install @example-app/bifrost
 ```
 
 ### PyPI

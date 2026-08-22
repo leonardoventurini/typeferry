@@ -19,7 +19,6 @@ export default tseslint.config(
         ...globals.browser,
         ...globals.node,
         ...globals.es2022,
-        Bun: 'readonly',
       },
     },
     plugins: {

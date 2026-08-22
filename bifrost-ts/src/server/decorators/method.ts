@@ -2,8 +2,7 @@
  * @Method decorator — marks a class method as a Bifrost RPC endpoint.
  *
  * Queues a metadata update that @Namespace flushes after all method decorators
- * have run. Uses a pending queue instead of `addInitializer` to work around
- * a Bun bug where initializer callbacks leak across classes in the same file.
+ * have run. A pending queue keeps initializer ordering explicit across classes.
  *
  * @module bifrost/server/decorators/method
  */

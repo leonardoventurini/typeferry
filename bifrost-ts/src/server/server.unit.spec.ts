@@ -15,23 +15,21 @@ const mockHttpOn = vi.fn()
 
 vi.mock('./transports', () => {
   return {
-    HttpTransport: vi.fn().mockImplementation(function (this: any, server: any) {
+    NodeHonoTransport: vi.fn().mockImplementation(function (
+      this: any,
+      server: any
+    ) {
       this.server = server
-      this.express = { use: vi.fn(), get: vi.fn() }
-      this.app = this.express
+      this.app = { use: vi.fn(), get: vi.fn() }
       this.http = {
-        listen: mockHttpListen.mockImplementation(
-          (_port: any, _host: any, cb: any) => {
-            if (cb) setTimeout(cb, 0)
-          },
-        ),
         on: mockHttpOn,
         address: () => ({ port: 0, family: 'IPv4', address: '0.0.0.0' }),
       }
+      this.listen = mockHttpListen.mockImplementation((cb: any) => {
+        if (cb) setTimeout(cb, 0)
+      })
       this.close = mockHttpClose
       this.static = vi.fn()
-      // Emit HTTP_LISTENING asynchronously so the constructor doesn't hang
-      setTimeout(() => server.emit(ServerEvents.HTTP_LISTENING), 0)
     }),
     WebSocketTransport: vi.fn().mockImplementation(function (this: any) {
       this.rooms = {
@@ -179,11 +177,10 @@ describe('Server', () => {
   })
 
   describe('app getter', () => {
-    it('returns express from httpTransport', () => {
+    it('returns the Hono app from httpTransport', () => {
       const s = createServer()
       const app = s.app
 
-      // Our mock sets express on the transport
       expect(app).toBeDefined()
     })
   })
@@ -508,7 +505,7 @@ describe('Server', () => {
 
       // Create server with redis so it needs two events to become ready
       // but the redis transport never emits REDIS_CONNECT, and we override
-      // the HttpTransport mock to NOT emit HTTP_LISTENING
+      // the NodeHonoTransport mock to NOT emit HTTP_LISTENING
       const originalImpl = mockHttpListen.getMockImplementation()
       mockHttpListen.mockImplementation(() => {
         // Do NOT call the callback, so HTTP_LISTENING never fires
@@ -573,13 +570,4 @@ describe('Server', () => {
     })
   })
 
-  describe('express getter', () => {
-    it('returns the express property from httpTransport', () => {
-      const s = createServer()
-      const express = s.express
-
-      expect(express).toBeDefined()
-      expect(express.use).toBeDefined()
-    })
-  })
 })

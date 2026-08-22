@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { EJSON } from '../../ejson'
-import { HttpTransport, Server, WebSocketTransport } from '../../server'
+import { NodeHonoTransport, Server, WebSocketTransport } from '../../server'
 import { ServerEvents } from '../../utils'
 import { TestUtility } from '../test-utility'
 
@@ -24,7 +24,7 @@ describe('Server', () => {
 
     expect(server)
       .to.have.property('httpTransport')
-      .that.is.instanceof(HttpTransport)
+      .that.is.instanceof(NodeHonoTransport)
 
     expect(server)
       .to.have.property('webSocketTransport')

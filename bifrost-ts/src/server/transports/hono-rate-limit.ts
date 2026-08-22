@@ -10,21 +10,28 @@ interface RateLimitOptions {
   max: number
 }
 
+/** Hono middleware whose cleanup timer follows its owning transport lifecycle. */
+export type DisposableRateLimiter = MiddlewareHandler & {
+  close(): void
+}
+
 /**
  * Simple sliding-window IP rate limiter for Hono.
- * Replaces `express-rate-limit` for the Bun transport path.
+ * Applies per-client HTTP RPC limits within Hono.
  */
-export function rateLimiter(opts: RateLimitOptions): MiddlewareHandler {
+export function rateLimiter(opts: RateLimitOptions): DisposableRateLimiter {
   const store = new Map<string, RateLimitEntry>()
 
-  setInterval(() => {
+  const cleanupTimer = setInterval(() => {
     const now = Date.now()
     for (const [key, entry] of store) {
       if (entry.resetAt <= now) store.delete(key)
     }
   }, opts.windowMs)
+  // A limiter must never keep an otherwise-closed Node process alive.
+  cleanupTimer.unref()
 
-  return async (c, next) => {
+  const middleware: DisposableRateLimiter = async (c, next) => {
     const ip = c.req.header('x-forwarded-for') ?? '127.0.0.1'
     const now = Date.now()
 
@@ -42,4 +49,11 @@ export function rateLimiter(opts: RateLimitOptions): MiddlewareHandler {
 
     await next()
   }
+
+  middleware.close = (): void => {
+    clearInterval(cleanupTimer)
+    store.clear()
+  }
+
+  return middleware
 }

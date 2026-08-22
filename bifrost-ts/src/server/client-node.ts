@@ -16,10 +16,10 @@ export class ClientNode extends EventEmitter2 {
   context: ClientNodeContext = {}
   userId: any = null
   user: Record<string, any> = null
-  socket?: BifrostSocket
-  /** Framework-agnostic request — Express Request or Hono adapter. */
+  socket?: BifrostSocket | null
+  /** Framework-agnostic request exposed by the Hono adapter. */
   req?: BifrostRequest
-  /** Framework-agnostic response — Express Response or Hono adapter. */
+  /** Framework-agnostic response exposed by the Hono adapter. */
   res?: BifrostResponse
   isServer = false
   limiter: RateLimiter
@@ -30,7 +30,7 @@ export class ClientNode extends EventEmitter2 {
 
   constructor(
     server: Server,
-    socket?: BifrostSocket,
+    socket?: BifrostSocket | null,
     req?: BifrostRequest,
     res?: BifrostResponse,
     limit?: RateLimit
@@ -85,6 +85,7 @@ export class ClientNode extends EventEmitter2 {
    */
   setTrackingProperties(source: {
     headers?: Record<string, string | string[] | undefined>
+    ip?: string
     socket?: { remoteAddress?: string }
   }): void {
     this.headers = (source.headers ?? {}) as Record<string, string>
@@ -92,6 +93,7 @@ export class ClientNode extends EventEmitter2 {
     this.remoteAddress =
       (source.headers?.['x-forwarded-for'] as string) ??
       source.socket?.remoteAddress ??
+      source.ip ??
       ''
   }
 
@@ -158,19 +160,13 @@ export class ClientNode extends EventEmitter2 {
 
   /** Whether the transport exposes native queued-byte pressure. */
   get supportsBufferedBytes(): boolean {
-    return Boolean(
-      this.socket &&
-        (typeof this.socket.getBufferedAmount === 'function' ||
-          typeof this.socket.bufferedAmount === 'number')
-    )
+    return typeof this.socket?.bufferedAmount === 'number'
   }
 
   /** Returns native bytes queued by the WebSocket runtime without sending. */
   get bufferedBytes(): number {
     try {
-      return (
-        this.socket?.getBufferedAmount?.() ?? this.socket?.bufferedAmount ?? 0
-      )
+      return this.socket?.bufferedAmount ?? 0
     } catch {
       return 0
     }

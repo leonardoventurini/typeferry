@@ -2,8 +2,7 @@ name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
     paths:
       - 'bifrost-ts/**'
       - 'docs/conformance/**'
@@ -24,7 +23,7 @@ jobs:
   ci-ts:
     name: CI (bifrost-ts)
     runs-on: arm64
-    timeout-minutes: 30
+    timeout-minutes: 35
     defaults:
       run:
         working-directory: bifrost-ts
@@ -36,61 +35,38 @@ jobs:
     steps:
       - uses: https://data.forgejo.org/actions/checkout@v4
 
-      - name: Install Bun
+      - uses: https://data.forgejo.org/actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: npm
+          cache-dependency-path: bifrost-ts/package-lock.json
+
+      - name: Pin npm
+        run: npm install --global npm@11.17.0
+
+      - name: Verify toolchain
         shell: bash
-        timeout-minutes: 5
         run: |
           set -euo pipefail
-          profile_state() {
-            for profile in "$HOME/.zshrc" "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile" "$HOME/.zprofile"; do
-              if [ -f "$profile" ]; then
-                cksum "$profile"
-              else
-                printf 'missing %s\n' "$profile"
-              fi
-            done
-          }
+          test "$(node --version)" = "v24.19.0"
+          test "$(npm --version)" = "11.17.0"
 
-          profiles_before="$(profile_state)"
-          BUN_INSTALL_ROOT="${RUNNER_TOOL_CACHE:-${AGENT_TOOLSDIRECTORY:-${RUNNER_TEMP:-$PWD/.forgejo-tools}}}/bun"
-          BUN_INSTALL_HOME="$BUN_INSTALL_ROOT/home"
-          BUN_INSTALL_BIN="$BUN_INSTALL_ROOT/bin"
-          mkdir -p "$BUN_INSTALL_ROOT" "$BUN_INSTALL_HOME"
-
-          if [ ! -x "$BUN_INSTALL_BIN/bun" ]; then
-            curl -fsSL https://bun.sh/install \
-              | HOME="$BUN_INSTALL_HOME" BUN_INSTALL="$BUN_INSTALL_ROOT" bash
-          fi
-
-          profiles_after="$(profile_state)"
-          if [ "$profiles_before" != "$profiles_after" ]; then
-            echo "Bun installer modified a real shell profile; refusing to continue." >&2
-            exit 1
-          fi
-
-          echo "$BUN_INSTALL_BIN" >> "$FORGEJO_PATH"
-
-      - uses: https://data.forgejo.org/actions/cache@v4
-        with:
-          path: bifrost-ts/node_modules
-          key: deps-${{ runner.os }}-${{ hashFiles('bifrost-ts/bun.lock') }}
-          restore-keys: |
-            deps-${{ runner.os }}-
-
-      - run: bun install --frozen-lockfile
+      - run: npm ci
         timeout-minutes: 10
 
-      # TypeScript
+      - name: Security audit
+        run: npm audit --audit-level=low
+
+      - name: Lint
+        run: npm run lint
+
       - name: TypeScript
-        run: bun run typecheck
-        timeout-minutes: 5
+        run: npm run typecheck
 
-      # Unit tests
-      - name: Unit Tests
-        run: bun run test:unit
+      - name: Unit tests
+        run: npm run test:unit
         timeout-minutes: 10
 
-      # Integration tests (Redis and a MongoDB replica set required)
       - name: MongoDB replica set
         shell: bash
         run: |
@@ -119,29 +95,113 @@ jobs:
           exit 1
         timeout-minutes: 3
 
-      - name: Integration Tests
-        run: bun run test:integration
+      - name: Integration tests
+        run: npm run test:integration
         timeout-minutes: 10
 
-      # Browser tests
       - uses: https://data.forgejo.org/actions/cache@v4
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('bifrost-ts/bun.lock') }}
+          key: playwright-${{ runner.os }}-${{ hashFiles('bifrost-ts/package-lock.json') }}
           restore-keys: |
             playwright-${{ runner.os }}-
 
-      - run: bunx playwright install --with-deps
+      - run: npm exec -- playwright install --with-deps
         timeout-minutes: 10
         if: steps.playwright-cache.outputs.cache-hit != 'true'
 
-      - run: bunx playwright install-deps
+      - run: npm exec -- playwright install-deps
         timeout-minutes: 10
         if: steps.playwright-cache.outputs.cache-hit == 'true'
 
-      - name: Browser Tests
-        run: bun run test:browser
+      - name: Browser tests
+        run: npm run test:browser
         timeout-minutes: 10
         env:
           CI: true
+
+      - name: Build
+        run: npm run build
+
+      - name: Inspect package
+        run: npm pack --dry-run
+
+  publish-ts:
+    name: Publish (bifrost-ts)
+    needs: ci-ts
+    runs-on: arm64
+    if: >-
+      forgejo.event_name == 'push'
+      && forgejo.ref == 'refs/heads/main'
+      && startsWith(forgejo.event.head_commit.message, 'chore(release):')
+    defaults:
+      run:
+        working-directory: bifrost-ts
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
+      REGISTRY: https://forgejo.example-app.com/api/packages/leonardoventurini/npm/
+    steps:
+      # `needs: ci-ts` keeps publication on the same push SHA that passed CI;
+      # Forgejo 16 does not provide GitHub's `workflow_run` trigger.
+      - uses: https://data.forgejo.org/actions/checkout@v4
+
+      - uses: https://data.forgejo.org/actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: npm
+          cache-dependency-path: bifrost-ts/package-lock.json
+
+      - name: Pin npm
+        run: npm install --global npm@11.17.0
+
+      - name: Resolve release
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(node --version)" = "v24.19.0"
+          test "$(npm --version)" = "11.17.0"
+          version=$(node -p "require('./package.json').version")
+          package_name=$(node -p "require('./package.json').name")
+          echo "version=$version" >> "$FORGEJO_OUTPUT"
+          echo "name=$package_name" >> "$FORGEJO_OUTPUT"
+
+      - name: Skip if version already published
+        id: gate
+        shell: bash
+        run: |
+          set +e
+          out=$(npm view "${{ steps.release.outputs.name }}@${{ steps.release.outputs.version }}" version \
+            --registry "$REGISTRY" 2>&1)
+          status=$?
+          set -e
+          if [ "$status" -eq 0 ]; then
+            test "$out" = "${{ steps.release.outputs.version }}"
+            echo "already_published=true" >> "$FORGEJO_OUTPUT"
+            echo "${{ steps.release.outputs.name }}@${{ steps.release.outputs.version }} is already on Forgejo; skipping."
+          elif printf '%s' "$out" | grep -q 'E404'; then
+            echo "already_published=false" >> "$FORGEJO_OUTPUT"
+          else
+            printf '%s\n' "$out" >&2
+            exit "$status"
+          fi
+
+      - run: npm ci
+        if: steps.gate.outputs.already_published == 'false'
+
+      - name: Security audit
+        if: steps.gate.outputs.already_published == 'false'
+        run: npm audit --audit-level=low
+
+      - name: Build
+        if: steps.gate.outputs.already_published == 'false'
+        run: npm run build
+
+      - name: Inspect package
+        if: steps.gate.outputs.already_published == 'false'
+        run: npm pack --dry-run
+
+      - name: Publish
+        if: steps.gate.outputs.already_published == 'false'
+        run: npm publish --access public

@@ -1,6 +1,6 @@
 /**
  * Shared WebSocket transport logic used by both the ws-based and
- * Bun-native transports. Extracted to eliminate copy-paste duplication.
+ * Shared WebSocket protocol helpers, kept separate from listener lifecycle.
  */
 import {
   Errors,

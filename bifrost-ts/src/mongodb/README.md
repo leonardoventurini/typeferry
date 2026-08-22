@@ -126,7 +126,7 @@ MongoDB integration tests use the existing local instance by default:
 cd bifrost-ts
 BIFROST_MONGODB_TEST_URI=mongodb://127.0.0.1:27017 \
 BIFROST_MONGODB_TEST_DB=bifrost_mongodb_integration_test \
-bun run test:integration -- src/mongodb
+npm run test:integration -- src/mongodb
 ```
 
 The harness refuses to clean a database unless its name starts with
@@ -282,5 +282,5 @@ Run the live integration against a replica set:
 ```sh
 BIFROST_MONGODB_TEST_URI='mongodb://127.0.0.1:27017/?replicaSet=rs0' \
 BIFROST_MONGODB_TEST_DB=bifrost_mongodb_live_test \
-bun run test:integration -- src/mongodb/live
+npm run test:integration -- src/mongodb/live
 ```

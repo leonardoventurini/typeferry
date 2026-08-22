@@ -46,7 +46,7 @@ export class ClientHttp {
      *
      * When `httpPort` is explicitly present in options (even if undefined),
      * use the page's own origin so cookies stay same-origin. In dev this
-     * routes through Vite's proxy which forwards to the Express server.
+         * routes through Vite's proxy which forwards to the Bifrost server.
      */
     const hasHttpPort = 'httpPort' in this.client.options
     if (hasHttpPort && !this.client.options.httpPort) {

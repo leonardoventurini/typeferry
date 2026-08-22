@@ -1,15 +1,15 @@
 /**
  * Framework-agnostic request/response interfaces for Bifrost.
  *
- * Both Express `Request`/`Response` and Hono `Context`-based adapters
- * satisfy these contracts, allowing `ClientNode` and auth middleware
- * to work with either framework.
+ * Hono request adapters satisfy these contracts, keeping `ClientNode` and
+ * authentication logic independent from the HTTP adapter internals.
  */
 
 /** Minimal request interface for auth and tracking. */
 export interface BifrostRequest {
   headers: Record<string, string | string[] | undefined>
   ip?: string
+  path?: string
   get?: (name: string) => string | undefined
   socket?: { remoteAddress?: string }
 }

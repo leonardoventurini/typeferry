@@ -1,5 +1,4 @@
 import path from 'path'
-import request from 'supertest'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { range } from '../../utils/lodash'
@@ -112,33 +111,33 @@ describe('HTTP', async () => {
     })
   })
 
-  describe('express static', () => {
+  describe('Hono static', () => {
     beforeEach(() => {
       test.server.static(path.join(__dirname, './static'), true)
     })
 
     it('sends index.html', async () => {
-      const response = await request(test.server.express).get('/')
+      const response = await fetch(`http://${test.address}/`)
 
-      expect(response.header['content-type']).to.match(/html/)
+      expect(response.headers.get('content-type')).to.match(/html/)
       expect(response.status).to.equal(200)
-      expect(response.text).to.match(/Hello World/)
+      expect(await response.text()).to.match(/Hello World/)
     })
 
     it('sends fallback index.html', async () => {
-      const response = await request(test.server.express).get('/user/')
+      const response = await fetch(`http://${test.address}/user/`)
 
-      expect(response.header['content-type']).to.match(/html/)
+      expect(response.headers.get('content-type')).to.match(/html/)
       expect(response.status).to.equal(200)
-      expect(response.text).to.match(/Hello World/)
+      expect(await response.text()).to.match(/Hello World/)
     })
 
     it('sends alternate page', async () => {
-      const response = await request(test.server.express).get('/foo.html')
+      const response = await fetch(`http://${test.address}/foo.html`)
 
-      expect(response.header['content-type']).to.match(/html/)
+      expect(response.headers.get('content-type')).to.match(/html/)
       expect(response.status).to.equal(200)
-      expect(response.text).to.match(/Foo Fighting/)
+      expect(await response.text()).to.match(/Foo Fighting/)
     })
   })
 })

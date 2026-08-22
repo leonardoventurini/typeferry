@@ -3,7 +3,8 @@ name: Release bump
 # Watches push events on main, scans Conventional Commits since the
 # last `chore(release):` commit, and if any of bifrost-{ts,py,rs}
 # needs a version bump, opens a release commit on top of main. The
-# new commit then triggers the matching `Publish (...)` workflow.
+# new commit then triggers the matching publication path. TypeScript publishes
+# only after its CI job succeeds on that same push SHA.
 
 on:
   push:
@@ -44,6 +45,15 @@ jobs:
           # often don't trigger sibling workflows.)
           token: ${{ secrets.FORGEJO_TOKEN }}
 
+      - uses: https://data.forgejo.org/actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: npm
+          cache-dependency-path: bifrost-ts/package-lock.json
+
+      - name: Pin npm
+        run: npm install --global npm@11.17.0
+
       - name: Resolve system Python 3.13
         run: |
           if command -v python3.13 >/dev/null 2>&1; then
@@ -64,6 +74,15 @@ jobs:
           cat /tmp/bumps.json
           count=$($PYTHON -c "import json; print(len(json.load(open('/tmp/bumps.json'))['bumps']))")
           echo "count=$count" >> "$FORGEJO_OUTPUT"
+
+      - name: Synchronize TypeScript lockfile
+        if: steps.bump.outputs.count != '0'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if $PYTHON -c "import json; data=json.load(open('/tmp/bumps.json')); raise SystemExit(0 if any(b['package'] == 'bifrost-ts' for b in data['bumps']) else 1)"; then
+            npm install --prefix bifrost-ts --package-lock-only --ignore-scripts
+          fi
 
       - name: Commit + push release
         if: steps.bump.outputs.count != '0'
@@ -94,6 +113,12 @@ jobs:
               for f in b['changed_files']:
                   print(f)
           " | xargs git add
+
+          if git diff --quiet -- bifrost-ts/package-lock.json; then
+            :
+          else
+            git add bifrost-ts/package-lock.json
+          fi
 
           git commit -m "chore(release): $summary" -m "$body"
           git push origin HEAD:main
