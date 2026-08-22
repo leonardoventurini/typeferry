@@ -107,8 +107,8 @@ function triggerConnection(server: any, ws: any, req?: any) {
   const socket = { destroy: vi.fn(), write: vi.fn() }
   const head = Buffer.alloc(0)
 
-  mockWssHandleUpgrade.mockImplementationOnce((_r: any, _s: any, _h: any, cb: Function) =>
-    cb(ws),
+  mockWssHandleUpgrade.mockImplementationOnce(
+    (_r: any, _s: any, _h: any, cb: Function) => cb(ws),
   )
   upgradeHandler(actualReq, socket, head)
 }
@@ -140,10 +140,7 @@ describe('WebSocketTransport', () => {
       const error = new Error('wss error')
       errorHandler(error)
 
-      expect(server.emit).toHaveBeenCalledWith(
-        'websocket:server:error',
-        error,
-      )
+      expect(server.emit).toHaveBeenCalledWith('websocket:server:error', error)
     })
 
     it('attaches an upgrade handler on the HTTP server', () => {
@@ -185,16 +182,28 @@ describe('WebSocketTransport', () => {
   })
 
   describe('upgrade handler', () => {
-    it('ignores requests to non-matching paths', () => {
+    it('rejects requests to non-matching paths and closes the socket', () => {
       const server = createMockServer()
       new WebSocketTransport(server, [])
       const upgradeHandler = getUpgradeHandler(server)
 
-      const socket = { destroy: vi.fn(), write: vi.fn() }
-      upgradeHandler({ url: '/other-path', headers: {} }, socket, Buffer.alloc(0))
+      const socket = {
+        destroy: vi.fn(),
+        end: vi.fn((_response: string, callback: () => void) => callback()),
+        write: vi.fn(),
+      }
+      upgradeHandler(
+        { url: '/other-path', headers: {} },
+        socket,
+        Buffer.alloc(0),
+      )
 
       expect(mockWssHandleUpgrade).not.toHaveBeenCalled()
-      expect(socket.destroy).not.toHaveBeenCalled()
+      expect(socket.end).toHaveBeenCalledWith(
+        'HTTP/1.1 404 Not Found\r\nConnection: close\r\nContent-Length: 0\r\n\r\n',
+        expect.any(Function),
+      )
+      expect(socket.destroy).toHaveBeenCalled()
     })
 
     it('destroys socket when acceptConnections is false', () => {
@@ -202,8 +211,16 @@ describe('WebSocketTransport', () => {
       new WebSocketTransport(server, [])
       const upgradeHandler = getUpgradeHandler(server)
 
-      const socket = { destroy: vi.fn(), write: vi.fn() }
-      upgradeHandler({ url: '/bifrost-ws', headers: {} }, socket, Buffer.alloc(0))
+      const socket = {
+        destroy: vi.fn(),
+        end: vi.fn((_response: string, callback: () => void) => callback()),
+        write: vi.fn(),
+      }
+      upgradeHandler(
+        { url: '/bifrost-ws', headers: {} },
+        socket,
+        Buffer.alloc(0),
+      )
 
       expect(socket.destroy).toHaveBeenCalled()
       expect(mockWssHandleUpgrade).not.toHaveBeenCalled()
@@ -214,15 +231,20 @@ describe('WebSocketTransport', () => {
       new WebSocketTransport(server, ['http://allowed.com'])
       const upgradeHandler = getUpgradeHandler(server)
 
-      const socket = { destroy: vi.fn(), write: vi.fn() }
+      const socket = {
+        destroy: vi.fn(),
+        end: vi.fn((_response: string, callback: () => void) => callback()),
+        write: vi.fn(),
+      }
       upgradeHandler(
         { url: '/bifrost-ws', headers: { origin: 'http://evil.com' } },
         socket,
         Buffer.alloc(0),
       )
 
-      expect(socket.write).toHaveBeenCalledWith(
-        'HTTP/1.1 403 Forbidden\r\n\r\n',
+      expect(socket.end).toHaveBeenCalledWith(
+        'HTTP/1.1 403 Forbidden\r\nConnection: close\r\nContent-Length: 0\r\n\r\n',
+        expect.any(Function),
       )
       expect(socket.destroy).toHaveBeenCalled()
     })
@@ -277,7 +299,9 @@ describe('WebSocketTransport', () => {
 
       triggerConnection(server, ws)
 
-      const registeredEvents = ws.on.mock.calls.map(([event]: [string]) => event)
+      const registeredEvents = ws.on.mock.calls.map(
+        ([event]: [string]) => event,
+      )
       expect(registeredEvents).toContain('message')
       expect(registeredEvents).toContain('close')
       expect(registeredEvents).toContain('error')
@@ -531,20 +555,26 @@ describe('WebSocketTransport', () => {
       new WebSocketTransport(server, [], { path: '/custom-ws' })
       const upgradeHandler = getUpgradeHandler(server)
 
-      const socket = { destroy: vi.fn(), write: vi.fn() }
+      const rejectedSocket = {
+        destroy: vi.fn(),
+        end: vi.fn((_response: string, callback: () => void) => callback()),
+        write: vi.fn(),
+      }
       const head = Buffer.alloc(0)
 
       // /bifrost-ws should not match /custom-ws
       mockWssHandleUpgrade.mockImplementationOnce(() => {})
-      upgradeHandler({ url: '/bifrost-ws', headers: {} }, socket, head)
+      upgradeHandler({ url: '/bifrost-ws', headers: {} }, rejectedSocket, head)
       expect(mockWssHandleUpgrade).not.toHaveBeenCalled()
+      expect(rejectedSocket.end).toHaveBeenCalled()
 
       // /custom-ws should match
       const ws = createMockWs()
-      mockWssHandleUpgrade.mockImplementationOnce((_r: any, _s: any, _h: any, cb: Function) =>
-        cb(ws),
+      const acceptedSocket = { destroy: vi.fn(), write: vi.fn() }
+      mockWssHandleUpgrade.mockImplementationOnce(
+        (_r: any, _s: any, _h: any, cb: Function) => cb(ws),
       )
-      upgradeHandler({ url: '/custom-ws', headers: {} }, socket, head)
+      upgradeHandler({ url: '/custom-ws', headers: {} }, acceptedSocket, head)
       expect(mockWssHandleUpgrade).toHaveBeenCalled()
     })
   })

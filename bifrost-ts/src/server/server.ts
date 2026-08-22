@@ -66,6 +66,10 @@ export type ServerOptions = {
   debug?: boolean
   ws?: Record<string, unknown>
   redis?: RedisClientOptions | boolean
+  /**
+   * Observes Node request metadata and synchronous `data` events without owning
+   * transport backpressure. Pausing or reading the observer does not pause Hono.
+   */
   requestListener?: RequestListener
   globalInstance?: boolean
   allowedContextKeys?: string[]

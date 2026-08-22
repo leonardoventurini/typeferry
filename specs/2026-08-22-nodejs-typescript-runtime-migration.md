@@ -87,8 +87,10 @@ release.
 - Consumer source break is intentional but must be coordinated. Recovery before
   publication is revert; after immutable publication, consumers remain pinned
   to `0.3.4` until ready.
-- A failed publication is never retried at `0.4.0`; fix, bump to the next patch,
-  and repeat the package gauntlet.
+- A publication attempt that created `0.4.0` is never retried or overwritten;
+  fix and bump to the next patch instead. An authentication failure that leaves
+  the version absent may publish the same verified tarball only after registry
+  metadata proves no immutable version was created.
 
 ## Verification gauntlet
 
@@ -121,9 +123,15 @@ src/server` passes including Node Hono and WebSocket sensitivity cases.
       eligibility.
 - [x] Pass package and independent-review gauntlet — files: task-owned paths;
       verify: all gates above; done when tarball and declarations work cleanly.
-- [ ] Publish and verify `0.4.0` — files: version/lock and release evidence;
+- [x] Publish and verify `0.4.0` — files: version/lock and release evidence;
       verify: Forgejo metadata plus clean consumer install; done when ExampleApp can
       consume the immutable registry artifact.
+- [ ] Supersede `0.4.0` with verified transport hardening in `0.4.1` — files:
+      Node HTTP/WebSocket transports, adversarial regressions, version/lock and
+      release evidence; verify: raw half-open upgrade shutdown, large header-only
+      and paused body observers, full release gauntlet, CI, registry metadata,
+      and final ExampleApp consumer; done when `0.4.1` is the immutable consumer
+      artifact and `0.4.0` remains published but unused.
 
 ## Verification and rollout
 
@@ -138,13 +146,36 @@ with the Bifrost change.
   audit, lint, typecheck, 108 unit files with 1,431 assertions, non-Redis
   integration coverage, browser coverage, build, package inspection, and an
   extracted-tarball public-export/typecheck smoke.
-- Forgejo CI run 78 proved the exact release SHA and all 1,431 unit assertions,
-  but its host runner returned status 1 after the fully passing parallel Vitest
-  summary. The same suite passed locally both in parallel and with serial files;
-  CI now serializes files to eliminate that worker-shutdown race before a fresh
-  exact-SHA release run.
 - Integration CI now provisions and removes isolated MongoDB 7.0 replica-set
   and Redis 7.4 containers. This replaces both an unavailable host `mongod` and
   the shared Redis endpoint whose new authentication requirement made the
   otherwise-passing suite depend on external state. The seven focused database
   and transport integration files pass against these exact containers.
+- Forgejo run 82 passed install/audit, lint, typecheck, all 108 unit files with
+  1,431 tests, the isolated MongoDB/Redis integration suites, browser tests,
+  build, and package inspection for exact commit
+  `db0120756beb98c83b387f1fc3dfdc7ff94c318d`. The publish job alone returned
+  `E401` because its Actions `FORGEJO_TOKEN` was invalid or missing.
+- Registry metadata proved `0.4.0` was absent after that authentication failure.
+  The exact verified commit was then published manually with the configured
+  local release credential. Forgejo and npm metadata report package shasum
+  `26858c2ebacaa51b1c1b93582d5d373efa9c093b` and integrity
+  `sha512-ZfZEFLn+anVN4z9NnYwoVB8pD0/q+x7aOvh0MFy9mW7RFHUrhfrYUeRstwAMKlz9/BBBvVM8jVfcx1SfijF+aA==`.
+- ExampleApp completed an immutable `npm ci` against the published registry
+  tarball, resolved `@example-app/bifrost@0.4.0` without a link or patch, passed its
+  Node server integration and final arm64 HTTP/WebSocket container journey, and
+  reported zero npm audit vulnerabilities.
+- The final independent consumer review then found two defects not covered by
+  the `0.4.0` gauntlet: an unmatched raw Upgrade socket could remain half-open
+  and block listener shutdown, and an unread request-observer mirror could
+  backpressure large RPC bodies. Because `0.4.0` is immutable, it is not the
+  final consumer artifact. The `0.4.1` patch flushes a 404 then forcibly destroys
+  unmatched upgrade sockets, and delivers observer `data` events synchronously
+  without granting the observer backpressure or readable-buffer ownership.
+- Exact-Node adversarial regressions retain a raw `allowHalfOpen` client while
+  asserting bounded `Server.close()`, send 900 KiB RPC bodies through a
+  header-only observer, and pause a body observer on every chunk while proving
+  Hono completes and the observer's readable buffer remains empty. Focused 41
+  tests, full 108-file/1,434-test unit coverage, 11 passing isolated integration
+  files with 55 tests, 2 browser files with 9 tests, lint, typecheck, build,
+  pack, clean install, and zero-advisory audit pass locally for `0.4.1`.

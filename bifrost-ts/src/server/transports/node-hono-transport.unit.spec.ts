@@ -1,3 +1,7 @@
+import type { IncomingMessage, RequestListener } from 'node:http'
+import { createConnection, type Socket } from 'node:net'
+import { setTimeout as delay } from 'node:timers/promises'
+
 import WebSocket from 'ws'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -7,12 +11,17 @@ import { Server } from '../server'
 import { PublicError, ServerEvents } from '../../utils'
 
 const LOCAL_HOST = '127.0.0.1'
+const LARGE_REQUEST_PADDING_BYTES = 900 * 1024
+const SHUTDOWN_BOUND_MS = 1_000
 
 /** Creates a real Node listener and resolves only after its port is assigned. */
-async function createServer(options: {
-  maxRequestBodySize?: number
-  origins?: string[]
-} = {}): Promise<Server> {
+async function createServer(
+  options: {
+    maxRequestBodySize?: number
+    origins?: string[]
+    requestListener?: RequestListener
+  } = {},
+): Promise<Server> {
   const server = new Server({
     ...options,
     globalInstance: false,
@@ -21,6 +30,62 @@ async function createServer(options: {
   })
   await server.isReady()
   return server
+}
+
+/** Encodes an RPC request large enough to overflow a dormant stream buffer. */
+function largeRpcBody(method: string): string {
+  return EJSON.stringify({
+    context: {},
+    payload: {
+      method,
+      params: 'x'.repeat(LARGE_REQUEST_PADDING_BYTES),
+      uuid: 'large-transport-test',
+    },
+  })
+}
+
+interface RejectedUpgrade {
+  readonly response: string
+  readonly socket: Socket
+}
+
+/** Keeps its write side open after an unsupported raw HTTP upgrade. */
+function requestUnsupportedUpgrade(port: number): Promise<RejectedUpgrade> {
+  return new Promise<RejectedUpgrade>((resolve, reject) => {
+    let response = ''
+    let settled = false
+    const socket = createConnection({
+      allowHalfOpen: true,
+      host: LOCAL_HOST,
+      port,
+    })
+    const finish = (): void => {
+      if (settled) return
+      settled = true
+      resolve({ response, socket })
+    }
+
+    socket.setEncoding('utf8')
+    socket.once('connect', () => {
+      socket.write(
+        'GET /unsupported-websocket HTTP/1.1\r\n' +
+          `Host: ${LOCAL_HOST}:${port}\r\n` +
+          'Connection: Upgrade\r\n' +
+          'Upgrade: websocket\r\n' +
+          'Sec-WebSocket-Version: 13\r\n' +
+          'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n',
+      )
+    })
+    socket.on('data', (chunk: string) => {
+      response += chunk
+    })
+    socket.once('end', finish)
+    socket.once('close', finish)
+    socket.once('error', error => {
+      if (response.length > 0) finish()
+      else reject(error)
+    })
+  })
 }
 
 /** Encodes a raw Bifrost HTTP request for transport-level assertions. */
@@ -41,7 +106,7 @@ describe('NodeHonoTransport', () => {
     expect(server.httpTransport.http?.listenerCount('upgrade')).toBe(1)
 
     const socket = new WebSocket(
-      `ws://${LOCAL_HOST}:${server.port}/bifrost-ws?uuid=transport-socket`
+      `ws://${LOCAL_HOST}:${server.port}/bifrost-ws?uuid=transport-socket`,
     )
     await new Promise<void>((resolve, reject) => {
       socket.once('open', resolve)
@@ -50,6 +115,72 @@ describe('NodeHonoTransport', () => {
     expect(server.allClients.has('transport-socket')).toBe(true)
 
     socket.close()
+    await server.close()
+  })
+
+  it('rejects unsupported upgrades without delaying listener shutdown', async () => {
+    const server = await createServer()
+    const rejectedUpgrade = await requestUnsupportedUpgrade(server.port)
+
+    try {
+      expect(rejectedUpgrade.response).toContain('HTTP/1.1 404 Not Found')
+      const closeResult = await Promise.race([
+        server.close().then(() => 'closed'),
+        delay(SHUTDOWN_BOUND_MS).then(() => 'timed-out'),
+      ])
+
+      expect(closeResult).toBe('closed')
+    } finally {
+      rejectedUpgrade.socket.destroy()
+    }
+  })
+
+  it('does not backpressure large RPCs for a header-only observer', async () => {
+    let observedMethod: string | undefined
+    const server = await createServer({
+      maxRequestBodySize: 2 * 1024 * 1024,
+      requestListener(request) {
+        observedMethod = request.method
+      },
+    })
+    server.addMethod('transport:large-header-observer', () => true)
+
+    const response = await fetch(`http://${LOCAL_HOST}:${server.port}/__h`, {
+      body: largeRpcBody('transport:large-header-observer'),
+      method: 'POST',
+    })
+
+    expect(response.status).toBe(200)
+    expect(await response.text()).toContain('true')
+    expect(observedMethod).toBe('POST')
+    await server.close()
+  })
+
+  it('shares large RPC chunks without buffering a paused observer', async () => {
+    let observedBytes = 0
+    let observerRequest: IncomingMessage | undefined
+    const server = await createServer({
+      maxRequestBodySize: 2 * 1024 * 1024,
+      requestListener(request) {
+        observerRequest = request
+        request.on('data', (chunk: Buffer) => {
+          observedBytes += chunk.length
+          request.pause()
+        })
+      },
+    })
+    server.addMethod('transport:large-body-observer', () => true)
+    const body = largeRpcBody('transport:large-body-observer')
+
+    const response = await fetch(`http://${LOCAL_HOST}:${server.port}/__h`, {
+      body,
+      method: 'POST',
+    })
+
+    expect(response.status).toBe(200)
+    expect(await response.text()).toContain('true')
+    expect(observedBytes).toBe(Buffer.byteLength(body))
+    expect(observerRequest?.readableLength).toBe(0)
     await server.close()
   })
 
@@ -65,7 +196,7 @@ describe('NodeHonoTransport', () => {
     expect(response.headers.get('retry-after')).toBe('1')
 
     const socket = new WebSocket(
-      `ws://${LOCAL_HOST}:${server.port}/bifrost-ws?uuid=rejected-socket`
+      `ws://${LOCAL_HOST}:${server.port}/bifrost-ws?uuid=rejected-socket`,
     )
     await new Promise<void>(resolve => {
       socket.once('error', () => resolve())
@@ -85,7 +216,7 @@ describe('NodeHonoTransport', () => {
       headers: { origin: allowedOrigin },
     })
     expect(allowed.headers.get('access-control-allow-origin')).toBe(
-      allowedOrigin
+      allowedOrigin,
     )
     expect(allowed.headers.get('access-control-allow-credentials')).toBe('true')
 
@@ -153,14 +284,12 @@ describe('NodeHonoTransport', () => {
         return true
       },
     })
-    server.app.get(
-      '/authenticated',
-      server.httpTransport.authMiddleware,
-      c => c.text('ok')
+    server.app.get('/authenticated', server.httpTransport.authMiddleware, c =>
+      c.text('ok'),
     )
 
     const response = await fetch(
-      `http://${LOCAL_HOST}:${server.port}/authenticated`
+      `http://${LOCAL_HOST}:${server.port}/authenticated`,
     )
     expect(response.status).toBe(200)
     expect(response.headers.getSetCookie()).toEqual([

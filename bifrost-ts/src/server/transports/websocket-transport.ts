@@ -32,6 +32,11 @@ export enum WebSocketTransportEvents {
   WEBSOCKET_SERVER_ERROR = 'websocket:server:error',
 }
 
+const UPGRADE_NOT_FOUND_RESPONSE =
+  'HTTP/1.1 404 Not Found\r\nConnection: close\r\nContent-Length: 0\r\n\r\n'
+const UPGRADE_FORBIDDEN_RESPONSE =
+  'HTTP/1.1 403 Forbidden\r\nConnection: close\r\nContent-Length: 0\r\n\r\n'
+
 export interface WebSocketTransportOptions {
   path?: string
   cors?: {
@@ -80,7 +85,10 @@ export class WebSocketTransport {
       (req: http.IncomingMessage, socket: Duplex, head: Buffer) => {
         const url = new URL(req.url ?? '', 'http://localhost')
 
-        if (url.pathname !== this.path) return
+        if (url.pathname !== this.path) {
+          this.rejectUpgrade(socket, UPGRADE_NOT_FOUND_RESPONSE)
+          return
+        }
 
         if (!this.server.acceptConnections) {
           socket.destroy()
@@ -88,8 +96,7 @@ export class WebSocketTransport {
         }
 
         if (!this.validateOrigin(req)) {
-          socket.write('HTTP/1.1 403 Forbidden\r\n\r\n')
-          socket.destroy()
+          this.rejectUpgrade(socket, UPGRADE_FORBIDDEN_RESPONSE)
           return
         }
 
@@ -98,6 +105,11 @@ export class WebSocketTransport {
         })
       },
     )
+  }
+
+  /** Flushes the HTTP rejection and then closes both halves of the raw socket. */
+  private rejectUpgrade(socket: Duplex, response: string): void {
+    socket.end(response, () => socket.destroy())
   }
 
   private validateOrigin(req: http.IncomingMessage): boolean {

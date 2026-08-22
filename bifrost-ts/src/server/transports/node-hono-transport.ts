@@ -9,6 +9,7 @@ import {
   createServer,
   type IncomingMessage,
   type Server as NodeHttpServer,
+  type ServerResponse,
 } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { PassThrough } from 'node:stream'
@@ -28,10 +29,7 @@ import { ClientNode } from '../client-node'
 import { redactMethodTelemetry, type Method } from '../method'
 import type { BifrostRequest, BifrostResponse } from '../request-types'
 import type { RateLimit, Server } from '../server'
-import {
-  rateLimiter,
-  type DisposableRateLimiter,
-} from './hono-rate-limit'
+import { rateLimiter, type DisposableRateLimiter } from './hono-rate-limit'
 import {
   HttpTransportEvents,
   SERVER_NOT_READY_RESPONSE,
@@ -53,14 +51,14 @@ export class NodeHonoTransport {
     server: Server,
     origins: string[] | undefined,
     limit: RateLimit,
-    maxRequestBodySize: number
+    maxRequestBodySize: number,
   ) {
     this.server = server
     this.app = new Hono()
 
     this.setupMiddleware(origins, limit, maxRequestBodySize)
     const honoListener = getRequestListener((request, env) =>
-      this.handleFetch(request, env as HttpBindings)
+      this.handleFetch(request, env as HttpBindings),
     )
     this.http = createServer((request, response) => {
       if (!this.server.requestListener) {
@@ -68,26 +66,51 @@ export class NodeHonoTransport {
         return
       }
 
-      const honoRequest = this.createRequestMirror(request)
-      const observerRequest = this.createRequestMirror(request)
-      this.server.requestListener(observerRequest, response)
-      void honoListener(honoRequest, response)
-      request.pipe(honoRequest)
-      request.pipe(observerRequest)
-      request.on('error', error => {
-        honoRequest.destroy(error)
-        observerRequest.destroy(error)
-      })
+      this.dispatchObservedRequest(request, response, honoListener)
     })
   }
 
   /**
-   * Mirrors the incoming stream for observers so consuming its body cannot
-   * race Hono's Fetch adapter. The shared response retains the historical
-   * ability for listeners to attach headers or diagnostics.
+   * Tees a request without allowing an optional observer to control Hono's
+   * backpressure. Header-only observers receive metadata and completion without
+   * buffering the body; body observers receive the same chunks synchronously.
    */
+  private dispatchObservedRequest(
+    request: IncomingMessage,
+    response: ServerResponse,
+    honoListener: ReturnType<typeof getRequestListener>,
+  ): void {
+    const honoRequest = this.createRequestMirror(request)
+    const observerRequest = this.createRequestMirror(request)
+    void honoListener(honoRequest, response)
+    this.server.requestListener(observerRequest, response)
+
+    request.on('data', (chunk: Buffer) => {
+      if (!honoRequest.write(chunk)) request.pause()
+      if (
+        observerRequest.listenerCount('data') > 0 &&
+        !observerRequest.destroyed
+      ) {
+        // Emit observational chunks synchronously without writing them into the
+        // mirror's internal buffer. Pausing an observer therefore cannot retain
+        // or backpressure the authoritative Hono body stream.
+        observerRequest.emit('data', chunk)
+      }
+    })
+    honoRequest.on('drain', () => request.resume())
+    request.once('end', () => {
+      honoRequest.end()
+      observerRequest.end()
+    })
+    request.once('error', error => {
+      honoRequest.destroy(error)
+      observerRequest.destroy(error)
+    })
+  }
+
+  /** Creates an IncomingMessage-compatible stream with immutable request metadata. */
   private createRequestMirror(
-    request: IncomingMessage
+    request: IncomingMessage,
   ): PassThrough & IncomingMessage {
     const mirror = new PassThrough() as PassThrough & IncomingMessage
     Object.assign(mirror, {
@@ -109,14 +132,14 @@ export class NodeHonoTransport {
   private setupMiddleware(
     origins: string[] | undefined,
     limit: RateLimit,
-    maxRequestBodySize: number
+    maxRequestBodySize: number,
   ): void {
     this.app.use(
       '*',
       bodyLimit({
         maxSize: maxRequestBodySize,
         onError: c => c.text('Request Entity Too Large', 413),
-      })
+      }),
     )
 
     if (origins?.length) {
@@ -126,7 +149,7 @@ export class NodeHonoTransport {
           origin: (origin: string) =>
             origins.includes(origin) ? origin : null,
           credentials: true,
-        })
+        }),
       )
     }
 
@@ -139,7 +162,7 @@ export class NodeHonoTransport {
       this.app.use('/__h', this.httpRateLimiter)
     }
 
-    this.app.post('/__h', (c) => this.handleRpc(c))
+    this.app.post('/__h', c => this.handleRpc(c))
   }
 
   // ---------------------------------------------------------------------------
@@ -148,15 +171,13 @@ export class NodeHonoTransport {
 
   private handleFetch(
     req: Request,
-    env: HttpBindings
+    env: HttpBindings,
   ): Promise<Response> | Response {
     if (!this.server.acceptConnections) {
       return new Response(SERVER_NOT_READY_RESPONSE.body, {
         status: SERVER_NOT_READY_RESPONSE.status,
         headers: {
-          'Retry-After': String(
-            SERVER_NOT_READY_RESPONSE.retryAfterSeconds,
-          ),
+          'Retry-After': String(SERVER_NOT_READY_RESPONSE.retryAfterSeconds),
         },
       })
     }
@@ -186,7 +207,7 @@ export class NodeHonoTransport {
         Presentation.encode({
           type: PayloadType.ERROR,
           message: Errors.INVALID_REQUEST,
-        })
+        }),
       )
     }
 
@@ -198,7 +219,7 @@ export class NodeHonoTransport {
 
   private async dispatchRpc(
     c: Context,
-    transport: { payload: Record<string, unknown>; context: unknown }
+    transport: { payload: Record<string, unknown>; context: unknown },
   ): Promise<Response> {
     const { payload } = transport
 
@@ -282,13 +303,13 @@ export class NodeHonoTransport {
 
   private async buildClientNode(
     c: Context,
-    context: unknown
+    context: unknown,
   ): Promise<ClientNode> {
     const node = this.buildClientNodeFromContext(c)
     node.uuid = c.req.header(CLIENT_ID_HEADER_KEY) ?? ''
     const serverContext = await this.getServerContext(
       node,
-      (context ?? {}) as Record<string, unknown>
+      (context ?? {}) as Record<string, unknown>,
     )
     node.authenticated = Boolean(serverContext)
     node.setContext(serverContext)
@@ -297,11 +318,10 @@ export class NodeHonoTransport {
 
   private async getServerContext(
     clientNode: ClientNode,
-    context: Record<string, unknown> = {}
+    context: Record<string, unknown> = {},
   ): Promise<unknown> {
     const token = clientNode.req?.headers?.[TOKEN_HEADER_KEY] as
-      | string
-      | undefined
+      string | undefined
 
     if (typeof token === 'string' && token.length && token !== 'undefined') {
       context.token = token.replace('Bearer ', '')
@@ -331,7 +351,7 @@ export class NodeHonoTransport {
   private rpcError(
     c: Context,
     message: string,
-    extra?: Record<string, unknown>
+    extra?: Record<string, unknown>,
   ): Response {
     const payload: Record<string, unknown> = {
       type: PayloadType.ERROR,
@@ -344,7 +364,7 @@ export class NodeHonoTransport {
   private rpcSuccess(
     c: Context,
     result: unknown,
-    payload: Record<string, unknown>
+    payload: Record<string, unknown>,
   ): Response {
     return c.text(
       Presentation.encode({
@@ -352,7 +372,7 @@ export class NodeHonoTransport {
         uuid: payload.uuid,
         method: payload.method,
         result,
-      })
+      }),
     )
   }
 
@@ -361,7 +381,7 @@ export class NodeHonoTransport {
     error: unknown,
     payload: Record<string, unknown>,
     clientNode: ClientNode,
-    method: Method<any, any>
+    method: Method<any, any>,
   ): Response {
     if (error instanceof PublicError) {
       if (payload.void) return c.text('', 200)
@@ -369,13 +389,13 @@ export class NodeHonoTransport {
       return this.rpcError(
         c,
         error.message,
-        payload.uuid ? { uuid: payload.uuid } : undefined
+        payload.uuid ? { uuid: payload.uuid } : undefined,
       )
     }
 
     if (method.isSensitive) {
       console.error(
-        `[Bifrost] Sensitive method "${String(payload.method)}" failed`
+        `[Bifrost] Sensitive method "${String(payload.method)}" failed`,
       )
     } else {
       console.error(error)
@@ -406,7 +426,7 @@ export class NodeHonoTransport {
     return this.rpcError(
       c,
       Errors.INTERNAL_ERROR,
-      payload.uuid ? { uuid: payload.uuid } : undefined
+      payload.uuid ? { uuid: payload.uuid } : undefined,
     )
   }
 
