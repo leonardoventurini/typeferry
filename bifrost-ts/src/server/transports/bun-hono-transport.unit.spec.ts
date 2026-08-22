@@ -109,6 +109,7 @@ function createMockServer(overrides: Record<string, unknown> = {}) {
     emit: vi.fn(),
     auth: vi.fn(),
     isAuthEnabled: false,
+    acceptConnections: true,
     getMethod: vi.fn(),
     methods: new Map(),
     ...overrides,
@@ -304,6 +305,22 @@ describe('BunHonoTransport', () => {
       serveCall.fetch(new Request('http://localhost:3000/__h'), mockBunServer)
 
       expect(mockHonoApp.fetch).toHaveBeenCalled()
+    })
+
+    it('returns retryable 503 before application connections are accepted', async () => {
+      server.acceptConnections = false
+      wsTransport.handleUpgrade.mockReturnValue(false)
+
+      const serveCall = (Bun.serve as any).mock.calls[0][0]
+      const response = serveCall.fetch(
+        new Request('http://localhost:3000/__h'),
+        mockBunServer,
+      ) as Response
+
+      expect(response.status).toBe(503)
+      expect(response.headers.get('retry-after')).toBe('1')
+      expect(await response.text()).toBe('Server Not Ready')
+      expect(mockHonoApp.fetch).not.toHaveBeenCalled()
     })
 
     it('passes requestIP to Hono env', () => {

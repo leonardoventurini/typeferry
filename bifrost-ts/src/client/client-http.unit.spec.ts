@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Client } from './client'
-import { ClientHttp } from './client-http'
+import { ClientHttp, ClientHttpResponseError } from './client-http'
 
 // Mock global fetch
 global.fetch = vi.fn() as unknown as typeof fetch
@@ -75,6 +75,8 @@ describe('ClientHttp error handling', () => {
     expect(resolve).not.toHaveBeenCalled()
 
     const error = reject.mock.calls[0][0] as Error
+    expect(error).toBeInstanceOf(ClientHttpResponseError)
+    expect(error).toMatchObject({ status: 500 })
     expect(error.message).toContain('500')
     expect(error.message).toContain('Internal Server Error')
   })

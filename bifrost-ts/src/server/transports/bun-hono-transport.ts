@@ -22,7 +22,10 @@ import type { RateLimit, Server } from '../server'
 import type { ConnectionData } from '../types'
 import type { BunWebSocketTransport } from './bun-ws-transport'
 import { rateLimiter } from './hono-rate-limit'
-import { HttpTransportEvents } from './http-transport'
+import {
+  HttpTransportEvents,
+  SERVER_NOT_READY_RESPONSE,
+} from './http-transport'
 
 /**
  * Bun-native HTTP transport using Hono instead of Express.
@@ -103,6 +106,17 @@ export class BunHonoTransport {
   ): Promise<Response> | Response | undefined {
     if (this.wsTransport.handleUpgrade(req, bunSrv)) {
       return undefined
+    }
+
+    if (!this.server.acceptConnections) {
+      return new Response(SERVER_NOT_READY_RESPONSE.body, {
+        status: SERVER_NOT_READY_RESPONSE.status,
+        headers: {
+          'Retry-After': String(
+            SERVER_NOT_READY_RESPONSE.retryAfterSeconds,
+          ),
+        },
+      })
     }
 
     return this.app.fetch(req, { ip: bunSrv.requestIP(req)?.address })

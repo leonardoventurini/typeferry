@@ -74,7 +74,13 @@ export class ClientSocket extends EventEmitter2 {
     }
   }
 
+  /**
+   * Opens a socket immediately and supersedes any scheduled backoff attempt.
+   */
   connect(): void {
+    // An explicit connection supersedes exponential backoff for the old socket.
+    this.clearReconnectTimer()
+
     if (this.ready) {
       this.client.logger.connection(LogLevel.WARN, 'Already connected')
       return

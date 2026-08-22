@@ -107,6 +107,7 @@ function createMockServer(overrides: Record<string, any> = {}) {
     getMethod: vi.fn(),
     rateLimit: false,
     isAuthEnabled: false,
+    acceptConnections: true,
     ...overrides,
   } as any
 }
@@ -387,6 +388,24 @@ describe('HttpTransport', () => {
   })
 
   describe('requestHandler', () => {
+    it('returns retryable 503 before application connections are accepted', async () => {
+      const server = createMockServer({ acceptConnections: false })
+      const transport = new HttpTransport(server, [], false)
+      const req = { body: '' } as any
+      const res = {
+        send: vi.fn().mockReturnThis(),
+        set: vi.fn().mockReturnThis(),
+        status: vi.fn().mockReturnThis(),
+      } as any
+
+      await transport.requestHandler(req, res)
+
+      expect(res.status).toHaveBeenCalledWith(503)
+      expect(res.set).toHaveBeenCalledWith('Retry-After', '1')
+      expect(res.send).toHaveBeenCalledWith('Server Not Ready')
+      expect(server.getMethod).not.toHaveBeenCalled()
+    })
+
     it('returns error for requests without payload', async () => {
       const server = createMockServer()
       const transport = new HttpTransport(server, [], false)

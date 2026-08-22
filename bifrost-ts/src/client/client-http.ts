@@ -12,6 +12,25 @@ import { LogLevel } from './logger'
 type Resolve<T = unknown> = (value: T) => void
 type Reject = (reason?: unknown) => void
 
+/**
+ * Preserves an unsuccessful HTTP response status across the RPC boundary.
+ */
+export class ClientHttpResponseError extends Error {
+  readonly status: number
+
+  /**
+   * Creates a transport error without discarding the response status.
+   */
+  constructor(status: number, statusText: string, responseBody: string) {
+    super(`${status} ${statusText}: ${JSON.stringify(responseBody)}`)
+    this.name = 'ClientHttpResponseError'
+    this.status = status
+  }
+}
+
+/**
+ * Owns cookie-bearing HTTP RPC requests for one Bifrost client.
+ */
 export class ClientHttp {
   client: Client
   protocol: string
@@ -80,8 +99,10 @@ export class ClientHttp {
 
       if (data.status !== 200) {
         const errorText = await data.text()
-        const error = new Error(
-          `${data.status} ${data.statusText}: ${JSON.stringify(errorText)}`,
+        const error = new ClientHttpResponseError(
+          data.status,
+          data.statusText,
+          errorText,
         )
 
         this.client.logger.method(

@@ -30,6 +30,15 @@ export enum HttpTransportEvents {
   HTTP_SERVER_CLOSED = 'http:server:closed',
 }
 
+/**
+ * Retryable response shared by HTTP transports while application traffic is gated.
+ */
+export const SERVER_NOT_READY_RESPONSE = {
+  body: 'Server Not Ready',
+  retryAfterSeconds: 1,
+  status: 503,
+} as const
+
 export type RequestTransport = {
   context: any
   payload?: Record<string, any>
@@ -218,6 +227,16 @@ export class HttpTransport {
     let clientNode: ClientNode | undefined
 
     try {
+      if (!this.server.acceptConnections) {
+        return res
+          .status(SERVER_NOT_READY_RESPONSE.status)
+          .set(
+            'Retry-After',
+            String(SERVER_NOT_READY_RESPONSE.retryAfterSeconds),
+          )
+          .send(SERVER_NOT_READY_RESPONSE.body)
+      }
+
       const transport = this.parseTransport(req.body)
       if (!transport.payload) return this.sendError(res, Errors.INVALID_REQUEST)
 

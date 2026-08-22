@@ -12,6 +12,7 @@ vi.mock('./use-client', () => ({
 
 let capturedThrottledCallback: (...args: any[]) => void
 let capturedThrottledEvents: string[]
+let onThrottledSubscription: (() => void) | undefined
 
 vi.mock('./use-throttled-events', () => ({
   useThrottledEvents: (
@@ -21,6 +22,7 @@ vi.mock('./use-throttled-events', () => ({
   ) => {
     capturedThrottledEvents = events
     capturedThrottledCallback = callback
+    onThrottledSubscription?.()
   },
 }))
 
@@ -60,6 +62,7 @@ describe('useAuth', () => {
     vi.clearAllMocks()
     capturedThrottledCallback = undefined as any
     capturedThrottledEvents = undefined as any
+    onThrottledSubscription = undefined
   })
 
   it('returns initial authenticated and context from client', () => {
@@ -122,6 +125,23 @@ describe('useAuth', () => {
 
     expect(result.current.authenticated).toBe(true)
     expect(result.current.context).toEqual({ userId: '456', token: 'abc' })
+  })
+
+  it('reconciles authentication changed while the subscription installs', () => {
+    const client = createMockClient({ authenticated: false, context: {} })
+    mockClientRef.current = client
+    onThrottledSubscription = () => {
+      client.authenticated = true
+      client.context = { userId: '456', token: 'fresh-token' }
+    }
+
+    const { result } = renderHook(() => useAuth())
+
+    expect(result.current.authenticated).toBe(true)
+    expect(result.current.context).toEqual({
+      userId: '456',
+      token: 'fresh-token',
+    })
   })
 
   it('always returns the client reference', () => {

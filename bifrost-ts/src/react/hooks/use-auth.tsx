@@ -1,10 +1,13 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 import { ClientEvents } from '../../utils'
 import { useClient } from './use-client'
 import { useObject } from './use-object'
 import { useThrottledEvents } from './use-throttled-events'
 
+/**
+ * Returns React state synchronized with the active Bifrost authentication state.
+ */
 export function useAuth() {
   const client = useClient()
   const [authenticated, setAuthenticated] = useState(() => client.authenticated)
@@ -13,7 +16,7 @@ export function useAuth() {
   const updateState = useCallback(() => {
     setAuthenticated(client.authenticated)
     setContext(client.context)
-  }, [])
+  }, [client])
 
   useThrottledEvents(
     client,
@@ -26,6 +29,14 @@ export function useAuth() {
     [updateState],
     16,
   )
+
+  /**
+   * Reconcile after the passive subscription is installed so an auth event
+   * delivered between render and effect cannot be lost.
+   */
+  useEffect(() => {
+    updateState()
+  }, [updateState])
 
   return useObject({
     client,

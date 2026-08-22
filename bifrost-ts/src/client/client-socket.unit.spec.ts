@@ -33,6 +33,7 @@ function createMockClient() {
 class MockWebSocket {
   static OPEN = 1
   static CLOSED = 3
+  static created = 0
 
   readyState = MockWebSocket.OPEN
   onopen: (() => void) | null = null
@@ -40,6 +41,10 @@ class MockWebSocket {
   onclose: (() => void) | null = null
   onerror: (() => void) | null = null
   sent: string[] = []
+
+  constructor() {
+    MockWebSocket.created += 1
+  }
 
   send(data: string) {
     this.sent.push(data)
@@ -68,6 +73,7 @@ describe('ClientSocket', () => {
 
     mockClient = createMockClient()
     socket = new ClientSocket(mockClient as any)
+    MockWebSocket.created = 0
   })
 
   afterEach(() => {
@@ -155,6 +161,18 @@ describe('ClientSocket', () => {
   // -------------------------------------------------------------------------
   // Lines 359-363: scheduleReconnect — exhausted attempts
   // -------------------------------------------------------------------------
+
+  it('cancels scheduled backoff before an explicit connection', () => {
+    const reconnectable = socket as unknown as {
+      scheduleReconnect: () => void
+    }
+
+    reconnectable.scheduleReconnect()
+    socket.connect()
+    vi.advanceTimersByTime(20_000)
+
+    expect(MockWebSocket.created).toBe(1)
+  })
 
   describe('scheduleReconnect (exhausted attempts)', () => {
     it('calls visibilityManager.reconnect after exhausting all attempts', () => {

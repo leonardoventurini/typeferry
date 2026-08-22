@@ -63,9 +63,10 @@ export function setRefreshTokenCookie(
  */
 export function clearRefreshTokenCookie(
   res: ResponseLike,
-  options: Pick<CookieOptions, 'name' | 'secure' | 'path'>,
+  options: Pick<CookieOptions, 'name' | 'secure' | 'sameSite' | 'path'>,
 ): void {
   const secure = options.secure ?? process.env.NODE_ENV === 'production'
+  const sameSite = options.sameSite ?? 'Lax'
   const path = options.path ?? '/'
 
   const parts = [
@@ -73,7 +74,7 @@ export function clearRefreshTokenCookie(
     'HttpOnly',
     `Path=${path}`,
     'Max-Age=0',
-    'SameSite=Lax',
+    `SameSite=${sameSite}`,
   ]
 
   if (secure) {

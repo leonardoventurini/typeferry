@@ -161,6 +161,17 @@ describe('clearRefreshTokenCookie', () => {
     expect(headerValue).toContain('SameSite=Lax')
   })
 
+  it('respects a custom SameSite policy when clearing', () => {
+    const res = makeResponse()
+    clearRefreshTokenCookie(res, {
+      name: 'refresh_token',
+      sameSite: 'Strict',
+    })
+
+    const headerValue = res.setHeader.mock.calls[0][1]
+    expect(headerValue).toContain('SameSite=Strict')
+  })
+
   it('adds Secure flag in production', () => {
     process.env.NODE_ENV = 'production'
     const res = makeResponse()
