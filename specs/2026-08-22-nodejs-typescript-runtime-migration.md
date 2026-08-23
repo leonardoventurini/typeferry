@@ -126,7 +126,7 @@ src/server` passes including Node Hono and WebSocket sensitivity cases.
 - [x] Publish and verify `0.4.0` — files: version/lock and release evidence;
       verify: Forgejo metadata plus clean consumer install; done when ExampleApp can
       consume the immutable registry artifact.
-- [ ] Supersede `0.4.0` with verified transport hardening in `0.4.1` — files:
+- [x] Supersede `0.4.0` with verified transport hardening in `0.4.1` — files:
       Node HTTP/WebSocket transports, adversarial regressions, version/lock and
       release evidence; verify: raw half-open upgrade shutdown, large header-only
       and paused body observers, full release gauntlet, CI, registry metadata,
@@ -135,10 +135,10 @@ src/server` passes including Node Hono and WebSocket sensitivity cases.
 
 ## Verification and rollout
 
-No database or protocol migration is involved. Keep `0.3.4` available and do
-not update ExampleApp until the published `0.4.0` tarball passes the clean-consumer
-smoke. Record exact commands/results here while executing and commit this spec
-with the Bifrost change.
+No database or protocol migration is involved. Keep `0.3.4` and `0.4.0`
+available, with ExampleApp pinned to the published `0.4.1` tarball that passed the
+clean-consumer smoke. Record exact commands/results here while executing and
+commit this spec with the Bifrost change.
 
 ### Recorded evidence
 
@@ -179,3 +179,13 @@ with the Bifrost change.
   tests, full 108-file/1,434-test unit coverage, 11 passing isolated integration
   files with 55 tests, 2 browser files with 9 tests, lint, typecheck, build,
   pack, clean install, and zero-advisory audit pass locally for `0.4.1`.
+- Forgejo run 83 passed the exact commit
+  `8d1ba64841dd570b53b40363b02cf13d9d46b438` in 5m56s. Its publication job was
+  skipped by workflow conditions, so registry metadata was checked first and
+  proved `0.4.1` absent; the same verified source was then published manually.
+  Forgejo npm metadata reports shasum
+  `ab88cf2cb54f7b9b14b30b19fcb4a56e7f691584` and integrity
+  `sha512-iqhHyLdmoX9h6Hi+RgXQnguuJb58OEpaSdv8jWFuoaNaZKzI2k3GhG03zagQFI/Gmmga349qxlC9sL4RBE54aw==`.
+- ExampleApp's clean npm install resolved the immutable `0.4.1` registry tarball,
+  passed its affected Node integration and browser contracts, and completed the
+  final arm64 HTTP/RPC/domain/WebSocket/shutdown journey without a link or patch.
