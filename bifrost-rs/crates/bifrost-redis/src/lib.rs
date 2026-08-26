@@ -4,7 +4,7 @@ use bifrost_protocol::{NO_CHANNEL, REDIS_EVENTS_CHANNEL};
 use bifrost_runtime::Server;
 use futures::StreamExt;
 use redis::AsyncCommands;
-use serde_json::{Value, json};
+use serde_json::Value;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
