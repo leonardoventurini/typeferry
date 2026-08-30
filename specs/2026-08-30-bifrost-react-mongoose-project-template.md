@@ -1,17 +1,20 @@
-# Bifrost React and Mongoose project template
+# Bifrost React and MongoDB project template
 
 ## Problem and scope
 
 Create a runnable, single-package application template at `template/` in the
 Bifrost repository. It should preserve the useful architecture of ExampleApp
 without copying product-specific complexity: a development orchestrator, Vite
-and React client, Node/Bifrost server, Mongoose persistence, authentication
+and React client, Node/Bifrost server, MongoDB persistence, authentication
 baseline, environment validation, structured logging, database migrations, and
 a typed real-time sample feature.
 
 The template must include ExampleApp-compatible TypeScript, ESLint, Prettier, and
 split Vitest configuration. It is an example consumer of the published
-`@example-app/bifrost` package, not another Bifrost implementation package.
+`@example-app/bifrost` package, not another Bifrost implementation package. The
+initial Mongoose requirement was superseded during implementation in favor of
+the official MongoDB driver so change streams remain a native default and the
+template avoids a second data abstraction.
 
 ## Evidence and uncertainty
 
@@ -39,7 +42,7 @@ split Vitest configuration. It is an example consumer of the published
   through the browser origin.
 - Environment configuration is parsed once into a typed contract. Secrets stay
   in ignored `.env.server`; committed example files contain safe placeholders.
-- The sample persists a typed item in MongoDB through an authenticated Bifrost
+- The sample persists a typed item through the official MongoDB driver and an authenticated Bifrost
   method, emits an owner-scoped event only after persistence succeeds, and the
   React client refetches canonical state when the event arrives.
 - Migrations are versioned, ordered, idempotent at the runner boundary, and run
@@ -97,7 +100,7 @@ development orchestrator.
 
 - [ ] Establish package/toolchain, strict configs, split Vitest infrastructure,
       and failing sample-contract tests.
-- [ ] Implement typed environment, logging, MongoDB connection, and migration
+- [ ] Implement typed environment, logging, MongoDB driver connection, and migration
       runner.
 - [ ] Implement authenticated MongoDB-backed Bifrost methods and scoped event.
 - [ ] Implement React/Vite client that refetches on the remote event.
@@ -107,4 +110,3 @@ development orchestrator.
       install, and runtime smoke.
 - [ ] Record the architectural decision and commit each verified unit of work
       with path-limited semantic commits.
-
