@@ -1,0 +1,46 @@
+set shell := ['bash', '-eu', '-o', 'pipefail', '-c']
+set positional-arguments
+
+image := 'bifrost-template'
+
+# List available recipes.
+default:
+    @just --list --unsorted
+
+# Install the locked dependency graph.
+install:
+    npm ci
+
+# Start the Vite and Bifrost development orchestrator.
+develop *args:
+    npm run develop -- "$@"
+
+# Run unit, MongoDB integration, and browser tests.
+test *args:
+    npm test -- "$@"
+
+# Run repository linting with zero warnings.
+lint:
+    npm run lint
+
+# Check the strict TypeScript contracts.
+typecheck:
+    npm run typecheck
+
+# Build the production client and server artifacts.
+build:
+    npm run build
+
+# Build the production container image.
+docker-build:
+    docker build --tag "{{ image }}" .
+
+# Run the image against the local replica-set MongoDB on host port 27018.
+docker-run *args:
+    docker run --rm \
+        --add-host host.docker.internal:host-gateway \
+        --env-file .env.server \
+        --env CLIENT_ORIGIN=http://localhost:8002 \
+        --env 'DATABASE_URL=mongodb://host.docker.internal:27018/bifrost-template?replicaSet=rs0&directConnection=true' \
+        --publish 8002:8002 \
+        "{{ image }}" "$@"

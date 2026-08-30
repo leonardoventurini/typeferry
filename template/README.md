@@ -51,6 +51,22 @@ shipping.
 
 ## Commands
 
+The core workflow is available through `just`:
+
+```sh
+just install
+just develop
+just test
+just lint
+just typecheck
+just build
+just docker-build
+just docker-run
+```
+
+The recipes delegate to the same npm and Docker commands shown below, so either
+interface remains suitable for automation.
+
 ```sh
 npm run develop          # Vite + watched Node backend
 npm run test:unit        # pure/config tests
@@ -104,7 +120,10 @@ the Vite assets, SPA routes, `/healthz`, RPC, and WebSocket traffic on one port.
 ```sh
 docker build -t bifrost-template .
 docker run --rm \
+  --add-host host.docker.internal:host-gateway \
   --env-file .env.server \
+  --env CLIENT_ORIGIN=http://localhost:8002 \
+  --env 'DATABASE_URL=mongodb://host.docker.internal:27018/bifrost-template?replicaSet=rs0&directConnection=true' \
   --publish 8002:8002 \
   bifrost-template
 ```

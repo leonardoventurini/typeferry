@@ -15,6 +15,8 @@ latest Tailwind CSS.
   workspace.
 - Use Mise alone to install/select exact Node 24.19.0 and npm 11.17.0. Keep a
   credential-free tracked `.npmrc` for npm policy and Forgejo scope metadata.
+  Provide a small `justfile` as a command alias layer without making Just a
+  runtime or package manager.
 - Use the official MongoDB driver with a single process-wide `MongoClient` and
   typed collection accessors. Local Compose and integration tests use a
   single-node `rs0` replica set; Compose publishes it on host port 27018.

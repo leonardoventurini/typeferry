@@ -12,6 +12,8 @@ from `template/`; it is not an npm workspace member of the parent repository.
 - Use `mise exec -- npm ...` for reproducible local and agent commands.
 - Install dependencies with npm so `package.json` and `package-lock.json` stay
   synchronized. Run `npm audit --audit-level=low` after dependency changes.
+- The `justfile` is a convenience interface over npm and Docker. Keep its core
+  recipes aligned with package scripts and the documented container command.
 
 ## Architecture
 
