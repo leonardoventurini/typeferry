@@ -29,7 +29,7 @@ const CLIENT_PORT = 8000
 const LOG_FILE = resolve(process.cwd(), 'dev.log')
 const DEFAULT_SERVER_LAUNCH_OPTIONS: ServerLaunchOptions = {
   entryPath: './dist/server/index.cjs',
-  environmentFile: '.env.server',
+  environmentFile: process.env['DEVELOP_ENV_FILE'] ?? '.env.server',
 }
 
 let logStream: WriteStream | undefined
@@ -164,9 +164,9 @@ async function run(): Promise<void> {
   }
 
   for (const signal of SHUTDOWN_SIGNALS) {
-    process.once(signal, () => {
+    process.on(signal, () => {
       void shutdown(signal).then(() => {
-        process.exitCode = 0
+        process.exit(0)
       })
     })
   }
@@ -174,7 +174,7 @@ async function run(): Promise<void> {
   backend.once('exit', code => {
     if (!shuttingDown && code !== 0) {
       void shutdown(`backend exit ${code ?? 'unknown'}`).then(() => {
-        process.exitCode = code ?? 1
+        process.exit(code ?? 1)
       })
     }
   })

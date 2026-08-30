@@ -44,3 +44,7 @@ docker-run *args:
         --env 'DATABASE_URL=mongodb://host.docker.internal:27018/bifrost-template?replicaSet=rs0&directConnection=true' \
         --publish 8002:8002 \
         "{{ image }}" "$@"
+
+# Start the development container, MongoDB, and hot module reload.
+docker-develop:
+    docker compose up --build development

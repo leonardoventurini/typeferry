@@ -1,4 +1,27 @@
 services:
+  development:
+    build:
+      context: .
+      dockerfile: Dockerfile.development
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      CLIENT_ORIGIN: http://localhost:8000
+      DATABASE_URL: mongodb://mongodb:27017/bifrost-template?replicaSet=rs0&directConnection=true
+      DEVELOP_ENV_FILE: /dev/null
+      LOG_LEVEL: debug
+      NODE_ENV: development
+      PORT: 8002
+      SAMPLE_AUTH_TOKEN: change-me-development-token
+    ports:
+      - '8000:8000'
+      - '8002:8002'
+    stop_signal: SIGINT
+    volumes:
+      - .:/app
+      - development-node-modules:/app/node_modules
+
   mongodb:
     image: mongo:8
     command:
@@ -24,7 +47,7 @@ services:
             if (rs.status().ok === 1 && db.hello().isWritablePrimary) quit(0);
             quit(1);
           } catch (error) {
-            rs.initiate({_id: "rs0", members: [{_id: 0, host: "localhost:27017"}]});
+            rs.initiate({_id: "rs0", members: [{_id: 0, host: "mongodb:27017"}]});
             quit(1);
           }'
       interval: 2s
@@ -33,4 +56,5 @@ services:
       start_period: 5s
 
 volumes:
+  development-node-modules:
   mongodb-data:

@@ -1,0 +1,14 @@
+FROM node:24.19.0-bookworm-slim
+
+RUN apt-get update \
+  && apt-get install --yes --no-install-recommends procps \
+  && rm -rf /var/lib/apt/lists/* \
+  && npm install --global npm@11.17.0
+
+WORKDIR /app
+
+ENV NODE_ENV=development
+
+EXPOSE 8000 8002
+
+CMD ["sh", "-c", "npm ci && exec node --import=tsx develop.ts"]
