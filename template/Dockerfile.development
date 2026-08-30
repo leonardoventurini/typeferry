@@ -1,9 +1,8 @@
-FROM node:24.19.0-bookworm-slim
+FROM node:26.5.1-bookworm-slim
 
 RUN apt-get update \
   && apt-get install --yes --no-install-recommends procps \
-  && rm -rf /var/lib/apt/lists/* \
-  && npm install --global npm@11.17.0
+  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 

@@ -10,10 +10,11 @@ ordered migrations, structured logs, and split Vitest coverage.
 - [Mise](https://mise.jdx.dev/)
 - Docker with Compose
 
-The project pins Node 24.19.0 and npm 11.17.0 through `.mise.toml`. MongoDB is
-published on host port 27018 to avoid colliding with a conventional local
-MongoDB on 27017. The commands below assume Mise's shell activation is enabled;
-in non-interactive automation, prefix them with `mise exec --`.
+The project pins Node 26.5.1 through `.mise.toml` and uses its bundled npm
+11.17.0. MongoDB is published on host port 27018 to avoid colliding with a
+conventional local MongoDB on 27017. The commands below assume Mise's shell
+activation is enabled; in non-interactive automation, prefix them with
+`mise exec --`.
 
 ## Start the template
 

@@ -161,16 +161,16 @@ development orchestrator.
       flattened layout the documented default.
 - [x] Verify the affected split suites, static checks, builds, Compose
       configuration, production image, and development hot-reload image.
-- [ ] Pin the runtime contract to Node 26.5.1 with bundled npm 11.17.0.
-- [ ] Upgrade Mise, package enforcement, production and development images,
+- [x] Pin the runtime contract to Node 26.5.1 with bundled npm 11.17.0.
+- [x] Upgrade Mise, package enforcement, production and development images,
       and user guidance without adding another version manager.
-- [ ] Verify clean installation, split suites, static checks, builds, audit,
+- [x] Verify clean installation, split suites, static checks, builds, audit,
       and both image runtime/startup paths under Node 26.5.1.
 
 ## Verification evidence
 
-- Mise selected Node 24.19.0 and npm 11.17.0; `npm ci` completed from the
-  committed lockfile.
+- Mise selected Node 26.5.1 and its bundled npm 11.17.0; `npm ci` completed
+  from the committed lockfile.
 - Formatting, zero-warning ESLint, strict TypeScript, four unit files with eight
   assertions, the MongoDB replica-set integration suite, and the Chromium
   browser suite passed.
@@ -204,3 +204,13 @@ development orchestrator.
   its isolated dependency volume, served Vite's root-level `client/index.html`,
   and reported a healthy MongoDB-backed server. All smoke resources were
   removed afterward.
+- The Node 26 contract test failed first against the Node 24 manifest, then
+  passed with Node 26.5.1 pinned in Mise, package enforcement, and both
+  Dockerfiles. `@types/node` resolved to 26.4.0 through npm, and a frozen install
+  completed with zero audit vulnerabilities.
+- Unit, replica-set integration, Chromium browser, formatting, zero-warning
+  lint, strict typecheck, and both builds passed under Node 26.5.1. Fresh
+  production and development images both reported Node 26.5.1 with bundled npm
+  11.17.0 and no global npm-install history. Production served healthy static
+  and MongoDB-backed routes as `node`; Compose development served Vite and a
+  healthy backend before all smoke resources were removed.

@@ -1,6 +1,4 @@
-FROM node:24.19.0-bookworm-slim AS build
-
-RUN npm install --global npm@11.17.0
+FROM node:26.5.1-bookworm-slim AS build
 
 WORKDIR /app
 
@@ -10,7 +8,7 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-FROM node:24.19.0-bookworm-slim AS runtime
+FROM node:26.5.1-bookworm-slim AS runtime
 
 ENV NODE_ENV=production \
     PORT=8002

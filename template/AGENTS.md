@@ -5,8 +5,9 @@ from `template/`; it is not an npm workspace member of the parent repository.
 
 ## Toolchain
 
-- Mise is the only runtime version manager. Keep Node and npm versions in
-  `.mise.toml`; do not add `.nvmrc`, `.node-version`, Volta, or asdf files.
+- Mise is the only runtime version manager. Pin Node in `.mise.toml` and use
+  that Node distribution's bundled npm; do not add a separate npm tool,
+  `.nvmrc`, `.node-version`, Volta, or asdf files.
 - Keep `.npmrc` tracked and credential-free. It owns npm behavior and the
   public Forgejo package scope, not runtime installation.
 - Use `mise exec -- npm ...` for reproducible local and agent commands.

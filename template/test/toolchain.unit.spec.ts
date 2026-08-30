@@ -23,8 +23,19 @@ const legacySourceFiles = import.meta.glob('../src/**/*')
 
 describe('template toolchain', () => {
   it('pins the supported runtime and exposes every verification layer', () => {
-    expect(manifest.engines).toEqual({ node: '24.19.0', npm: '11.17.0' })
+    expect(manifest.engines).toEqual({ node: '26.5.1', npm: '11.17.0' })
     expect(manifest.packageManager).toBe('npm@11.17.0')
+
+    const miseConfig = readTemplateFile('.mise.toml')
+    expect(miseConfig).toContain('node = "26.5.1"')
+    expect(miseConfig).not.toMatch(/^npm\s*=/mu)
+
+    for (const dockerfile of ['Dockerfile', 'Dockerfile.development']) {
+      const contents = readTemplateFile(dockerfile)
+      expect(contents, dockerfile).toContain('node:26.5.1-bookworm-slim')
+      expect(contents, dockerfile).not.toContain('npm install --global')
+    }
+
     expect(Object.keys(manifest.scripts)).toEqual(
       expect.arrayContaining([
         'lint',

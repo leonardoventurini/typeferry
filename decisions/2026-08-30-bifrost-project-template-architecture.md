@@ -16,10 +16,11 @@ latest Tailwind CSS.
 - Keep application code in root-level `client/`, `common/`, `server/`, and
   `test/` directories rather than nesting it under `src/`. Map `@/` to the
   template root so imports preserve explicit architectural layer names.
-- Use Mise alone to install/select exact Node 24.19.0 and npm 11.17.0. Keep a
-  credential-free tracked `.npmrc` for npm policy and Forgejo scope metadata.
-  Provide a small `justfile` as a command alias layer without making Just a
-  runtime or package manager.
+- Use Mise alone to install/select exact Node 26.5.1. Use the npm 11.17.0
+  bundled with that Node distribution instead of managing or installing npm
+  separately. Keep a credential-free tracked `.npmrc` for npm policy and
+  Forgejo scope metadata. Provide a small `justfile` as a command alias layer
+  without making Just a runtime or package manager.
 - Use the official MongoDB driver with a single process-wide `MongoClient` and
   typed collection accessors. Local Compose and integration tests use a
   single-node `rs0` replica set; Compose publishes it on host port 27018.
@@ -50,6 +51,9 @@ latest Tailwind CSS.
   and transactions from working in the default local environment.
 - Additional runtime manager files were rejected because they can disagree with
   Mise and make tool selection ambiguous.
+- A separate npm entry in Mise and global npm installation in container layers
+  were rejected because Node 26.5.1 already bundles the exact required npm
+  version.
 - Raw component CSS was rejected in favor of Tailwind utilities and the Vite
   plugin requested for the starter.
 - An intermediate `src/` directory was rejected because the template already
@@ -88,3 +92,6 @@ and lifecycle boundaries expected from a real consumer.
   updates.
 - Updating Node/npm, Tailwind, MongoDB, or Bifrost requires coordinated manifest,
   lockfile, test, build, and runtime-smoke verification.
+- Node 26 is adopted as an exact patch pin. Consumers receive its newer runtime
+  behavior but must deliberately update the pin as the Node 26 release line
+  advances.
