@@ -1,15 +1,23 @@
 import { Server } from '@example-app/bifrost/server'
+import path from 'node:path'
 
 import { MESSAGES_CHANGED_EVENT } from '@/common/messages'
 import { env } from '@/server/config/environment'
-import { connectDatabase, disconnectDatabase } from '@/server/data/database'
+import {
+  connectDatabase,
+  disconnectDatabase,
+  getDatabase,
+} from '@/server/data/database'
 import { logger } from '@/server/logging/logger'
 import { runMigrations } from '@/server/migrations'
 import { registerMessageMethods } from '@/server/methods/messages'
+import { configureStaticClient } from '@/server/static-client'
 
 interface AuthContext {
   token?: unknown
 }
+
+let activeServer: Server | undefined
 
 async function start(): Promise<void> {
   await connectDatabase()
@@ -21,6 +29,7 @@ async function start(): Promise<void> {
     origins: [env.CLIENT_ORIGIN],
     allowedContextKeys: ['token'],
   })
+  activeServer = server
 
   server.acceptConnections = false
   server.setAuth({
@@ -47,6 +56,18 @@ async function start(): Promise<void> {
   })
   server.addEvent(MESSAGES_CHANGED_EVENT, { user: true })
   registerMessageMethods()
+  server.app.get('/healthz', async context => {
+    try {
+      await getDatabase().command({ ping: 1 })
+      return context.json({ status: 'ok' })
+    } catch {
+      return context.json({ status: 'unavailable' }, 503)
+    }
+  })
+
+  if (env.NODE_ENV === 'production') {
+    await configureStaticClient(server, path.resolve('dist/client'))
+  }
 
   await server.isReady()
   server.acceptConnections = true
@@ -69,7 +90,9 @@ async function start(): Promise<void> {
   }
 }
 
-start().catch((error: unknown) => {
+void start().catch(async (error: unknown): Promise<void> => {
   logger.error({ error }, 'Server startup failed')
+  await activeServer?.close()
+  await disconnectDatabase()
   process.exitCode = 1
 })

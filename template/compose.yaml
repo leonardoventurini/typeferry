@@ -1,7 +1,15 @@
 services:
   mongodb:
     image: mongo:8
-    command: ['mongod', '--replSet', 'rs0', '--bind_ip_all']
+    command:
+      - mongod
+      - --replSet
+      - rs0
+      - --bind_ip_all
+      # Keep the starter usable in small local Docker VMs. Production MongoDB
+      # should retain its operator-defined disk safety threshold.
+      - --setParameter
+      - indexBuildMinAvailableDiskSpaceMB=50
     restart: unless-stopped
     ports:
       - '27018:27017'
