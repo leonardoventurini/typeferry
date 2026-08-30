@@ -34,6 +34,9 @@ latest Tailwind CSS.
 - Build a multi-stage production image and run only the built output as the
   non-root Node user. The Bifrost-owned Hono app serves Vite assets, SPA
   fallback, health, RPC, and WebSocket traffic from one container and port.
+- Use a separate development image for the existing Vite/Bifrost orchestrator.
+  Compose bind-mounts source, overlays `/app/node_modules` with a Linux-owned
+  named volume refreshed by `npm ci`, and runs beside the MongoDB replica set.
 
 ## Rejected alternatives
 
@@ -69,6 +72,9 @@ and lifecycle boundaries expected from a real consumer.
   transitive CommonJS modules.
 - Container health represents MongoDB readiness, and deployments must inject
   environment configuration rather than copying secrets into image layers.
+- Development-container startup reinstalls the locked dependency graph into its
+  named volume. This costs startup time but prevents macOS native packages from
+  entering the Linux container or Linux packages overwriting the host.
 - Future migrations must fit within or renew the current five-minute database
   lease.
 - Updating Node/npm, Tailwind, MongoDB, or Bifrost requires coordinated manifest,

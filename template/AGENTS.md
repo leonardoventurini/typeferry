@@ -38,6 +38,9 @@ from `template/`; it is not an npm workspace member of the parent repository.
 - The production image runs as a non-root user and contains only built output.
   Keep secrets out of image layers, preserve `/healthz`, and verify static,
   RPC, and WebSocket routes whenever container or server routing changes.
+- The development image bind-mounts source but keeps `/app/node_modules` on its
+  named Linux volume. Do not bind host dependencies into the container or run
+  container installs against the host dependency directory.
 
 ## Type and quality contracts
 

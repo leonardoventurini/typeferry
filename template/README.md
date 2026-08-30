@@ -62,6 +62,7 @@ just typecheck
 just build
 just docker-build
 just docker-run
+just docker-develop
 ```
 
 The recipes delegate to the same npm and Docker commands shown below, so either
@@ -82,6 +83,24 @@ npm audit --audit-level=low
 Integration tests use an isolated in-memory replica set and do not modify the
 Compose database. Browser tests run in a real headless Chromium environment,
 not jsdom.
+
+## Development container
+
+Run the Vite and Bifrost hot-reload orchestrator with its MongoDB replica set:
+
+```sh
+just docker-develop
+```
+
+Compose bind-mounts the repository into `/app`, so client and server edits are
+visible immediately. A named volume overlays `/app/node_modules`; the container
+runs `npm ci` into that Linux-owned volume before starting, keeping native Linux
+packages separate from macOS dependencies. Vite HMR is available on port 8000
+and the Bifrost backend on port 8002.
+
+Stop the stack with `docker compose down`. Use `docker compose down --volumes`
+only when you intentionally want to discard both MongoDB data and the cached
+container dependency tree.
 
 ## Environment
 

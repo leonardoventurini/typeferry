@@ -43,6 +43,11 @@ template avoids a second data abstraction.
 - A multi-stage production Dockerfile builds both artifacts and runs one
   non-root Node container. The Bifrost-owned Hono application serves the built
   Vite assets and SPA fallback without intercepting RPC or WebSocket routes.
+- A separate development image runs the existing Vite/Bifrost orchestrator in
+  one app container beside the Compose MongoDB service. It bind-mounts the
+  host template while overlaying `/app/node_modules` with a container-owned
+  Linux volume, and publishes the existing HMR/client and backend ports 8000
+  and 8002.
 - Environment configuration is parsed once into a typed contract. Secrets stay
   in ignored `.env.server`; committed example files contain safe placeholders.
 - The sample persists a typed item through the official MongoDB driver and an authenticated Bifrost
@@ -93,6 +98,9 @@ and README instructions sufficient to start MongoDB and run the template.
 - Static fallback routing can accidentally swallow protocol paths. Container
   smoke verification must prove the HTML entry, a hashed client asset, the
   health endpoint, and Bifrost HTTP routing independently.
+- The development dependency volume can drift after lockfile changes. Refresh
+  it with `npm ci` on container startup and verify Linux-native tooling boots
+  without mutating the host dependency tree.
 
 ## Direct rollout
 
@@ -118,6 +126,8 @@ development orchestrator.
       with path-limited semantic commits.
 - [x] Add and verify the multi-stage production Docker image with same-process
       Hono static serving.
+- [x] Add and verify the development-only hot-reload image and Compose app
+      service using a source bind mount with container-owned dependencies.
 
 ## Verification evidence
 
@@ -137,3 +147,10 @@ development orchestrator.
   healthy against MongoDB. The container served the HTML entry, a hashed Vite
   asset, SPA fallback, `/healthz`, and a non-HTML POST `/__h` response from one
   port, then exited zero on SIGTERM after disconnecting MongoDB.
+- The development image installed Linux dependencies into its named volume
+  while the host retained Darwin-native packages. Compose started a writable
+  `rs0`, served Vite on 8000 and Bifrost health on 8002, delivered a real Vite
+  WebSocket module update after a client edit, rebuilt and restarted the server
+  after a backend edit, and exited zero through the orchestrator's SIGINT
+  shutdown path. Task-created containers, images, networks, and volumes were
+  removed after verification.
