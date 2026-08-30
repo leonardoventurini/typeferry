@@ -11,6 +11,8 @@ import tseslint from 'typescript-eslint'
 export default [
   {
     ignores: ['dist/**', 'node_modules/**'],
+  },
+  {
     linterOptions: { reportUnusedDisableDirectives: 'error' },
   },
   js.configs.recommended,

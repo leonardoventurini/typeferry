@@ -4,6 +4,7 @@ import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 import kill from 'tree-kill'
+import { context, type BuildContext } from 'esbuild'
 import { createServer, type ViteDevServer } from 'vite'
 
 interface ManagedProcess {
@@ -27,7 +28,7 @@ export const SHUTDOWN_SIGNALS = [
 const CLIENT_PORT = 8000
 const LOG_FILE = resolve(process.cwd(), 'dev.log')
 const DEFAULT_SERVER_LAUNCH_OPTIONS: ServerLaunchOptions = {
-  entryPath: './src/server/index.ts',
+  entryPath: './dist/server/index.cjs',
   environmentFile: '.env.server',
 }
 
@@ -40,10 +41,24 @@ export function buildServerArgs(
   return [
     '--watch',
     `--env-file=${options.environmentFile}`,
-    '--import=tsx',
     options.entryPath,
     ...args,
   ]
+}
+
+async function startBackendCompiler(): Promise<BuildContext> {
+  const compiler = await context({
+    bundle: true,
+    entryPoints: ['src/server/index.ts'],
+    format: 'cjs',
+    outfile: 'dist/server/index.cjs',
+    platform: 'node',
+    sourcemap: true,
+    supported: { decorators: false },
+  })
+  await compiler.rebuild()
+  await compiler.watch()
+  return compiler
 }
 
 function writeTaggedOutput(tag: string, data: string): void {
@@ -131,6 +146,7 @@ async function run(): Promise<void> {
   logStream.write(`--- started ${new Date().toISOString()} ---\n`)
 
   const vite = await startVite()
+  const backendCompiler = await startBackendCompiler()
   const backend = startBackend()
   process.stdout.write(`Template running at http://localhost:${CLIENT_PORT}/\n`)
 
@@ -141,6 +157,7 @@ async function run(): Promise<void> {
     writeTaggedOutput('develop', `received ${signal}; shutting down\n`)
     await Promise.all([
       stopProcess({ name: 'backend', process: backend }),
+      backendCompiler.dispose(),
       vite.close(),
     ])
     logStream?.end()

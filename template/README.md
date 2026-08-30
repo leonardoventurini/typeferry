@@ -12,16 +12,17 @@ ordered migrations, structured logs, and split Vitest coverage.
 
 The project pins Node 24.19.0 and npm 11.17.0 through `.mise.toml`. MongoDB is
 published on host port 27018 to avoid colliding with a conventional local
-MongoDB on 27017.
+MongoDB on 27017. The commands below assume Mise's shell activation is enabled;
+in non-interactive automation, prefix them with `mise exec --`.
 
 ## Start the template
 
 ```sh
 mise install
-mise exec -- npm ci
+npm ci
 cp .env.server.example .env.server
 docker compose up -d mongodb
-mise exec -- npm run develop
+npm run develop
 ```
 
 Open <http://localhost:8000>. Vite serves the React client and proxies Bifrost
@@ -51,15 +52,15 @@ shipping.
 ## Commands
 
 ```sh
-mise exec -- npm run develop          # Vite + watched Node backend
-mise exec -- npm run test:unit        # pure/config tests
-mise exec -- npm run test:integration # replica-set MongoDB tests
-mise exec -- npm run test:browser     # Chromium React tests
-mise exec -- npm run typecheck
-mise exec -- npm run lint
-mise exec -- npm run format:check
-mise exec -- npm run build
-mise exec -- npm audit --audit-level=low
+npm run develop          # Vite + watched Node backend
+npm run test:unit        # pure/config tests
+npm run test:integration # replica-set MongoDB tests
+npm run test:browser     # Chromium React tests
+npm run typecheck
+npm run lint
+npm run format:check
+npm run build
+npm audit --audit-level=low
 ```
 
 Integration tests use an isolated in-memory replica set and do not modify the
@@ -83,10 +84,12 @@ their development defaults match `.env.server.example`.
 ## Production build
 
 `npm run build` writes the Vite client to `dist/client` and bundles the Node
-entry to `dist/server/index.js`. Run the server with:
+entry and its runtime dependencies to `dist/server/index.cjs`. Bundling keeps
+CommonJS-only transitive packages interoperable with the Node server while the
+application source remains ESM. Run the server with:
 
 ```sh
-mise exec -- npm start
+npm start
 ```
 
 Serve `dist/client` with your preferred static hosting boundary and configure
