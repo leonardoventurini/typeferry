@@ -40,6 +40,9 @@ template avoids a second data abstraction.
 - The browser-facing Vite server and backend Bifrost server start together via
   `npm run develop`, shut down cleanly, and proxy Bifrost HTTP/WebSocket traffic
   through the browser origin.
+- A multi-stage production Dockerfile builds both artifacts and runs one
+  non-root Node container. The Bifrost-owned Hono application serves the built
+  Vite assets and SPA fallback without intercepting RPC or WebSocket routes.
 - Environment configuration is parsed once into a typed contract. Secrets stay
   in ignored `.env.server`; committed example files contain safe placeholders.
 - The sample persists a typed item through the official MongoDB driver and an authenticated Bifrost
@@ -87,6 +90,9 @@ and README instructions sufficient to start MongoDB and run the template.
   only template-owned collections.
 - If a slice fails, revert its path-limited commit; migrations remain safe
   because application startup runs only committed, ordered migration entries.
+- Static fallback routing can accidentally swallow protocol paths. Container
+  smoke verification must prove the HTML entry, a hashed client asset, the
+  health endpoint, and Bifrost HTTP routing independently.
 
 ## Direct rollout
 
@@ -110,6 +116,8 @@ development orchestrator.
       install, and runtime smoke.
 - [x] Record the architectural decision and commit each verified unit of work
       with path-limited semantic commits.
+- [x] Add and verify the multi-stage production Docker image with same-process
+      Hono static serving.
 
 ## Verification evidence
 
@@ -124,3 +132,8 @@ development orchestrator.
   27018. The development orchestrator started Vite on 8000 and Bifrost on 8002,
   connected to MongoDB, ran migrations, served the HTML entry, and forwarded
   `/__h` without proxy failure. Shutdown disconnected MongoDB cleanly.
+- The multi-stage image built with exact Node/npm, ran as the non-root `node`
+  user without `node_modules`, `.npmrc`, or baked credentials, and became
+  healthy against MongoDB. The container served the HTML entry, a hashed Vite
+  asset, SPA fallback, `/healthz`, and a non-HTML POST `/__h` response from one
+  port, then exited zero on SIGTERM after disconnecting MongoDB.

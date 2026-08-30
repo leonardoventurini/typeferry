@@ -92,6 +92,23 @@ application source remains ESM. Run the server with:
 npm start
 ```
 
-Serve `dist/client` with your preferred static hosting boundary and configure
-the client to reach the deployed Bifrost origin. Keep `.env.server` and all
-real credentials out of version control.
+`npm start` serves `dist/client` and Bifrost from the same Node process. Keep
+`.env.server` and all real credentials out of version control.
+
+## Production container
+
+The multi-stage Docker image builds the React client and bundled Node server,
+then copies only `dist` into a non-root runtime image. Bifrost's Hono app serves
+the Vite assets, SPA routes, `/healthz`, RPC, and WebSocket traffic on one port.
+
+```sh
+docker build -t bifrost-template .
+docker run --rm \
+  --env-file .env.server \
+  --publish 8002:8002 \
+  bifrost-template
+```
+
+Container environments should inject configuration through Docker or the
+deployment platform; `.env.server` is not copied into the image. `/healthz`
+checks the live MongoDB connection and drives the image health check.

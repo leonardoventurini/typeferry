@@ -33,6 +33,9 @@ from `template/`; it is not an npm workspace member of the parent repository.
   authoritative RPC state.
 - The sample bearer token is a development seam, not a production identity
   system. Replace it with the application's real authentication contract.
+- The production image runs as a non-root user and contains only built output.
+  Keep secrets out of image layers, preserve `/healthz`, and verify static,
+  RPC, and WebSocket routes whenever container or server routing changes.
 
 ## Type and quality contracts
 

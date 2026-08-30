@@ -29,6 +29,9 @@ latest Tailwind CSS.
   development and production. This preserves interoperability with a
   CommonJS-only transitive package currently consumed by the published Bifrost
   artifact while application source and package configuration remain ESM.
+- Build a multi-stage production image and run only the built output as the
+  non-root Node user. The Bifrost-owned Hono app serves Vite assets, SPA
+  fallback, health, RPC, and WebSocket traffic from one container and port.
 
 ## Rejected alternatives
 
@@ -62,6 +65,8 @@ and lifecycle boundaries expected from a real consumer.
 - The server artifact is larger because dependencies are bundled, but startup
   is deterministic and does not depend on Node synthesizing named exports from
   transitive CommonJS modules.
+- Container health represents MongoDB readiness, and deployments must inject
+  environment configuration rather than copying secrets into image layers.
 - Future migrations must fit within or renew the current five-minute database
   lease.
 - Updating Node/npm, Tailwind, MongoDB, or Bifrost requires coordinated manifest,
