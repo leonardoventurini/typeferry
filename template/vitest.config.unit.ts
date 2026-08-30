@@ -3,13 +3,13 @@ import path from 'node:path'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
-  resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
+  resolve: { alias: { '@': path.resolve(import.meta.dirname) } },
   test: {
     include: [
       'scripts/**/*.unit.spec.ts',
-      'src/**/*.unit.spec.ts',
-      'src/**/*.unit.spec.tsx',
+      '{client,common,server,test}/**/*.unit.spec.ts',
+      '{client,common,server,test}/**/*.unit.spec.tsx',
     ],
-    setupFiles: ['src/test/setup-unit.ts'],
+    setupFiles: ['test/setup-unit.ts'],
   },
 })

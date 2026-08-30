@@ -49,7 +49,7 @@ export function buildServerArgs(
 async function startBackendCompiler(): Promise<BuildContext> {
   const compiler = await context({
     bundle: true,
-    entryPoints: ['src/server/index.ts'],
+    entryPoints: ['server/index.ts'],
     format: 'cjs',
     outfile: 'dist/server/index.cjs',
     platform: 'node',

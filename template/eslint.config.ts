@@ -53,14 +53,14 @@ export default [
         {
           zones: [
             {
-              from: './src/server/**/*',
+              from: './server/**/*',
               message: 'Client code cannot import server runtime code.',
-              target: './src/client/**/*',
+              target: './client/**/*',
             },
             {
-              from: './src/server/**/*',
+              from: './server/**/*',
               message: 'Common code must remain runtime-portable.',
-              target: './src/common/**/*',
+              target: './common/**/*',
             },
           ],
         },
@@ -70,7 +70,7 @@ export default [
     },
   },
   {
-    files: ['src/{client,common}/**/*.{ts,tsx}'],
+    files: ['{client,common}/**/*.{ts,tsx}'],
     rules: {
       '@typescript-eslint/no-restricted-imports': [
         'error',

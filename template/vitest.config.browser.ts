@@ -9,7 +9,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
-      '@': path.resolve(import.meta.dirname, 'src'),
+      '@': path.resolve(import.meta.dirname),
       react: path.resolve(import.meta.dirname, 'node_modules/react'),
       'react-dom': path.resolve(import.meta.dirname, 'node_modules/react-dom'),
     },
@@ -22,7 +22,10 @@ export default defineConfig({
       provider: playwright(),
       screenshotFailures: false,
     },
-    include: ['src/**/*.browser.spec.ts', 'src/**/*.browser.spec.tsx'],
-    setupFiles: ['src/test/setup-browser.ts'],
+    include: [
+      '{client,common,server,test}/**/*.browser.spec.ts',
+      '{client,common,server,test}/**/*.browser.spec.tsx',
+    ],
+    setupFiles: ['test/setup-browser.ts'],
   },
 })

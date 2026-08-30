@@ -35,6 +35,12 @@ transactions while keeping local member discovery stable.
 
 ## Sample architecture
 
+Application code is intentionally flat beneath the project root: React lives
+in `client/`, portable contracts in `common/`, Node-only code in `server/`, and
+shared test setup in `test/`. The `@/` alias resolves to the project root, so
+layer-qualified imports such as `@/common/messages` remain explicit without an
+intermediate `src/` directory.
+
 The `messages` namespace demonstrates the intended flow:
 
 1. The Bifrost server authenticates the development token and exposes protected

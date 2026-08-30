@@ -19,12 +19,15 @@ export default defineConfig({
       { transform: { code: '@' } },
     ),
   ],
-  resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
+  resolve: { alias: { '@': path.resolve(import.meta.dirname) } },
   test: {
     fileParallelism: false,
     hookTimeout: 30_000,
-    include: ['src/**/*.integration.spec.ts', 'src/**/*.integration.spec.tsx'],
-    setupFiles: ['src/test/setup-integration.ts'],
+    include: [
+      '{client,common,server,test}/**/*.integration.spec.ts',
+      '{client,common,server,test}/**/*.integration.spec.tsx',
+    ],
+    setupFiles: ['test/setup-integration.ts'],
     testTimeout: 30_000,
   },
 })

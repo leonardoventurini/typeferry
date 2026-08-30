@@ -141,12 +141,12 @@ development orchestrator.
       Hono static serving.
 - [x] Add and verify the development-only hot-reload image and Compose app
       service using a source bind mount with container-owned dependencies.
-- [ ] Add a failing toolchain contract for the root-level source layout.
-- [ ] Promote `client/`, `common/`, `server/`, and `test/` to the template root
+- [x] Add a failing toolchain contract for the root-level source layout.
+- [x] Promote `client/`, `common/`, `server/`, and `test/` to the template root
       and update every compiler, runner, bundler, watcher, and lint boundary.
-- [ ] Update template guidance and the architecture decision to make the
+- [x] Update template guidance and the architecture decision to make the
       flattened layout the documented default.
-- [ ] Verify the affected split suites, static checks, builds, Compose
+- [x] Verify the affected split suites, static checks, builds, Compose
       configuration, production image, and development hot-reload image.
 
 ## Verification evidence
@@ -174,3 +174,15 @@ development orchestrator.
   after a backend edit, and exited zero through the orchestrator's SIGINT
   shutdown path. Task-created containers, images, networks, and volumes were
   removed after verification.
+- The flattening contract failed first against the legacy `src/*` TypeScript
+  alias, then passed after all four source layers moved to the root. All unit,
+  replica-set integration, and Chromium browser suites passed from their new
+  discovery paths, alongside formatting, zero-warning lint, strict typecheck,
+  client/server builds, Compose validation, Just formatting, and a clean
+  security audit.
+- Fresh production and development image builds consumed the relocated entry
+  points. The production container ran as `node`, became healthy, and served
+  the built React HTML and hashed assets; the development container installed
+  its isolated dependency volume, served Vite's root-level `client/index.html`,
+  and reported a healthy MongoDB-backed server. All smoke resources were
+  removed afterward.

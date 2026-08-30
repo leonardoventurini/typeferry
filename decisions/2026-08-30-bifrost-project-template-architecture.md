@@ -13,6 +13,9 @@ latest Tailwind CSS.
 
 - Keep `template/` as a standalone npm package rather than adding it to a root
   workspace.
+- Keep application code in root-level `client/`, `common/`, `server/`, and
+  `test/` directories rather than nesting it under `src/`. Map `@/` to the
+  template root so imports preserve explicit architectural layer names.
 - Use Mise alone to install/select exact Node 24.19.0 and npm 11.17.0. Keep a
   credential-free tracked `.npmrc` for npm policy and Forgejo scope metadata.
   Provide a small `justfile` as a command alias layer without making Just a
@@ -49,6 +52,9 @@ latest Tailwind CSS.
   Mise and make tool selection ambiguous.
 - Raw component CSS was rejected in favor of Tailwind utilities and the Vite
   plugin requested for the starter.
+- An intermediate `src/` directory was rejected because the template already
+  has explicit layer directories and the extra level adds navigation depth
+  without clarifying ownership.
 - Running the published Bifrost ESM output directly was rejected after the real
   startup smoke exposed a named-export incompatibility in a CommonJS transitive
   dependency. Bundling resolves that boundary without patching Bifrost or its
@@ -77,5 +83,8 @@ and lifecycle boundaries expected from a real consumer.
   entering the Linux container or Linux packages overwriting the host.
 - Future migrations must fit within or renew the current five-minute database
   lease.
+- Path-sensitive tools must enumerate the root-level application directories;
+  new source layers require coordinated TypeScript, ESLint, Vite, and Vitest
+  updates.
 - Updating Node/npm, Tailwind, MongoDB, or Bifrost requires coordinated manifest,
   lockfile, test, build, and runtime-smoke verification.

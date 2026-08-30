@@ -22,7 +22,7 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["*"]
     },
     "resolveJsonModule": true,
     "skipLibCheck": true,
@@ -35,9 +35,12 @@
   "include": [
     "develop.ts",
     "eslint.config.ts",
+    "client/**/*.ts",
+    "client/**/*.tsx",
+    "common/**/*.ts",
     "scripts/**/*.ts",
-    "src/**/*.ts",
-    "src/**/*.tsx",
+    "server/**/*.ts",
+    "test/**/*.ts",
     "vite.config.ts",
     "vitest.config.*.ts"
   ],

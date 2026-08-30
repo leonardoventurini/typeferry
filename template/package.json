@@ -24,7 +24,7 @@
     "develop": "tsx develop.ts",
     "build": "npm run clean && npm run build:client && npm run build:server",
     "build:client": "vite build",
-    "build:server": "esbuild src/server/index.ts --bundle --platform=node --format=cjs --supported:decorators=false --outfile=dist/server/index.cjs --sourcemap",
+    "build:server": "esbuild server/index.ts --bundle --platform=node --format=cjs --supported:decorators=false --outfile=dist/server/index.cjs --sourcemap",
     "start": "node dist/server/index.cjs",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.develop.json",
     "lint": "eslint . --max-warnings 0",

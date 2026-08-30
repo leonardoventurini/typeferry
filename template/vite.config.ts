@@ -6,7 +6,7 @@ import { defineConfig } from 'vite'
 import { bifrostDevProxy } from './scripts/vite-dev-proxy.ts'
 
 export default defineConfig({
-  root: 'src/client',
+  root: 'client',
   plugins: [bifrostDevProxy(), react(), tailwindcss()],
   server: {
     allowedHosts: true,
@@ -19,16 +19,16 @@ export default defineConfig({
     alias: {
       react: path.resolve(import.meta.dirname, 'node_modules/react'),
       'react-dom': path.resolve(import.meta.dirname, 'node_modules/react-dom'),
-      '@': path.resolve(import.meta.dirname, 'src'),
+      '@': path.resolve(import.meta.dirname),
     },
   },
   build: {
-    outDir: '../../dist/client',
+    outDir: '../dist/client',
     emptyOutDir: true,
     manifest: true,
     target: 'es2022',
     rollupOptions: {
-      input: path.resolve(import.meta.dirname, 'src/client/index.html'),
+      input: path.resolve(import.meta.dirname, 'client/index.html'),
     },
   },
 })

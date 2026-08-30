@@ -17,9 +17,10 @@ from `template/`; it is not an npm workspace member of the parent repository.
 
 ## Architecture
 
-- Client code lives in `src/client`, portable contracts in `src/common`, and
-  Node-only code in `src/server`. Use `@/` imports and preserve these layer
-  boundaries.
+- Client code lives in root-level `client/`, portable contracts in `common/`,
+  Node-only code in `server/`, and shared test setup in `test/`. There is no
+  intermediate `src/` directory. Use `@/` imports, which resolve from the
+  template root, and preserve these layer boundaries.
 - Application UI is React with Tailwind CSS. Keep `styles.css` as the Tailwind
   entry point and express component styling with utilities rather than adding
   a parallel raw-CSS component system.
@@ -29,7 +30,7 @@ from `template/`; it is not an npm workspace member of the parent repository.
   Mongoose. Local MongoDB runs as a single-node replica set on host port 27018
   so change streams and transactions work by default.
 - Run migrations before accepting Bifrost traffic. Add ordered migrations to
-  `src/server/migrations`; never mutate an already-applied migration.
+  `server/migrations`; never mutate an already-applied migration.
 - Protected persisted changes emit owner-scoped Bifrost events only after the
   database write succeeds. Clients treat events as invalidations and refetch
   authoritative RPC state.
