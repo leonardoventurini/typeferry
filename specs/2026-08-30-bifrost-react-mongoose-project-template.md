@@ -18,7 +18,8 @@ template avoids a second data abstraction.
 
 ## Evidence and uncertainty
 
-- ExampleApp is a single npm package using Node `24.19.0`, npm `11.17.0`, Vite,
+- ExampleApp was the initial reference package using Node `24.19.0`, npm
+  `11.17.0`, Vite,
   React, a Node watcher plus Vite development orchestrator, path aliases, flat
   ESLint configuration, Prettier, and separate unit/integration/browser Vitest
   runners.
@@ -34,6 +35,9 @@ template avoids a second data abstraction.
 
 - `template/` is a standalone ESM npm package with exact Node/npm engine
   requirements and no npm workspace dependency.
+- The active template runtime is exact Node `26.5.1` with its bundled npm
+  `11.17.0`. Mise remains the only version manager, and both Dockerfiles use
+  the matching official Node image without reinstalling npm separately.
 - TypeScript uses strict checking, React JSX, bundler resolution, `@/` source
   aliases, decorators compatible with Bifrost, and separate app/development
   configuration where needed.
@@ -85,6 +89,10 @@ template avoids a second data abstraction.
    directories are included, and no `src/` source include remains. Exercise
    all three split runners after the move so their discovery and setup paths
    are proven rather than inferred from configuration text.
+7. Change the toolchain unit contract to Node `26.5.1` before updating package
+   metadata, and observe the expected failure against the Node 24 manifest.
+   Then verify a clean `npm ci`, every affected split suite, static checks,
+   builds, and both Docker image runtime versions under Node 26.
 
 Acceptance requires a fresh `npm ci` in `template/`, zero lint warnings, no
 TypeScript errors, successful client and server builds, passing focused suites,
@@ -114,6 +122,11 @@ and README instructions sufficient to start MongoDB and run the template.
   entries, Vitest discovery, ESLint boundaries, or documentation. Search the
   complete template for `src/` after the move, then verify both production and
   development images because each consumes the same relocated entry points.
+- A major Node upgrade can expose native-package, ESM, decorator, or browser
+  tooling incompatibilities. Preserve the lockfile unless npm reports a
+  metadata change, rebuild both images without relying on old application
+  layers, and recover by reverting the path-limited runtime upgrade commit if
+  any required suite or runtime smoke fails.
 
 ## Direct rollout
 
@@ -148,6 +161,11 @@ development orchestrator.
       flattened layout the documented default.
 - [x] Verify the affected split suites, static checks, builds, Compose
       configuration, production image, and development hot-reload image.
+- [ ] Pin the runtime contract to Node 26.5.1 with bundled npm 11.17.0.
+- [ ] Upgrade Mise, package enforcement, production and development images,
+      and user guidance without adding another version manager.
+- [ ] Verify clean installation, split suites, static checks, builds, audit,
+      and both image runtime/startup paths under Node 26.5.1.
 
 ## Verification evidence
 
