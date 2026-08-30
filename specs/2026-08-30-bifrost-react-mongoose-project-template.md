@@ -98,15 +98,29 @@ development orchestrator.
 
 ## Executable checklist
 
-- [ ] Establish package/toolchain, strict configs, split Vitest infrastructure,
+- [x] Establish package/toolchain, strict configs, split Vitest infrastructure,
       and failing sample-contract tests.
-- [ ] Implement typed environment, logging, MongoDB driver connection, and migration
+- [x] Implement typed environment, logging, MongoDB driver connection, and migration
       runner.
-- [ ] Implement authenticated MongoDB-backed Bifrost methods and scoped event.
-- [ ] Implement React/Vite client that refetches on the remote event.
-- [ ] Add the development orchestrator, proxy, production builds, examples, and
+- [x] Implement authenticated MongoDB-backed Bifrost methods and scoped event.
+- [x] Implement React/Vite client that refetches on the remote event.
+- [x] Add the development orchestrator, proxy, production builds, examples, and
       README.
-- [ ] Run focused suites, formatting, lint, typecheck, builds, audit, clean
+- [x] Run focused suites, formatting, lint, typecheck, builds, audit, clean
       install, and runtime smoke.
-- [ ] Record the architectural decision and commit each verified unit of work
+- [x] Record the architectural decision and commit each verified unit of work
       with path-limited semantic commits.
+
+## Verification evidence
+
+- Mise selected Node 24.19.0 and npm 11.17.0; `npm ci` completed from the
+  committed lockfile.
+- Formatting, zero-warning ESLint, strict TypeScript, four unit files with eight
+  assertions, the MongoDB replica-set integration suite, and the Chromium
+  browser suite passed.
+- Vite/Tailwind client and bundled CommonJS Node server builds passed; npm audit
+  reported zero vulnerabilities.
+- The Compose MongoDB service became a writable `rs0` primary on host port
+  27018. The development orchestrator started Vite on 8000 and Bifrost on 8002,
+  connected to MongoDB, ran migrations, served the HTML entry, and forwarded
+  `/__h` without proxy failure. Shutdown disconnected MongoDB cleanly.
