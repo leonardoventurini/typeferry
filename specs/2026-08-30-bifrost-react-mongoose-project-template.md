@@ -37,6 +37,10 @@ template avoids a second data abstraction.
 - TypeScript uses strict checking, React JSX, bundler resolution, `@/` source
   aliases, decorators compatible with Bifrost, and separate app/development
   configuration where needed.
+- Application and test code lives directly in root-level `client/`, `common/`,
+  `server/`, and `test/` directories. There is no intermediate `src/`
+  directory, and `@/` resolves to the template root so imports retain their
+  existing layer-qualified form, such as `@/server/data/database`.
 - The browser-facing Vite server and backend Bifrost server start together via
   `npm run develop`, shut down cleanly, and proxy Bifrost HTTP/WebSocket traffic
   through the browser origin.
@@ -76,6 +80,11 @@ template avoids a second data abstraction.
 5. Run only the new template's affected unit, integration, and browser suites,
    followed by formatting, lint, typecheck, client/server builds, audit, and a
    bounded development/runtime smoke where local services permit.
+6. Pin the flattened layout in the toolchain unit suite before moving files:
+   assert the TypeScript alias maps `@/*` to `*`, the four root-level source
+   directories are included, and no `src/` source include remains. Exercise
+   all three split runners after the move so their discovery and setup paths
+   are proven rather than inferred from configuration text.
 
 Acceptance requires a fresh `npm ci` in `template/`, zero lint warnings, no
 TypeScript errors, successful client and server builds, passing focused suites,
@@ -101,6 +110,10 @@ and README instructions sufficient to start MongoDB and run the template.
 - The development dependency volume can drift after lockfile changes. Refresh
   it with `npm ci` on container startup and verify Linux-native tooling boots
   without mutating the host dependency tree.
+- Flattening can leave stale paths in Vite roots, build entries, watcher
+  entries, Vitest discovery, ESLint boundaries, or documentation. Search the
+  complete template for `src/` after the move, then verify both production and
+  development images because each consumes the same relocated entry points.
 
 ## Direct rollout
 
@@ -128,6 +141,13 @@ development orchestrator.
       Hono static serving.
 - [x] Add and verify the development-only hot-reload image and Compose app
       service using a source bind mount with container-owned dependencies.
+- [ ] Add a failing toolchain contract for the root-level source layout.
+- [ ] Promote `client/`, `common/`, `server/`, and `test/` to the template root
+      and update every compiler, runner, bundler, watcher, and lint boundary.
+- [ ] Update template guidance and the architecture decision to make the
+      flattened layout the documented default.
+- [ ] Verify the affected split suites, static checks, builds, Compose
+      configuration, production image, and development hot-reload image.
 
 ## Verification evidence
 
