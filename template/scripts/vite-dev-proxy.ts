@@ -1,5 +1,6 @@
 import {
   type IncomingMessage,
+  type IncomingHttpHeaders,
   request as createHttpRequest,
   type ServerResponse,
 } from 'node:http'
@@ -28,6 +29,20 @@ export function bifrostDevProxy(): Plugin {
   }
 }
 
+/** Removes backend-only cookie domains without adding undefined headers. */
+export function rewriteProxyHeaders(
+  proxyHeaders: IncomingHttpHeaders,
+): IncomingHttpHeaders {
+  const headers = { ...proxyHeaders }
+  const setCookie = headers['set-cookie']
+  if (setCookie) {
+    headers['set-cookie'] = setCookie.map(cookie =>
+      cookie.replace(/;\s*Domain=[^;]+/giu, ''),
+    )
+  }
+  return headers
+}
+
 function proxyRequest(
   clientRequest: IncomingMessage,
   clientResponse: ServerResponse,
@@ -44,12 +59,10 @@ function proxyRequest(
       },
     },
     proxyResponse => {
-      clientResponse.writeHead(proxyResponse.statusCode ?? 502, {
-        ...proxyResponse.headers,
-        'set-cookie': proxyResponse.headers['set-cookie']?.map(cookie =>
-          cookie.replace(/;\s*Domain=[^;]+/giu, ''),
-        ),
-      })
+      clientResponse.writeHead(
+        proxyResponse.statusCode ?? 502,
+        rewriteProxyHeaders(proxyResponse.headers),
+      )
       proxyResponse.pipe(clientResponse)
     },
   )
