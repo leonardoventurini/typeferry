@@ -10,7 +10,7 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-LEGACY_BRAND = "bifrost"
+LEGACY_BRAND = "bi" + "frost"
 TEMPORARY_TYPESCRIPT_NAME = "typeferry-ts"
 TEMPORARY_PYTHON_NAME = "typeferry-py"
 
