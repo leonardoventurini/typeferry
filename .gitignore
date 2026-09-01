@@ -5,3 +5,4 @@ node_modules/
 !typeferry-ts/.npmrc
 coverage/
 dist/
+__pycache__/
