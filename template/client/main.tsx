@@ -1,6 +1,6 @@
 import '@/client/styles.css'
 
-import { ClientProvider } from 'typeferry-ts/react'
+import { ClientProvider } from 'typeferry/react'
 import { createRoot } from 'react-dom/client'
 
 import { App } from '@/client/app'

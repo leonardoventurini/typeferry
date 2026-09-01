@@ -1,4 +1,4 @@
-import type { ClientNode } from 'typeferry-ts/server'
+import type { ClientNode } from 'typeferry/server'
 import {
   type InferNamespace,
   Method,
@@ -6,7 +6,7 @@ import {
   Protected,
   registerNamespace,
   Schema,
-} from 'typeferry-ts/server/decorators'
+} from 'typeferry/server/decorators'
 import { z } from 'zod'
 
 import type {

@@ -6,7 +6,7 @@ The React adapter provides a client context plus hooks for RPC state, subscripti
 
 ```tsx
 // client/app.tsx
-import { ClientProvider } from 'typeferry-ts/react'
+import { ClientProvider } from 'typeferry/react'
 
 export function App(): React.JSX.Element {
   return (
@@ -28,7 +28,7 @@ You can pass `clientInstance` instead when the application owns client construct
 ## Fetch method state
 
 ```tsx
-import { useMethod } from 'typeferry-ts/react'
+import { useMethod } from 'typeferry/react'
 
 function Greeting(): React.JSX.Element {
   const greeting = useMethod({

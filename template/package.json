@@ -41,10 +41,10 @@
     "clean": "rimraf dist"
   },
   "dependencies": {
-    "typeferry-ts": "file:../typeferry-ts",
     "mongodb": "^7.6.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "typeferry": "file:../typeferry-ts",
     "zod": "4.4.3"
   },
   "devDependencies": {

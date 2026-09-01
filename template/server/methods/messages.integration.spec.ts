@@ -1,4 +1,4 @@
-import type { ClientNode } from 'typeferry-ts/server'
+import type { ClientNode } from 'typeferry/server'
 import { describe, expect, it, vi } from 'vitest'
 
 import { MESSAGES_CHANGED_EVENT } from '@/common/messages'

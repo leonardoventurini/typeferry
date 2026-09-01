@@ -30,7 +30,7 @@ export default defineConfig({
   resolve: {
     conditions: ['module'],
     alias: {
-      'typeferry-ts/': path.resolve(__dirname, 'src') + '/',
+      'typeferry/': path.resolve(__dirname, 'src') + '/',
     },
   },
 })

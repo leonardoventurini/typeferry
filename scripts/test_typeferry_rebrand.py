@@ -11,7 +11,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 LEGACY_BRAND = "bi" + "frost"
-TEMPORARY_TYPESCRIPT_NAME = "typeferry-ts"
+PUBLIC_TYPESCRIPT_NAME = "typeferry"
 TEMPORARY_PYTHON_NAME = "typeferry-py"
 
 
@@ -32,13 +32,17 @@ class TypeFerryRebrandTest(unittest.TestCase):
         self.assertEqual(1, search.returncode, search.stdout)
         self.assertEqual("", search.stdout)
 
-    def test_temporary_package_identities_are_non_publishable(self) -> None:
+    def test_typescript_identity_is_public_while_other_packages_are_guarded(self) -> None:
         package_json = json.loads(
             (REPO_ROOT / "typeferry-ts/package.json").read_text(encoding="utf-8")
         )
-        self.assertEqual(TEMPORARY_TYPESCRIPT_NAME, package_json["name"])
-        self.assertIs(True, package_json["private"])
-        self.assertNotIn("publishConfig", package_json)
+        self.assertEqual(PUBLIC_TYPESCRIPT_NAME, package_json["name"])
+        self.assertEqual("0.6.0", package_json["version"])
+        self.assertNotIn("private", package_json)
+        self.assertEqual(
+            {"access": "public", "registry": "https://registry.npmjs.org/"},
+            package_json["publishConfig"],
+        )
 
         pyproject = tomllib.loads(
             (REPO_ROOT / "typeferry-py/pyproject.toml").read_text(encoding="utf-8")
@@ -50,7 +54,7 @@ class TypeFerryRebrandTest(unittest.TestCase):
         )
         self.assertIs(False, cargo["workspace"]["package"]["publish"])
 
-    def test_publish_workflows_are_absent(self) -> None:
+    def test_automated_publish_workflows_are_absent(self) -> None:
         workflows = REPO_ROOT / ".github/workflows"
         publish_workflows = sorted(workflows.glob("publish-*.yml"))
 
@@ -68,14 +72,14 @@ class TypeFerryRebrandTest(unittest.TestCase):
         self.assertIn("`/typeferry-ws`", protocol)
         self.assertIn("`typeferry:servers`", protocol)
 
-    def test_template_uses_local_temporary_typescript_package(self) -> None:
+    def test_template_uses_local_public_typescript_identity(self) -> None:
         package_json = json.loads(
             (REPO_ROOT / "template/package.json").read_text(encoding="utf-8")
         )
 
         self.assertEqual(
             "file:../typeferry-ts",
-            package_json["dependencies"][TEMPORARY_TYPESCRIPT_NAME],
+            package_json["dependencies"][PUBLIC_TYPESCRIPT_NAME],
         )
 
 

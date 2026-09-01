@@ -1,4 +1,4 @@
-import type { ClientOptions } from 'typeferry-ts/client'
+import type { ClientOptions } from 'typeferry/client'
 
 const configuredPort = import.meta.env['VITE_SERVER_PORT']
 const serverPort = Number(

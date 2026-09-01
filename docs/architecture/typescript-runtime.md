@@ -27,7 +27,7 @@ Client-side `Client`, `ClientHttp`, and `ClientSocket` coordinate calls and conn
 - `src/` may use internal organization suited to implementation.
 - `dist/` and `package.json` exports are the package contract.
 - ESM imports and generated declarations must resolve without consumer aliases.
-- Browser consumers import compiled exports, never `node_modules/typeferry-ts/src`.
+- Browser consumers import compiled exports, never `node_modules/typeferry/src`.
 
 ## Testing architecture
 

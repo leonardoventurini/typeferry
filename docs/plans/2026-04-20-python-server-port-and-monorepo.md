@@ -82,7 +82,7 @@ npm registry. The restructure itself must ship **nothing new**:
 - Moving `src/` into `typeferry-ts/src/` must not change any exported API
   surface, nor the byte contents of a freshly built `dist/`.
 - No version bump, no publish, until a legitimate TS change lands post-move.
-- Consumer import paths (`typeferry-ts/client`, `/server`, `/react`,
+- Consumer import paths (`typeferry/client`, `/server`, `/react`,
   …) must remain stable because `package.json` `exports` are unchanged and
   `files: ["dist"]` continues to map to `typeferry-ts/dist/` at publish time.
 
@@ -147,7 +147,7 @@ Pre-audit confirmation (verified against current repo):
 - `package.json` `exports` paths all point to `./dist/...` — survive.
 - `vitest.config.*.ts` all use `path.resolve(__dirname, 'src')` — survive.
   `vitest.config.browser.ts` also aliases `typeferry-ts/` to
-  `node_modules/typeferry-ts/src`, but grep shows no runtime imports
+  `node_modules/typeferry/src`, but grep shows no runtime imports
   of that specifier (only one jsdoc example in
   `src/server/decorators/register.ts`) — the alias is effectively dead
   config, and moving it is safe.
@@ -625,7 +625,7 @@ cannot race against the registry's immutability rule.
 
 ExampleApp consumers must continue to import from `typeferry-ts/*`
 only. If anyone currently imports
-`node_modules/typeferry-ts/src/...` (a known regression per
+`node_modules/typeferry/src/...` (a known regression per
 `CLAUDE.md`), fix those consumers before the move lands so the reorg does
 not get blamed for a preexisting issue.
 

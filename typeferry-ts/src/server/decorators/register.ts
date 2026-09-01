@@ -55,7 +55,7 @@ function wrapMethod(
  *
  * @example
  * ```ts
- * import { registerNamespace } from 'typeferry-ts/server/decorators'
+ * import { registerNamespace } from 'typeferry/server/decorators'
  * import { BoardMethods } from './boards'
  *
  * registerNamespace(BoardMethods)

@@ -1,6 +1,6 @@
 # TypeFerry MongoDB
 
-`typeferry-ts/mongodb` connects TypeFerry servers to the official MongoDB
+`typeferry/mongodb` connects TypeFerry servers to the official MongoDB
 driver without introducing a second ORM layer.
 
 The package owns:
@@ -36,7 +36,7 @@ import {
   objectId,
   typedMongoCollection,
   withInsertTimestamps,
-} from 'typeferry-ts/mongodb'
+} from 'typeferry/mongodb'
 
 const BoardSchema = z.object({
   _id: objectId(),
@@ -153,7 +153,7 @@ import {
   defineMongoLivePublication,
   mongoLivePublication,
   type MongoLiveClientDocument,
-} from 'typeferry-ts/mongodb'
+} from 'typeferry/mongodb'
 
 interface BoardFields {
   readonly name: string
@@ -231,7 +231,7 @@ await view.start()
 React applications can use the thin adapter:
 
 ```tsx
-import { useMongoLivePublication } from 'typeferry-ts/react'
+import { useMongoLivePublication } from 'typeferry/react'
 
 const boards = useMongoLivePublication({
   publication: BoardsForOwner,

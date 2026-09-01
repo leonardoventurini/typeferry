@@ -46,18 +46,18 @@ Update repository contract tests before implementation so they initially reject 
 
 ## Acceptance Criteria
 
-- [ ] npm manifest and lock expose `typeferry@0.6.0` and allow public publication.
-- [ ] Repository, homepage, bugs, license, files, exports, engines, and public-registry metadata are complete and accurate.
-- [ ] Active imports, aliases, docs, and the React template use `typeferry/*`; the implementation directory remains `typeferry-ts/`.
-- [ ] Root `just publish-npm` validates branch, tracked cleanliness, toolchain, authentication, identity, version availability, full tests/build, and package contents before public upload.
-- [ ] A safe non-uploading recipe exercises the same release gate.
-- [ ] CI executes npm publish dry-run and the shared exact-content artifact validator without uploading.
-- [ ] Publication cannot proceed from an unauthenticated session or when the exact version already exists.
-- [ ] Python and Rust publication guards remain unchanged.
-- [ ] Contract tests, TypeScript quality gates, package inspection, template gates, Markdown links, and diff checks pass.
-- [ ] Release and end-user documentation describe npm installation and the operator workflow without claiming the name is reserved before publication.
-- [ ] A decision record captures the npm identity, version baseline, publication boundary, and rejected alternatives.
-- [ ] Task-owned changes are committed semantically and the worktree is clean.
+- [x] npm manifest and lock expose `typeferry@0.6.0` and allow public publication.
+- [x] Repository, homepage, bugs, license, files, exports, engines, and public-registry metadata are complete and accurate.
+- [x] Active imports, aliases, docs, and the React template use `typeferry/*`; the implementation directory remains `typeferry-ts/`.
+- [x] Root `just publish-npm` validates branch, tracked cleanliness, toolchain, authentication, identity, version availability, full tests/build, and package contents before public upload.
+- [x] A safe non-uploading recipe exercises the same release gate.
+- [x] CI executes npm publish dry-run and the shared exact-content artifact validator without uploading.
+- [x] Publication cannot proceed from an unauthenticated session or when the exact version already exists.
+- [x] Python and Rust publication guards remain unchanged.
+- [x] Contract tests, TypeScript quality gates, package inspection, template gates, Markdown links, and diff checks pass.
+- [x] Release and end-user documentation describe npm installation and the operator workflow without claiming the name is reserved before publication.
+- [x] A decision record captures the npm identity, version baseline, publication boundary, and rejected alternatives.
+- [x] Task-owned changes are committed semantically and the worktree is clean.
 
 ## Risks and Recovery
 

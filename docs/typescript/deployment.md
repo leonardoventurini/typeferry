@@ -4,7 +4,7 @@ Deploy the TypeScript server as a Node.js application that owns one HTTP listene
 
 ## Build contract
 
-Applications consume TypeFerry's compiled ESM package exports. Do not point bundlers or TypeScript aliases at `typeferry-ts/src`. The framework build is verified from `typeferry-ts/` with:
+Applications consume TypeFerry's compiled ESM package exports. Do not point bundlers or TypeScript aliases at package source. The framework build is verified from `typeferry-ts/` with:
 
 ```sh
 npm ci
@@ -14,7 +14,7 @@ npm run build
 npm pack --dry-run
 ```
 
-TypeFerry itself is not yet published. A deployable application must resolve the repository package during its build, as the local [template](../../template/README.md) does with a `file:` dependency.
+Repository development resolves the local package during its build, as the [template](../../template/README.md) does with a `file:` dependency. Registry consumers install `typeferry` from npm.
 
 ## Production checklist
 

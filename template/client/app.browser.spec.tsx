@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
     | undefined,
 }))
 
-vi.mock('typeferry-ts/react', () => ({
+vi.mock('typeferry/react', () => ({
   useAuth: () => ({ authenticated: true }),
   useClient: () => ({
     context: { user: { _id: 'sample-user' } },

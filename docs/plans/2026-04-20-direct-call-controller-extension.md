@@ -100,7 +100,7 @@ Consumers use the core directly when they own rendering:
 import {
   DirectCallController,
   createTypeFerryDirectCallTransport,
-} from 'typeferry-ts/calls'
+} from 'typeferry/calls'
 
 const controller = new DirectCallController({
   transport: createTypeFerryDirectCallTransport({
@@ -128,7 +128,7 @@ const controller = new DirectCallController({
 React consumers use:
 
 ```ts
-import { useDirectCall } from 'typeferry-ts/react'
+import { useDirectCall } from 'typeferry/react'
 
 const call = useDirectCall({
   peerId,
@@ -1330,7 +1330,7 @@ export function snapshotDirectCallDiagnostics(
 - Owner: `worker`
 - Support: `reviewer`
 - Risk: `low`
-- Verification: `rg -n "DirectCallController|typeferry-ts/calls" docs README.md`
+- Verification: `rg -n "DirectCallController|typeferry/calls" docs README.md`
 
 Documentation must include:
 
@@ -1355,7 +1355,7 @@ Troubleshooting matrix:
 
 The extension is complete when:
 
-- `typeferry-ts/calls` exports the core controller and types.
+- `typeferry/calls` exports the core controller and types.
 - The React adapter uses the framework-neutral core controller.
 - Server helpers are optional and app-policy agnostic.
 - Initial caller offer is sent deterministically.

@@ -4,7 +4,7 @@ The core client works independently of React and can use WebSocket or HTTP calls
 
 ```ts
 // client/typeferry.ts
-import { Client } from 'typeferry-ts/client'
+import { Client } from 'typeferry/client'
 
 export const client = new Client({
   host: window.location.hostname,

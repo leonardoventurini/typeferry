@@ -6,7 +6,7 @@ Events notify connected clients that something happened. Channels scope delivery
 
 ```ts
 // server/events.ts
-import type { Server } from 'typeferry-ts/server'
+import type { Server } from 'typeferry/server'
 
 export const MESSAGE_CHANGED = 'messages:changed'
 

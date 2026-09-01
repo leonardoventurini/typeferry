@@ -2,7 +2,7 @@
 
 ## Decision
 
-`typeferry-ts/mongodb` is implemented as a thin bridge over the official
+`typeferry/mongodb` is implemented as a thin bridge over the official
 MongoDB driver. It exposes native `Collection<TDocument>` handles, decorator
 metadata, explicit helpers, and change-stream-to-TypeFerry event wiring.
 

@@ -1,9 +1,8 @@
-# typeferry-ts
+# typeferry
 
 The TypeScript implementation of TypeFerry provides the reference Node.js server, browser/Node client, React hooks, authentication helpers, EJSON, and an optional MongoDB extension.
 
-> [!IMPORTANT]
-> `typeferry-ts` is not published to npm. The repository package is intentionally private while its final registry identity is selected. Use the repository-local [`template/`](../template/) workflow described in the [quickstart](../docs/getting-started.md).
+Install the public TypeScript package with `npm install typeferry`. Repository contributors can use the local [`template/`](../template/) workflow described in the [quickstart](../docs/getting-started.md).
 
 ## Runtime requirements
 
@@ -16,30 +15,30 @@ The TypeScript implementation of TypeFerry provides the reference Node.js server
 
 | Import | Purpose |
 |---|---|
-| `typeferry-ts/server` | Server, methods, events, channels, and runtime types |
-| `typeferry-ts/server/decorators` | Namespace and method decorators |
-| `typeferry-ts/server/transports` | Node HTTP, WebSocket, and Redis transports |
-| `typeferry-ts/client` | Core client and connection APIs |
-| `typeferry-ts/react` | React provider and hooks |
-| `typeferry-ts/auth` | Shared auth, token, session, and cookie helpers |
-| `typeferry-ts/auth/server/oauth` | Server OAuth providers |
-| `typeferry-ts/auth/client/oauth` | Client OAuth helpers |
-| `typeferry-ts/ejson` | Extended JSON namespace |
-| `typeferry-ts/mongodb` | Native-driver MongoDB extension |
-| `typeferry-ts/mongodb/decorators` | MongoDB collection decorators |
+| `typeferry/server` | Server, methods, events, channels, and runtime types |
+| `typeferry/server/decorators` | Namespace and method decorators |
+| `typeferry/server/transports` | Node HTTP, WebSocket, and Redis transports |
+| `typeferry/client` | Core client and connection APIs |
+| `typeferry/react` | React provider and hooks |
+| `typeferry/auth` | Shared auth, token, session, and cookie helpers |
+| `typeferry/auth/server/oauth` | Server OAuth providers |
+| `typeferry/auth/client/oauth` | Client OAuth helpers |
+| `typeferry/ejson` | Extended JSON namespace |
+| `typeferry/mongodb` | Native-driver MongoDB extension |
+| `typeferry/mongodb/decorators` | MongoDB collection decorators |
 
-Applications should import these compiled package exports. Do not alias or import `typeferry-ts/src` from application code.
+Applications should import these compiled package exports. Do not alias or import TypeFerry source files from application code.
 
 ## Minimal local server
 
 ```ts
-import { Server } from 'typeferry-ts/server'
-import type { ClientNode } from 'typeferry-ts/server'
+import { Server } from 'typeferry/server'
+import type { ClientNode } from 'typeferry/server'
 import {
   Method,
   Namespace,
   registerNamespace,
-} from 'typeferry-ts/server/decorators'
+} from 'typeferry/server/decorators'
 
 @Namespace('system')
 class SystemMethods {

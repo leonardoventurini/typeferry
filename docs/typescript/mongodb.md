@@ -2,7 +2,7 @@
 
 The optional TypeScript MongoDB extension builds typed collections, decorators, observers, and TypeFerry invalidation on the official MongoDB driver.
 
-Import runtime APIs from `typeferry-ts/mongodb` and decorator APIs from `typeferry-ts/mongodb/decorators`. The detailed current API reference and examples live in [`src/mongodb/README.md`](../../typeferry-ts/src/mongodb/README.md).
+Import runtime APIs from `typeferry/mongodb` and decorator APIs from `typeferry/mongodb/decorators`. The detailed current API reference and examples live in [`src/mongodb/README.md`](../../typeferry-ts/src/mongodb/README.md).
 
 ## Development model
 

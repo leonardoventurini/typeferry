@@ -900,7 +900,7 @@ follow.
 
 ### 11.4 Optional MongoDB live-view extension
 
-`typeferry-ts/mongodb` MAY register a TypeScript-only live-view
+`typeferry/mongodb` MAY register a TypeScript-only live-view
 extension. It reuses revision-1 `rpc`, `rpc:res`, and `event` envelopes and
 does not add a message type, so servers without this optional capability
 remain protocol-conformant.

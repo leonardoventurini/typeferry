@@ -3,7 +3,7 @@ import {
   useClient,
   useConnectionState,
   useRemoteEvent,
-} from 'typeferry-ts/react'
+} from 'typeferry/react'
 import type { FormEvent, JSX } from 'react'
 import { useCallback, useEffect, useState } from 'react'
 

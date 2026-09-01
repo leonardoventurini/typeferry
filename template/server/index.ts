@@ -1,4 +1,4 @@
-import { Server } from 'typeferry-ts/server'
+import { Server } from 'typeferry/server'
 import path from 'node:path'
 
 import { MESSAGES_CHANGED_EVENT } from '@/common/messages'

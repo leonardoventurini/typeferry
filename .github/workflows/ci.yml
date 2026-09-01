@@ -8,12 +8,14 @@ on:
       - "docs/conformance/**"
       - "PROTOCOL.md"
       - ".github/workflows/ci.yml"
+      - "scripts/verify-npm-package.mjs"
   pull_request:
     paths:
       - "typeferry-ts/**"
       - "docs/conformance/**"
       - "PROTOCOL.md"
       - ".github/workflows/ci.yml"
+      - "scripts/verify-npm-package.mjs"
 
 permissions:
   contents: read
@@ -155,5 +157,5 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Inspect package
-        run: npm pack --dry-run
+      - name: Verify npm package
+        run: node ../scripts/verify-npm-package.mjs

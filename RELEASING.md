@@ -1,56 +1,54 @@
 # TypeFerry Release Status
 
-TypeFerry is intentionally non-publishable while its final npm, PyPI, Cargo,
-and repository identities are being selected.
+The TypeScript implementation is configured for operator-controlled publication to the public npm registry. Python and Rust publication remains disabled until their registry identities and workflows are approved separately.
 
-## Current Local Identities
+## Registry Identities
 
-| Implementation | Temporary identity | Manifest |
-|---|---|---|
-| TypeScript | `typeferry-ts` | `typeferry-ts/package.json` |
-| Python | `typeferry-py` | `typeferry-py/pyproject.toml` |
-| Rust | `typeferry` and `typeferry-*` | `typeferry-rs/Cargo.toml` |
+| Implementation | Registry identity | Version | Status |
+|---|---|---:|---|
+| TypeScript | `typeferry` | `0.6.0` | Public npm release enabled |
+| Python | `typeferry-py` | `0.2.0` | Temporary identity; publication disabled |
+| Rust | `typeferry` and `typeferry-*` | `0.2.0` | Workspace publication disabled |
 
-These names exist only to keep local builds, tests, imports, and dependency
-graphs coherent. They are not approved registry identifiers.
+The npm name check returned no public `typeferry` package document on 2026-09-01. That result is not a reservation: the release recipe rechecks the exact version immediately before upload, and successful publication is the definitive availability test.
 
-## Publication Guards
+## npm Release Gate
 
-- `typeferry-ts/package.json` sets `private: true` and has no
-  `publishConfig` or publish lifecycle script.
-- `typeferry-rs/Cargo.toml` sets workspace publication to `false`; every
-  publishable crate inherits that setting.
-- Python has no publication workflow or configured repository URL.
-- Publish and release-bump workflows are absent. GitHub Actions only verifies
-  source, tests, and build artifacts.
-- The project is hosted at `https://github.com/leonardoventurini/typeferry.git`.
+Run from the repository root with exact Node.js `24.19.0` and npm `11.17.0`:
 
-Do not add registry credentials, publishing workflows, package repository URLs,
-or release automation until a separate approved decision selects all external
-identifiers and the new repository location.
+```sh
+just verify-npm-release
+```
 
-## Local Verification
+This non-uploading gate installs the locked graph, lints, typechecks, runs all split test suites, builds the package, executes `npm publish --dry-run --json`, and validates every tarball path. The artifact may contain only `README.md`, `package.json`, and compiled JavaScript, declarations, and source maps beneath `dist/`. Every explicit export target must exist; tests, source, configuration, credentials, and retired Lit output are rejected.
 
-Use the language-native checks documented in `AGENTS.md`. TypeScript npm
-commands run from `typeferry-ts/` with Node.js `24.19.0` and npm `11.17.0`.
-The template currently resolves `typeferry-ts` through
-`file:../typeferry-ts`, so it can be verified without a registry package.
+CI runs the same package-artifact validator after its complete TypeScript gate.
 
-`npm pack --dry-run` remains a useful build-surface inspection even though npm
-publication is blocked. Cargo and Python package builds may likewise be used
-for local artifact inspection; they do not authorize uploads.
+## Publish to npm
 
-## Re-enabling Releases
+Authenticate with npm using the account and two-factor/trusted-publishing policy appropriate to the package, then run from a clean `main` checkout:
 
-A future release decision must establish, at minimum:
+```sh
+npm login --registry=https://registry.npmjs.org/
+just publish-npm
+```
 
-1. final registry package URLs and metadata;
-2. final npm, PyPI, and Cargo identifiers;
-3. whether the implementations remain independently versioned;
-4. migration policy from previously published packages;
-5. registry authentication and trusted-publishing policy;
-6. CI gates and dependency publication order;
-7. updated consumer installation instructions.
+The recipe requires:
 
-Re-enable publishing only after manifests, lockfiles, documentation, package
-artifacts, and CI all agree on those decisions.
+- exact Node/npm versions;
+- a clean tracked and untracked worktree on `main`;
+- successful `npm whoami` against the public registry;
+- package identity `typeferry@0.6.0` and an absent registry version;
+- the complete non-uploading release gate.
+
+Only after those checks does it execute `npm publish --access public`. It does not bump versions, create Git tags, push commits, or store credentials.
+
+An npm version cannot be reused after publication. If a release is incorrect, deprecate it as appropriate, fix the repository, choose a higher semantic version, and rerun the gate.
+
+## Other Implementations
+
+- `typeferry-py/pyproject.toml` retains a temporary distribution identity and has no publication workflow.
+- `typeferry-rs/Cargo.toml` keeps workspace publication set to `false`.
+- No GitHub workflow uploads packages or contains registry credentials.
+
+Enabling PyPI or crates.io publication requires a separate identity, authentication, dependency-order, migration, and rollout decision.

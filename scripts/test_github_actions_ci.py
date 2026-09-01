@@ -42,6 +42,7 @@ def test_workflow_preserves_ci_contract() -> None:
             "docs/conformance/**",
             "PROTOCOL.md",
             ".github/workflows/ci.yml",
+            "scripts/verify-npm-package.mjs",
         ],
     }
     assert triggers["pull_request"] == {
@@ -50,6 +51,7 @@ def test_workflow_preserves_ci_contract() -> None:
             "docs/conformance/**",
             "PROTOCOL.md",
             ".github/workflows/ci.yml",
+            "scripts/verify-npm-package.mjs",
         ],
     }
 
@@ -79,5 +81,8 @@ def test_workflow_preserves_ci_contract() -> None:
         "Stop integration services",
         "Browser tests",
         "Build",
-        "Inspect package",
+        "Verify npm package",
     } <= step_names
+
+    workflow_text = WORKFLOW.read_text(encoding="utf-8")
+    assert "verify-npm-package.mjs" in workflow_text

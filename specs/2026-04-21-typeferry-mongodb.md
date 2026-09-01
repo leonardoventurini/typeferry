@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `subagent-driven-development` by default to implement this plan task-by-task. If delegation is unavailable, continue in the current session with the same checklist, risk, and verification discipline. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build `typeferry-ts/mongodb` as a lean, decorator-driven bridge between TypeFerry and the official MongoDB driver so ExampleApp can remove Mongoose without replacing it with another ORM.
+**Goal:** Build `typeferry/mongodb` as a lean, decorator-driven bridge between TypeFerry and the official MongoDB driver so ExampleApp can remove Mongoose without replacing it with another ORM.
 
 **Architecture:** The package owns connection lifecycle, collection metadata, schema validation helpers, index registration, ObjectId helpers, and change-stream-to-TypeFerry event wiring. Application code should keep using native MongoDB `Collection<T>`, `FindCursor<T>`, sessions, aggregations, and bulk operations directly; Mongoose-only concepts such as hydrated documents, query thenables, implicit middleware, automatic populate, and model statics are deliberately moved into explicit app-level functions or omitted.
 
@@ -197,7 +197,7 @@ import {
   toObjectId,
   withInsertTimestamps,
   withUpdateTimestamp,
-} from 'typeferry-ts/mongodb'
+} from 'typeferry/mongodb'
 
 const BoardSchema = z.object({
   _id: objectId(),
@@ -1470,7 +1470,7 @@ Create this decision after implementation:
   find dist/mongodb -name '*.d.ts' -maxdepth 3 -print
   ```
 
-  Confirm consumers can import from `typeferry-ts/mongodb` and `typeferry-ts/mongodb/decorators` without source aliases.
+  Confirm consumers can import from `typeferry/mongodb` and `typeferry/mongodb/decorators` without source aliases.
 
 - [ ] **Step 5: Commit verification fixes**
 
@@ -2003,7 +2003,7 @@ Migrate patterns as follows:
 
 **Symptoms:**
 
-- ExampleApp needs source aliases into `node_modules/typeferry-ts/src`.
+- ExampleApp needs source aliases into `node_modules/typeferry/src`.
 - Node cannot import the built subpath.
 
 **Prevention:**
@@ -2199,7 +2199,7 @@ database.
 
 ## Acceptance Criteria
 
-- `typeferry-ts/mongodb` and `typeferry-ts/mongodb/decorators` publish from `dist`.
+- `typeferry/mongodb` and `typeferry/mongodb/decorators` publish from `dist`.
 - Non-MongoDB TypeFerry consumers do not load the MongoDB driver.
 - Collection decorators are metadata-only.
 - `createTypeFerryMongo` returns native driver collections.

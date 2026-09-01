@@ -13,7 +13,7 @@
     "target": "ES2022",
     "baseUrl": ".",
     "paths": {
-      "typeferry-ts/*": ["./src/*"]
+      "typeferry/*": ["./src/*"]
     },
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,

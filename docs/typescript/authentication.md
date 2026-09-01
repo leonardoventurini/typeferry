@@ -6,7 +6,7 @@ TypeFerry separates authentication from transport: the server resolves applicati
 
 ```ts
 // server/auth.ts
-import type { Server } from 'typeferry-ts/server'
+import type { Server } from 'typeferry/server'
 
 const DEVELOPMENT_TOKEN = 'replace-this-development-token'
 
@@ -34,6 +34,6 @@ Add `token` to `allowedContextKeys` on the server and provide it through the cli
 
 Use `@Protected()` to reject anonymous calls. Inside each protected method, verify tenant, role, and resource ownership using the authenticated `ClientNode`; being logged in does not imply access to every object.
 
-The `typeferry-ts/auth` entry point provides JWT, session, cookie, device, and shared auth primitives. OAuth integrations are split into `typeferry-ts/auth/server/oauth` and `typeferry-ts/auth/client/oauth`. Treat OAuth state, redirect allowlists, PKCE, cookie flags, and provider secrets as part of the application's security boundary.
+The `typeferry/auth` entry point provides JWT, session, cookie, device, and shared auth primitives. OAuth integrations are split into `typeferry/auth/server/oauth` and `typeferry/auth/client/oauth`. Treat OAuth state, redirect allowlists, PKCE, cookie flags, and provider secrets as part of the application's security boundary.
 
 The template shows the integration seam in [`server/index.ts`](../../template/server/index.ts), not a production identity system.

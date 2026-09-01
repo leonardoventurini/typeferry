@@ -6,7 +6,7 @@ TypeFerry's TypeScript server runs on Node.js and exposes the same registered me
 
 ```ts
 // server/index.ts
-import { Server } from 'typeferry-ts/server'
+import { Server } from 'typeferry/server'
 
 export const server = new Server({
   host: '127.0.0.1',
@@ -23,13 +23,13 @@ The server owns its Hono application and Node HTTP listener. Its WebSocket trans
 
 ```ts
 // server/methods/greeting.ts
-import type { ClientNode } from 'typeferry-ts/server'
+import type { ClientNode } from 'typeferry/server'
 import {
   Method,
   Namespace,
   Protected,
   registerNamespace,
-} from 'typeferry-ts/server/decorators'
+} from 'typeferry/server/decorators'
 
 interface GreetingInput {
   name: string

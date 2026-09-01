@@ -7,7 +7,7 @@ queries without becoming an ORM or exposing arbitrary client-authored MongoDB
 filters.
 
 The direct rollout adds named, typed publications to
-`typeferry-ts/mongodb`, maintains an authoritative result set for each
+`typeferry/mongodb`, maintains an authoritative result set for each
 active subscription, sends an initial snapshot followed by semantic document
 deltas, and exposes framework-independent client state with a React adapter.
 

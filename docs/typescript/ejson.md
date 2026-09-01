@@ -4,7 +4,7 @@ TypeFerry uses Extended JSON to preserve values that ordinary JSON cannot round-
 
 ```ts
 // shared/serialization.ts
-import { EJSON } from 'typeferry-ts/ejson'
+import { EJSON } from 'typeferry/ejson'
 
 const encoded = EJSON.stringify({ createdAt: new Date() })
 const decoded = EJSON.parse(encoded)
