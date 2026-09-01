@@ -29,31 +29,46 @@ Install the public TypeScript package with `npm install typeferry`. Repository c
 
 Applications should import these compiled package exports. Do not alias or import TypeFerry source files from application code.
 
-## Minimal local server
+## Define and serve a typed method
 
 ```ts
 import { Server } from 'typeferry/server'
 import type { ClientNode } from 'typeferry/server'
 import {
+  type InferNamespace,
   Method,
   Namespace,
   registerNamespace,
+  Schema,
 } from 'typeferry/server/decorators'
+import { z } from 'zod'
 
-@Namespace('system')
-class SystemMethods {
+const greetingSchema = z.object({
+  name: z.string().trim().min(1),
+})
+
+type GreetingInput = z.infer<typeof greetingSchema>
+
+@Namespace('greeting')
+export class GreetingMethods {
   @Method()
-  ping(_client: ClientNode): string {
-    return 'pong'
+  @Schema(greetingSchema)
+  async hello(
+    _client: ClientNode,
+    input: GreetingInput,
+  ): Promise<string> {
+    return `Hello, ${input.name}!`
   }
 }
 
+export type GreetingApi = InferNamespace<GreetingMethods, 'greeting'>
+
 const server = new Server({ host: '127.0.0.1', port: 8002 })
-registerNamespace(SystemMethods)
+registerNamespace(GreetingMethods)
 await server.isReady()
 ```
 
-The `Server` constructor installs Node HTTP and WebSocket transports. Call `server.close()` during graceful shutdown.
+Clients can call the method as `client.m.greeting.hello({ name: 'Ada' })` when parameterized with `GreetingApi`. The decorators turn the class method into an HTTP and WebSocket RPC endpoint, while `@Schema()` validates network input at runtime. The `Server` constructor installs both transports; call `server.close()` during graceful shutdown.
 
 ## Development
 

@@ -27,6 +27,46 @@ npm install typeferry
 
 Applications import focused exports such as `typeferry/client`, `typeferry/server`, and `typeferry/react`. Until the initial upload completes, use the repository-local workflow below.
 
+## Define RPC methods with decorators
+
+Define a namespace as a class, expose its methods with decorators, and derive the client API type directly from the implementation:
+
+```ts
+import type { ClientNode } from 'typeferry/server'
+import {
+  type InferNamespace,
+  Method,
+  Namespace,
+  registerNamespace,
+  Schema,
+} from 'typeferry/server/decorators'
+import { z } from 'zod'
+
+const greetingSchema = z.object({
+  name: z.string().trim().min(1),
+})
+
+type GreetingInput = z.infer<typeof greetingSchema>
+
+@Namespace('greeting')
+export class GreetingMethods {
+  @Method()
+  @Schema(greetingSchema)
+  async hello(
+    _client: ClientNode,
+    input: GreetingInput,
+  ): Promise<string> {
+    return `Hello, ${input.name}!`
+  }
+}
+
+export type GreetingApi = InferNamespace<GreetingMethods, 'greeting'>
+
+registerNamespace(GreetingMethods)
+```
+
+The method is available as `greeting.hello` over HTTP and WebSocket, with runtime input validation and an inferred typed client call. See the [server and RPC guide](docs/typescript/server-rpc.md) for middleware, authentication, caching, and server setup.
+
 ## What TypeFerry provides
 
 - Typed RPC methods with middleware, schema validation, protection, and caching.
