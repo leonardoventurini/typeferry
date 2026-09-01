@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
+import subprocess
 
 
 ROOT = Path(__file__).resolve().parents[1]
+REDIS_HELPER = ROOT / "scripts" / "run-with-redis.sh"
 
 
 def test_root_justfile_has_safe_npm_release_recipes() -> None:
@@ -29,6 +32,125 @@ def test_root_justfile_has_safe_npm_release_recipes() -> None:
     assert "\n    node " not in justfile
     assert "git diff --quiet" in justfile
     assert "refs/heads/main" in justfile
+    assert "scripts/run-with-redis.sh mise exec -- npm test" in justfile
+
+
+def test_redis_helper_preserves_an_external_redis_url(tmp_path: Path) -> None:
+    docker_log = tmp_path / "docker.log"
+    fake_docker = tmp_path / "docker"
+    fake_docker.write_text(
+        f'#!/usr/bin/env bash\necho "$*" >> "{docker_log}"\nexit 99\n',
+        encoding="utf-8",
+    )
+    fake_docker.chmod(0o755)
+    expected_url = "redis://redis.example.test:16379"
+    environment = {
+        **os.environ,
+        "PATH": f"{tmp_path}:{os.environ['PATH']}",
+        "REDIS_URL": expected_url,
+    }
+
+    result = subprocess.run(
+        [REDIS_HELPER, "bash", "-c", f'test "$REDIS_URL" = "{expected_url}"'],
+        cwd=ROOT,
+        env=environment,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert not docker_log.exists()
+
+
+def test_redis_helper_cleans_up_after_child_failure(tmp_path: Path) -> None:
+    docker_log = tmp_path / "docker.log"
+    fake_docker = tmp_path / "docker"
+    fake_docker.write_text(
+        """#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\\n' "$*" >> "$DOCKER_LOG"
+case "$1" in
+  run) printf '%s\\n' 'temporary-redis-id' ;;
+  port) printf '%s\\n' '127.0.0.1:49153' ;;
+  exec) printf '%s\\n' 'PONG' ;;
+  stop) ;;
+  *) exit 98 ;;
+esac
+""",
+        encoding="utf-8",
+    )
+    fake_docker.chmod(0o755)
+    environment = {
+        key: value for key, value in os.environ.items() if key != "REDIS_URL"
+    }
+    environment.update(
+        {
+            "PATH": f"{tmp_path}:{os.environ['PATH']}",
+            "DOCKER_LOG": str(docker_log),
+        }
+    )
+
+    result = subprocess.run(
+        [
+            REDIS_HELPER,
+            "bash",
+            "-c",
+            'test "$REDIS_URL" = "redis://127.0.0.1:49153" && exit 23',
+        ],
+        cwd=ROOT,
+        env=environment,
+        check=False,
+    )
+
+    assert result.returncode == 23
+    docker_calls = docker_log.read_text(encoding="utf-8").splitlines()
+    assert docker_calls == [
+        "run --detach --rm --label typeferry.purpose=release-verification "
+        "--publish 127.0.0.1::6379 redis:7-alpine",
+        "port temporary-redis-id 6379/tcp",
+        "exec temporary-redis-id redis-cli ping",
+        "stop temporary-redis-id",
+    ]
+
+
+def test_redis_helper_cleans_up_after_interrupt(tmp_path: Path) -> None:
+    docker_log = tmp_path / "docker.log"
+    fake_docker = tmp_path / "docker"
+    fake_docker.write_text(
+        """#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "$*" >> "$DOCKER_LOG"
+case "$1" in
+  run) printf '%s\n' 'temporary-redis-id' ;;
+  port) printf '%s\n' '127.0.0.1:49153' ;;
+  exec) printf '%s\n' 'PONG' ;;
+  stop) ;;
+  *) exit 98 ;;
+esac
+""",
+        encoding="utf-8",
+    )
+    fake_docker.chmod(0o755)
+    environment = {
+        key: value for key, value in os.environ.items() if key != "REDIS_URL"
+    }
+    environment.update(
+        {
+            "PATH": f"{tmp_path}:{os.environ['PATH']}",
+            "DOCKER_LOG": str(docker_log),
+        }
+    )
+
+    result = subprocess.run(
+        [REDIS_HELPER, "bash", "-c", 'kill -TERM "$PPID"'],
+        cwd=ROOT,
+        env=environment,
+        check=False,
+    )
+
+    assert result.returncode == 143
+    assert docker_log.read_text(encoding="utf-8").splitlines()[-1] == (
+        "stop temporary-redis-id"
+    )
 
 
 def test_package_validator_is_fail_closed_and_checks_exports() -> None:

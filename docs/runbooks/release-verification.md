@@ -17,7 +17,11 @@ The repository-level release gate installs and selects Node.js `24.19.0` and npm
 just verify-npm-release
 ```
 
-The integration suite requires Redis and reads `REDIS_URL`, defaulting to `redis://localhost:6379`.
+The integration suite requires Redis. When `REDIS_URL` is set, the release gate
+uses that service unchanged. Otherwise, it starts `redis:7-alpine` with Docker,
+publishes Redis on a dynamically assigned `127.0.0.1` port, waits for readiness,
+and removes the container after the tests. Docker must therefore be running when
+an external Redis URL is not supplied.
 
 To execute individual checks, first enter the pinned environment from the repository root, then run them from `typeferry-ts/`:
 
