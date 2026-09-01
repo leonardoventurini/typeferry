@@ -48,20 +48,20 @@ Provide a welcoming repository README and a navigable end-user documentation set
 
 This is a documentation-only change, so no new runtime tests are required. Existing builds and type checks validate the source surfaces on which examples are based.
 
-- [ ] Root README explains the project, capabilities, implementation matrix, local quickstart, documentation paths, status, and contribution entry points.
-- [ ] `docs/README.md` routes learning by task and language.
-- [ ] All ten requested TypeScript topics have dedicated, linked guides.
-- [ ] Python and Rust READMEs contain practical local installation, minimal server usage, transport/auth boundaries, testing, and limitations.
-- [ ] TypeScript examples use only current package export paths.
-- [ ] Documented npm scripts and repository paths exist.
-- [ ] Local Markdown links resolve.
-- [ ] Security-sensitive examples include production warnings and fail-closed guidance where appropriate.
-- [ ] Publication status is consistent with `RELEASING.md` and package guards.
-- [ ] `git diff --check` and documentation integrity checks pass.
-- [ ] Relevant TypeScript typecheck/build/package inspection checks pass, or environmental limitations are disclosed.
-- [ ] Python and Rust documentation examples are checked against current exports/tests; skipped execution is disclosed.
-- [ ] A decision record captures the end-user documentation information architecture.
-- [ ] All task-owned changes are committed semantically and the worktree is clean.
+- [x] Root README explains the project, capabilities, implementation matrix, local quickstart, documentation paths, status, and contribution entry points.
+- [x] `docs/README.md` routes learning by task and language.
+- [x] All ten requested TypeScript topics have dedicated, linked guides.
+- [x] Python and Rust READMEs contain practical local installation, minimal server usage, transport/auth boundaries, testing, and limitations.
+- [x] TypeScript examples use only current package export paths.
+- [x] Documented npm scripts and repository paths exist.
+- [x] Local Markdown links resolve.
+- [x] Security-sensitive examples include production warnings and fail-closed guidance where appropriate.
+- [x] Publication status is consistent with `RELEASING.md` and package guards.
+- [x] `git diff --check` and documentation integrity checks pass.
+- [x] Relevant TypeScript typecheck/build/package inspection checks pass, or environmental limitations are disclosed.
+- [x] Python and Rust documentation examples are checked against current exports/tests; skipped execution is disclosed.
+- [x] A decision record captures the end-user documentation information architecture.
+- [x] All task-owned changes are committed semantically and the worktree is clean.
 
 ## Executable Checklist
 
