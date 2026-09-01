@@ -61,8 +61,8 @@ post-upgrade unit assertions will detect a behavior change.
       and frozen install.
 - [x] Inspect the packed dependency manifest and emitted client import.
 - [x] Bump the Bifrost patch version with npm.
-- [ ] Commit and push the verified Bifrost source and lockfile.
-- [ ] Publish the immutable package and confirm Forgejo exposes it.
+- [x] Commit and push the verified Bifrost source and lockfile.
+- [x] Publish the immutable package and confirm Forgejo exposes it.
 
 ## Direct Rollout
 
