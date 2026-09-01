@@ -8,8 +8,8 @@ from `template/`; it is not an npm workspace member of the parent repository.
 - Mise is the only runtime version manager. Pin Node in `.mise.toml` and use
   that Node distribution's bundled npm; do not add a separate npm tool,
   `.nvmrc`, `.node-version`, Volta, or asdf files.
-- Keep `.npmrc` tracked and credential-free. It owns npm behavior and the
-  public Forgejo package scope, not runtime installation.
+- Keep `.npmrc` tracked and credential-free. It owns repository-local npm
+  behavior, not runtime installation or registry credentials.
 - Use `mise exec -- npm ...` for reproducible local and agent commands.
 - Install dependencies with npm so `package.json` and `package-lock.json` stay
   synchronized. Run `npm audit --audit-level=low` after dependency changes.

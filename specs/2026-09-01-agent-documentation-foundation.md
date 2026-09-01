@@ -48,18 +48,18 @@ Create a durable agent-documentation foundation consisting of a concise root rou
 
 This task is documentation-only, so runtime tests are not required.
 
-- [ ] Every new Markdown link resolves to a tracked file or documented external source.
-- [ ] Every referenced repository path exists.
-- [ ] Every documented npm script exists in the applicable `package.json`.
-- [ ] TypeScript commands use exact Node.js `24.19.0`, npm `11.17.0`, and `typeferry-ts/` as the working directory.
-- [ ] Python and Rust commands use their package directories and current configured test/type/lint tools.
-- [ ] The root and nested `AGENTS.md` files contain no contradictory instructions or unnecessary duplication.
-- [ ] The agent router covers the four implementation areas and four requested recurring workflows.
-- [ ] Architecture pages identify authority, ownership boundaries, extension points, and verification surfaces.
-- [ ] Runbooks contain preconditions, ordered actions, acceptance criteria, and recovery guidance.
-- [ ] Every existing `docs/plans/*.md` file has a historical/non-normative banner.
-- [ ] `git diff --check` and the documentation integrity checks pass.
-- [ ] All task-owned changes are committed semantically and the worktree is clean.
+- [x] Every new Markdown link resolves to a tracked file or documented external source.
+- [x] Every referenced repository path exists.
+- [x] Every documented npm script exists in the applicable `package.json`.
+- [x] TypeScript commands use exact Node.js `24.19.0`, npm `11.17.0`, and `typeferry-ts/` as the working directory.
+- [x] Python and Rust commands use their package directories and current configured test/type/lint tools.
+- [x] The root and nested `AGENTS.md` files contain no contradictory instructions or unnecessary duplication.
+- [x] The agent router covers the four implementation areas and four requested recurring workflows.
+- [x] Architecture pages identify authority, ownership boundaries, extension points, and verification surfaces.
+- [x] Runbooks contain preconditions, ordered actions, acceptance criteria, and recovery guidance.
+- [x] Every existing `docs/plans/*.md` file has a historical/non-normative banner.
+- [x] `git diff --check` and the documentation integrity checks pass.
+- [x] All task-owned changes are committed semantically and the worktree is clean.
 
 ## Executable Checklist
 

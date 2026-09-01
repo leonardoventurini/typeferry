@@ -1,5 +1,8 @@
 # Rust Server Feature Parity Plan
 
+> [!IMPORTANT]
+> Historical and non-normative. This plan records prior implementation intent and may contain completed, superseded, or stale steps. Do not execute it as current instructions. Use `PROTOCOL.md`, the nearest `AGENTS.md`, accepted decisions, current source, and tests as authorities.
+
 > **Scope update (2026-04-20):** this plan originally targeted protocol
 > parity only. It has been widened to **full server feature parity** to
 > match the Python plan (`2026-04-20-python-server-port-and-monorepo.md`).

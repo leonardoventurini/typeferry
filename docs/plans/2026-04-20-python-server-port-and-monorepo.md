@@ -1,5 +1,8 @@
 # Python Server Port & Monorepo Restructure Plan
 
+> [!IMPORTANT]
+> Historical and non-normative. This plan records prior implementation intent and may contain completed, superseded, or stale steps. Do not execute it as current instructions. Use `PROTOCOL.md`, the nearest `AGENTS.md`, accepted decisions, current source, and tests as authorities.
+
 ## Context
 
 TypeFerry today is a single TypeScript package (`typeferry-ts`) that ships

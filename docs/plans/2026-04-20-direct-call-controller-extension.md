@@ -1,5 +1,8 @@
 # DirectCallController TypeFerry Extension Implementation Plan
 
+> [!IMPORTANT]
+> Historical and non-normative. This plan records prior implementation intent and may contain completed, superseded, or stale steps. Do not execute it as current instructions. Use `PROTOCOL.md`, the nearest `AGENTS.md`, accepted decisions, current source, and tests as authorities.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `subagent-driven-development` by default to implement this plan task-by-task. If delegation is unavailable, continue in the current session with the same checklist, risk, and verification discipline. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add a framework-level DirectCallController extension to TypeFerry so apps can build reliable one-to-one audio/video calls without hand-rolling WebRTC signaling, negotiation, and UI adapter state.
