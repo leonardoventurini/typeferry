@@ -47,8 +47,8 @@ Replace the Forgejo workflow with an equivalent GitHub Actions workflow at `.git
 - [x] Run the workflow contract test.
 - [x] Run the existing textual release/rebrand helper tests affected by repository-path assertions.
 - [x] Confirm no tracked Forgejo workflow or Forgejo-specific CI reference remains.
-- [ ] Confirm `git diff --check` passes and the working tree is clean after a semantic commit.
-- [ ] Push the migration to `origin/main` and verify the remote branch contains the commit.
+- [x] Confirm `git diff --check` passes and the working tree is clean after a semantic commit.
+- [x] Push the migration to `origin/main` and verify the remote branch contains the commit.
 
 ## Direct Rollout
 
