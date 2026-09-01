@@ -51,7 +51,7 @@ class TypeFerryRebrandTest(unittest.TestCase):
         self.assertIs(False, cargo["workspace"]["package"]["publish"])
 
     def test_publish_workflows_are_absent(self) -> None:
-        workflows = REPO_ROOT / ".forgejo/workflows"
+        workflows = REPO_ROOT / ".github/workflows"
         publish_workflows = sorted(workflows.glob("publish-*.yml"))
 
         self.assertEqual([], publish_workflows)

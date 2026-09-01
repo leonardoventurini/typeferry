@@ -60,7 +60,7 @@ describe('Node runtime configuration', () => {
       resolve(TYPESCRIPT_ROOT, 'package.json'),
       resolve(REPOSITORY_ROOT, 'AGENTS.md'),
       resolve(REPOSITORY_ROOT, 'RELEASING.md'),
-      resolve(REPOSITORY_ROOT, '.forgejo/workflows/ci.yml'),
+      resolve(REPOSITORY_ROOT, '.github/workflows/ci.yml'),
     ].filter(path => path !== import.meta.filename)
 
     await expect(findRetiredRuntimeMarkers(ownedFiles)).resolves.toEqual([])

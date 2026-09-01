@@ -7,22 +7,25 @@ on:
       - "typeferry-ts/**"
       - "docs/conformance/**"
       - "PROTOCOL.md"
-      - ".forgejo/workflows/ci.yml"
+      - ".github/workflows/ci.yml"
   pull_request:
     paths:
       - "typeferry-ts/**"
       - "docs/conformance/**"
       - "PROTOCOL.md"
-      - ".forgejo/workflows/ci.yml"
+      - ".github/workflows/ci.yml"
+
+permissions:
+  contents: read
 
 concurrency:
-  group: ci-${{ forgejo.ref }}
+  group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   ci-ts:
     name: CI (typeferry-ts)
-    runs-on: arm64
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     defaults:
       run:
@@ -33,9 +36,9 @@ jobs:
       TYPEFERRY_MONGODB_TEST_URI: mongodb://127.0.0.1:27018/?replicaSet=typeferry-ci
       TYPEFERRY_MONGODB_TEST_DB: typeferry_mongodb_ci_test
     steps:
-      - uses: https://data.forgejo.org/actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - uses: https://data.forgejo.org/actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 24.19.0
           cache: npm
@@ -127,7 +130,7 @@ jobs:
           REDIS_CONTAINER: typeferry-redis-ci
         run: docker stop "$MONGO_CONTAINER" "$REDIS_CONTAINER" || true
 
-      - uses: https://data.forgejo.org/actions/cache@v4
+      - uses: actions/cache@v4
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright

@@ -41,12 +41,12 @@ Replace the Forgejo workflow with an equivalent GitHub Actions workflow at `.git
 
 ## Test Strategy and Acceptance Criteria
 
-- [ ] Add a repository-level contract test that rejects Forgejo workflow/context/action references and asserts the GitHub runner, triggers, permissions, and required CI stages.
-- [ ] Create `.github/workflows/ci.yml` and remove `.forgejo/workflows/ci.yml`.
-- [ ] Parse the resulting YAML successfully.
-- [ ] Run the workflow contract test.
-- [ ] Run the existing textual release/rebrand helper tests affected by repository-path assertions.
-- [ ] Confirm no tracked Forgejo workflow or Forgejo-specific CI reference remains.
+- [x] Add a repository-level contract test that rejects Forgejo workflow/context/action references and asserts the GitHub runner, triggers, permissions, and required CI stages.
+- [x] Create `.github/workflows/ci.yml` and remove `.forgejo/workflows/ci.yml`.
+- [x] Parse the resulting YAML successfully.
+- [x] Run the workflow contract test.
+- [x] Run the existing textual release/rebrand helper tests affected by repository-path assertions.
+- [x] Confirm no tracked Forgejo workflow or Forgejo-specific CI reference remains.
 - [ ] Confirm `git diff --check` passes and the working tree is clean after a semantic commit.
 - [ ] Push the migration to `origin/main` and verify the remote branch contains the commit.
 

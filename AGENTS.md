@@ -32,7 +32,7 @@ This repo is a multi-language monorepo:
 - **`useConnectionState` includes `isReconnecting`.** Older tests and assumptions that only check `isOnline`, `isOffline`, and `isConnecting` are stale.
 - **`useObject` change detection must not rely on millisecond precision alone.** Same-millisecond deep changes can happen in tests and real code, so monotonic change tokens matter.
 - **The local `throttle` helper has important semantics.** `leading: false` must still schedule the trailing invocation; if throttled event behavior looks odd, inspect `typeferry-ts/src/utils/lodash.ts` before blaming the hook layer.
-- **CI must install browser dependencies explicitly.** Forgejo CI runs browser tests and uses Playwright cache/install steps; if browser coverage changes, keep `.forgejo/workflows/ci.yml` in sync.
+- **CI must install browser dependencies explicitly.** GitHub Actions runs browser tests and uses Playwright cache/install steps; if browser coverage changes, keep `.github/workflows/ci.yml` in sync.
 - **Publishing is disabled while registry identities are pending.** The TypeScript package is private, the Rust workspace is non-publishable, and publication workflows are absent. Do not re-enable releases without an approved identity and migration decision.
 - **Built output remains part of the future release surface.** Verify `npm run build` and `npm pack --dry-run` in `typeferry-ts/`, and treat broken `dist` imports as release blockers even while publication is disabled.
 - **Use immutable npm installs.** `package-lock.json` is authoritative. CI and release verification use `npm ci`; dependency and version changes use npm commands so the manifest and lock stay coherent.

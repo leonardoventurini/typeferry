@@ -21,9 +21,9 @@ graphs coherent. They are not approved registry identifiers.
 - `typeferry-rs/Cargo.toml` sets workspace publication to `false`; every
   publishable crate inherits that setting.
 - Python has no publication workflow or configured repository URL.
-- Forgejo publish and release-bump workflows are absent. CI only verifies
+- Publish and release-bump workflows are absent. GitHub Actions only verifies
   source, tests, and build artifacts.
-- The project has no Git remote after preserving the pre-rebrand save point.
+- The project is hosted at `https://github.com/leonardoventurini/typeferry.git`.
 
 Do not add registry credentials, publishing workflows, package repository URLs,
 or release automation until a separate approved decision selects all external
@@ -44,7 +44,7 @@ for local artifact inspection; they do not authorize uploads.
 
 A future release decision must establish, at minimum:
 
-1. the TypeFerry repository URL and Git remote;
+1. final registry package URLs and metadata;
 2. final npm, PyPI, and Cargo identifiers;
 3. whether the implementations remain independently versioned;
 4. migration policy from previously published packages;
