@@ -10,7 +10,7 @@ Run the existing TypeScript CI contract in GitHub Actions:
 
 - store the workflow at `.github/workflows/ci.yml`;
 - use GitHub-hosted `ubuntu-24.04`;
-- use `actions/checkout@v4`, `actions/setup-node@v4`, and `actions/cache@v4`;
+- use the Node.js 24-based `actions/checkout@v6`, `actions/setup-node@v7`, and `actions/cache@v5`;
 - key concurrency with `github.ref` and cancel stale runs;
 - grant the workflow read-only repository contents permission;
 - preserve exact Node.js and npm versions, audit, lint, typecheck, split tests, Docker-backed MongoDB and Redis integration services, Playwright setup, build, and dry-run package inspection;
