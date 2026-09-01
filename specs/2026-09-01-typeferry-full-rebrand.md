@@ -25,7 +25,7 @@ Produce a repository whose active and historical tracked state consistently uses
 - historical filenames and narrative wording are rewritten rather than preserved;
 - package manifests use temporary non-publishable local identities;
 - publishing and automated release-bump workflows are disabled until registry identifiers are explicitly selected;
-- the final local repository directory is `<user-home>/Repositories/example-app/typeferry`.
+- the final local repository directory is `<project-root>`.
 
 ## Uncertainty
 
@@ -79,7 +79,7 @@ Testing begins with baseline execution before implementation, followed by focuse
 10. Template typecheck/tests/build pass using its temporary local TypeFerry dependency arrangement.
 11. Manifests and packed artifacts expose only temporary non-publishable TypeFerry identities.
 12. Publishing workflows are absent or inert and cannot publish temporary identities on push.
-13. Git diff checks pass, all task-owned work is committed semantically, and the final directory is `<user-home>/Repositories/example-app/typeferry`.
+13. Git diff checks pass, all task-owned work is committed semantically, and the final directory is `<project-root>`.
 
 ## Risks and Mitigations
 

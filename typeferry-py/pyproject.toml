@@ -8,7 +8,7 @@ version = "0.2.0"
 description = "Python port of the TypeFerry real-time RPC framework — server-side feature parity with typeferry-ts"
 readme = "README.md"
 requires-python = ">=3.12"
-license = { text = "UNLICENSED" }
+license = "MIT"
 authors = [{ name = "Leonardo Venturini" }]
 keywords = ["typeferry", "rpc", "websocket", "ejson", "starlette"]
 dependencies = [

@@ -69,7 +69,7 @@ Everything else should remain plain MongoDB driver code.
 
 ## Current Reference Surface
 
-The reference application is `<user-home>/Repositories/example-app/example-app`.
+The reference application is `<example-app-root>`.
 
 Observed Mongoose footprint:
 
@@ -139,7 +139,7 @@ The migration should convert this surface into explicit driver usage:
 
 **Rejected.** Sessions and transactions must remain normal driver concepts. The package can expose `withTransaction`, but must pass through `ClientSession` instead of inventing a transaction abstraction.
 
-### Assumption 10: TypeFerry MongoDB should be a ExampleApp-specific compatibility package.
+### Assumption 10: TypeFerry MongoDB should be an ExampleApp-specific compatibility package.
 
 **Rejected.** ExampleApp is the pressure test, not the product boundary. The package should be reusable for any TypeFerry server that uses MongoDB and wants real-time events from change streams.
 
@@ -635,8 +635,8 @@ Create this decision after implementation:
 - Read: `typeferry-ts/src/server/server-channel.ts`
 - Read: `typeferry-ts/src/server/event.ts`
 - Read: `typeferry-ts/src/server/server.ts`
-- Read: `<user-home>/Repositories/example-app/example-app/src/server/data/change-streams.ts`
-- Read: `<user-home>/Repositories/example-app/example-app/src/server/data/plugins/*.ts`
+- Read: `<example-app-root>/src/server/data/change-streams.ts`
+- Read: `<example-app-root>/src/server/data/plugins/*.ts`
 
 **Execution:**
 - Owner: `supervisor`

@@ -17,7 +17,7 @@ Adopt TypeFerry as a clean break across the complete tracked repository:
 - all temporary packages are private or non-publishable, and publish/release-bump automation is removed;
 - the template consumes the TypeScript package through a repository-local file dependency;
 - repository and registry URLs remain explicit pending values rather than guessing future infrastructure;
-- the repository root is renamed to `<user-home>/Repositories/example-app/typeferry` after the implementation commit.
+- the repository root is renamed to `<project-root>` after the implementation commit.
 
 Protocol-governed source, fixtures, implementations, and documentation are committed atomically so no commit represents a mixed wire contract.
 

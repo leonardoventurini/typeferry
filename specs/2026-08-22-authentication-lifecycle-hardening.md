@@ -3,7 +3,7 @@
 ## Goal and scope
 
 Move the framework-owned authentication and readiness fixes currently carried
-as a ExampleApp `patchedDependency` into TypeFerry source, publish compiled ESM as
+as an ExampleApp `patchedDependency` into TypeFerry source, publish compiled ESM as
 `typeferry-ts@0.3.4`, and upgrade ExampleApp to that immutable release.
 
 The TypeFerry release owns HTTP status preservation, stale reconnect-timer

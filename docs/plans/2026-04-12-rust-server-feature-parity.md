@@ -433,7 +433,7 @@ Do not put the Rust implementation inside the existing TypeScript package.
 
 Prefer a sibling repository or a workspace sibling such as:
 
-- `Repositories/example-app/typeferry-rs`
+- `typeferry-rs/`
 
 or a multi-language monorepo arrangement only if the release process is made
 explicit first.

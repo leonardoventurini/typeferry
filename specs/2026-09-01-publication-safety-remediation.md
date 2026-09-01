@@ -2,14 +2,14 @@
 
 ## Problem
 
-TypeFerry is intended to become public. A repository audit found no usable credentials, but the current tree and reachable Git history disclose an internal package registry, internal organization identifiers, absolute workstation paths, and an internal bot email address. The repository also declares `UNLICENSED`, so recipients have no open-source permission to use or redistribute it.
+TypeFerry is intended to become public. A repository audit found no usable credentials, but the current tree and reachable Git history disclose an internal package registry, internal organization identifiers, absolute workstation paths, and an internal bot email address. The repository also uses non-open-source license metadata, so recipients have no permission to use or redistribute it.
 
 ## Evidence
 
 - `template/.npmrc` names an internal scoped registry and package owner.
 - Plans, specifications, decisions, and examples contain internal organization names or absolute workstation paths.
 - Four reachable commits use an internal-domain release-bot identity.
-- TypeScript, Python, and Rust package metadata declares `UNLICENSED`.
+- TypeScript, Python, and Rust package metadata lacks an open-source license.
 - A checksum-verified Gitleaks 8.30.1 scan found only the documented WebSocket example nonce, which is a false positive rather than a credential.
 
 ## Desired Outcome
