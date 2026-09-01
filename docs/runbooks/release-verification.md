@@ -11,16 +11,26 @@ This runbook verifies release readiness; it does not authorize publication. Read
 
 ## TypeScript release surface
 
-From `typeferry-ts/` with Node.js `24.19.0` and npm `11.17.0`:
+The repository-level release gate installs and selects Node.js `24.19.0` and npm `11.17.0` from the root `.mise.toml` before running package commands:
 
 ```sh
-npm ci
-npm audit --audit-level=low
-npm run lint
-npm run typecheck
-npm test
-npm run build
-npm pack --dry-run
+just verify-npm-release
+```
+
+The integration suite requires Redis and reads `REDIS_URL`, defaulting to `redis://localhost:6379`.
+
+To execute individual checks, first enter the pinned environment from the repository root, then run them from `typeferry-ts/`:
+
+```sh
+mise install
+cd typeferry-ts
+mise exec -- npm ci
+mise exec -- npm audit --audit-level=low
+mise exec -- npm run lint
+mise exec -- npm run typecheck
+mise exec -- npm test
+mise exec -- npm run build
+mise exec -- npm pack --dry-run
 ```
 
 Inspect the dry-run archive list. It should expose built ESM and declarations through `dist/`, contain the intended license and metadata, and require no aliases into `src/`.

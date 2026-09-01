@@ -14,13 +14,15 @@ The npm name check returned no public `typeferry` package document on 2026-09-01
 
 ## npm Release Gate
 
-Run from the repository root with exact Node.js `24.19.0` and npm `11.17.0`:
+Run from the repository root with Mise installed:
 
 ```sh
 just verify-npm-release
 ```
 
-This non-uploading gate installs the locked graph, lints, typechecks, runs all split test suites, builds the package, executes `npm publish --dry-run --json`, and validates every tarball path. The artifact may contain only `README.md`, `package.json`, and compiled JavaScript, declarations, and source maps beneath `dist/`. Every explicit export target must exist; tests, source, configuration, credentials, and retired Lit output are rejected.
+The recipe automatically installs and selects the exact Node.js `24.19.0` and npm `11.17.0` toolchain pinned in [`.mise.toml`](.mise.toml). It then installs the locked graph, lints, typechecks, runs all split test suites, builds the package, executes `npm publish --dry-run --json`, and validates every tarball path. The artifact may contain only `README.md`, `package.json`, and compiled JavaScript, declarations, and source maps beneath `dist/`. Every explicit export target must exist; tests, source, configuration, credentials, and retired Lit output are rejected.
+
+The integration suite requires Redis. It uses `REDIS_URL` when set and otherwise connects to `redis://localhost:6379`; start that dependency before running either release command.
 
 CI runs the same package-artifact validator after its complete TypeScript gate.
 
@@ -35,7 +37,7 @@ just publish-npm
 
 The recipe requires:
 
-- exact Node/npm versions;
+- automatic installation and selection of the exact Node/npm versions through Mise;
 - a clean tracked and untracked worktree on `main`;
 - successful `npm whoami` against the public registry;
 - package identity `typeferry@0.6.0` and an absent registry version;

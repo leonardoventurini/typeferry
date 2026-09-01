@@ -11,12 +11,22 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_root_justfile_has_safe_npm_release_recipes() -> None:
     justfile = (ROOT / "justfile").read_text(encoding="utf-8")
+    mise_config = (ROOT / ".mise.toml").read_text(encoding="utf-8")
 
+    assert 'node = "24.19.0"' in mise_config
+    assert 'npm = "11.17.0"' in mise_config
+    assert "install-npm-toolchain:" in justfile
+    assert "mise install" in justfile
     assert "verify-npm-release:" in justfile
     assert "publish-npm:" in justfile
-    assert "npm whoami" in justfile
-    assert "scripts/verify-npm-package.mjs" in justfile
-    assert "npm publish --access public" in justfile
+    assert "verify-npm-release: install-npm-toolchain" in justfile
+    assert "assert-npm-publish-state: install-npm-toolchain" in justfile
+    assert "mise exec -- npm whoami" in justfile
+    assert "mise exec -- node scripts/verify-npm-package.mjs" in justfile
+    assert "mise exec -- npm publish --access public" in justfile
+    assert "\n    npm " not in justfile
+    assert " && npm " not in justfile
+    assert "\n    node " not in justfile
     assert "git diff --quiet" in justfile
     assert "refs/heads/main" in justfile
 
