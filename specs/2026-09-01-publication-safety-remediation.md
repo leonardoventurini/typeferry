@@ -48,18 +48,18 @@ Make the complete reachable repository safe and intentional to publish: remove t
 
 ## Test Strategy and Acceptance Criteria
 
-- [ ] Capture the reachable refs, commit count, and author identities before rewriting.
-- [ ] Create and verify a restorable bundle containing every reachable ref.
-- [ ] Add the MIT License and update TypeScript, Python, and Rust license metadata.
-- [ ] Remove internal registry configuration from the template.
-- [ ] Sanitize current-tree internal organization and absolute-path references.
-- [ ] Run relevant textual tests and metadata parsing checks before rewriting history.
-- [ ] Rewrite every reachable revision and the four internal bot identities.
-- [ ] Confirm `git fsck --full` succeeds and intended refs remain reachable.
-- [ ] Confirm forbidden metadata has zero matches across every reachable blob and commit identity.
-- [ ] Re-run checksum-verified Gitleaks against the rewritten history and classify every alert.
-- [ ] Confirm the standard WebSocket nonce is the only accepted scanner false positive, if still reported.
-- [ ] Confirm the worktree is clean after semantic commits.
+- [x] Capture the reachable refs, commit count, and author identities before rewriting.
+- [x] Create and verify a restorable bundle containing every reachable ref.
+- [x] Add the MIT License and update TypeScript, Python, and Rust license metadata.
+- [x] Remove internal registry configuration from the template.
+- [x] Sanitize current-tree internal organization and absolute-path references.
+- [x] Run relevant textual tests and metadata parsing checks before rewriting history.
+- [x] Rewrite every reachable revision and the four internal bot identities.
+- [x] Confirm `git fsck --full` succeeds and intended refs remain reachable.
+- [x] Confirm forbidden metadata has zero matches across every reachable blob and commit identity.
+- [x] Re-run checksum-verified Gitleaks against the rewritten history and classify every alert.
+- [x] Confirm the standard WebSocket nonce is the only accepted scanner false positive, if still reported.
+- [x] Confirm the worktree is clean after semantic commits.
 
 ## Executable Checklist
 
