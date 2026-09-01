@@ -957,6 +957,19 @@ describe('Client', () => {
       expect(url).toContain('limit=10')
     })
 
+    it('preserves query serialization for structured scalar values', () => {
+      const url = client.href('api', 'search', {
+        active: true,
+        empty: null,
+        labels: ['security review', 'release'],
+        query: 'Bifrost & ExampleApp',
+      })
+
+      expect(url).toBe(
+        `${client.clientHttp.host}/api/search?active=true&empty&labels=security%20review&labels=release&query=Bifrost%20%26%20ExampleApp`,
+      )
+    })
+
     it('throws when plain object is not the last argument', () => {
       expect(() => client.href({ foo: 'bar' } as any, 'path')).toThrow(
         'Parameters are only allowed in the last argument.',
