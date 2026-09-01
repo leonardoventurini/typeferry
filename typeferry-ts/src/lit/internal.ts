@@ -1,0 +1,213 @@
+import isEqual from 'fast-deep-equal'
+import type { ReactiveController, ReactiveControllerHost } from 'lit'
+
+import { Client } from '../client'
+import type { AnyFunction } from '../utils'
+import { NO_CHANNEL } from '../utils'
+import type EventEmitter2 from '../utils/event-emitter'
+import { onAllThrottled } from '../utils/events'
+
+export interface TypeFerryClientProvider {
+  client: Client | null | undefined
+}
+
+export type TypeFerryClientSource =
+  | Client
+  | TypeFerryClientProvider
+  | (() => Client | null | undefined)
+  | null
+  | undefined
+
+export function resolveClient(source: TypeFerryClientSource): Client | null {
+  if (!source) return null
+
+  if (typeof source === 'function') {
+    return resolveClient(source())
+  }
+
+  if (source instanceof Client) {
+    return source
+  }
+
+  if (typeof source === 'object' && 'client' in source) {
+    return resolveClient((source as TypeFerryClientProvider).client)
+  }
+
+  const maybeClient = source as Client
+  if (
+    typeof maybeClient?.call === 'function' &&
+    typeof maybeClient?.channel === 'function'
+  ) {
+    return maybeClient
+  }
+
+  return null
+}
+
+export function requireClient(
+  source: TypeFerryClientSource,
+  message = 'Client Not Found',
+): Client {
+  const client = resolveClient(source)
+
+  if (!client) {
+    throw new Error(message)
+  }
+
+  return client
+}
+
+export type TypeFerryEventBindingOptions<
+  TCallback extends AnyFunction | null = AnyFunction | null,
+> = {
+  event: string | null
+  channel: string
+  active: boolean
+  callback: TCallback
+}
+
+export function normalizeEventBindingOptions<
+  TCallback extends AnyFunction | null = AnyFunction | null,
+>(options: {
+  event?: string | null
+  channel?: string
+  active?: boolean
+  callback?: TCallback | null
+}): TypeFerryEventBindingOptions<TCallback> {
+  return {
+    event: options.event ?? null,
+    channel: options.channel ?? NO_CHANNEL,
+    active: options.active ?? true,
+    callback: (options.callback ?? null) as TCallback,
+  }
+}
+
+export function equalEventBindingOptions<
+  TCallback extends AnyFunction | null = AnyFunction | null,
+>(
+  left: TypeFerryEventBindingOptions<TCallback>,
+  right: TypeFerryEventBindingOptions<TCallback>,
+): boolean {
+  return (
+    left.event === right.event &&
+    left.channel === right.channel &&
+    left.active === right.active &&
+    left.callback === right.callback
+  )
+}
+
+export abstract class TypeFerryReactiveController implements ReactiveController {
+  private cleanups: Array<() => void> = []
+
+  constructor(protected readonly host: ReactiveControllerHost) {}
+
+  protected attach(): void {
+    this.host.addController(this)
+  }
+
+  protected requestUpdate(): void {
+    this.host.requestUpdate()
+  }
+
+  protected addCleanup(cleanup: () => void): () => void {
+    this.cleanups.push(cleanup)
+    return cleanup
+  }
+
+  protected clearCleanups(): void {
+    while (this.cleanups.length) {
+      const cleanup = this.cleanups.pop()
+
+      try {
+        cleanup?.()
+      } catch {
+        // Best-effort cleanup. Individual listeners should never block teardown.
+      }
+    }
+  }
+
+  protected listen(
+    emitter: Pick<EventEmitter2, 'on' | 'off'>,
+    event: string,
+    callback: (...args: any[]) => void,
+  ): void {
+    emitter.on(event, callback)
+    this.addCleanup(() => emitter.off(event, callback))
+  }
+
+  protected listenThrottled(
+    emitter: EventEmitter2,
+    events: string[],
+    callback: (...args: any[]) => void,
+    throttleMs = 16,
+  ): void {
+    this.addCleanup(
+      onAllThrottled(emitter, events, callback, throttleMs, {
+        leading: true,
+        trailing: true,
+      }),
+    )
+  }
+
+  hostConnected(): void {}
+
+  hostDisconnected(): void {
+    this.clearCleanups()
+  }
+
+  protected cloneIfChanged<T>(current: T, next: T): T {
+    return isEqual(current, next) ? current : next
+  }
+}
+
+export abstract class TypeFerryClientBoundController<
+  TClient = Client,
+> extends TypeFerryReactiveController {
+  protected currentClient: TClient | null = null
+
+  constructor(
+    host: ReactiveControllerHost,
+    protected readonly clientSource: TypeFerryClientSource,
+  ) {
+    super(host)
+  }
+
+  get client(): TClient | null {
+    return this.currentClient
+  }
+
+  protected resolveClient(message?: string): TClient {
+    return requireClient(this.clientSource, message) as TClient
+  }
+
+  protected bindClient(message?: string): TClient {
+    const client = this.resolveClient(message)
+
+    if (client === this.currentClient) {
+      return client
+    }
+
+    const previousClient = this.currentClient
+    this.beforeClientChange(previousClient, client)
+    this.currentClient = client
+    this.clearCleanups()
+    this.afterClientChange(client, previousClient)
+
+    return client
+  }
+
+  protected beforeClientChange(
+    _previousClient: TClient | null,
+    _nextClient: TClient,
+  ): void {}
+
+  protected afterClientChange(
+    _client: TClient,
+    _previousClient: TClient | null,
+  ): void {}
+
+  hostDisconnected(): void {
+    super.hostDisconnected()
+    this.currentClient = null
+  }
+}

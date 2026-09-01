@@ -2,7 +2,7 @@
 
 ## Decision
 
-Bifrost ships MongoDB live views as an optional TypeScript extension built on
+TypeFerry ships MongoDB live views as an optional TypeScript extension built on
 the existing RPC and event envelopes.
 
 The MVP consists of:

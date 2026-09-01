@@ -3,7 +3,7 @@ import {
   useClient,
   useConnectionState,
   useRemoteEvent,
-} from '@example-app/bifrost/react'
+} from 'typeferry-ts/react'
 import type { FormEvent, JSX } from 'react'
 import { useCallback, useEffect, useState } from 'react'
 
@@ -88,7 +88,7 @@ export function App(): JSX.Element {
         <header className="flex flex-col items-stretch justify-between gap-4 sm:flex-row sm:items-center">
           <div>
             <p className="text-xs font-bold tracking-[0.12em] text-slate-600 uppercase">
-              Bifrost starter
+              TypeFerry starter
             </p>
             <h1
               className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl"

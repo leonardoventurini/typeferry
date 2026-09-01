@@ -1,4 +1,4 @@
-# Bifrost application template instructions
+# TypeFerry application template instructions
 
 This directory is a standalone TypeScript application template. Run commands
 from `template/`; it is not an npm workspace member of the parent repository.
@@ -25,14 +25,14 @@ from `template/`; it is not an npm workspace member of the parent repository.
 - Application UI is React with Tailwind CSS. Keep `styles.css` as the Tailwind
   entry point and express component styling with utilities rather than adding
   a parallel raw-CSS component system.
-- Consume only published `@example-app/bifrost` exports. Never alias or import its
+- Consume only published `typeferry-ts` exports. Never alias or import its
   source tree.
 - The official `mongodb` driver is the only database abstraction. Do not add
   Mongoose. Local MongoDB runs as a single-node replica set on host port 27018
   so change streams and transactions work by default.
-- Run migrations before accepting Bifrost traffic. Add ordered migrations to
+- Run migrations before accepting TypeFerry traffic. Add ordered migrations to
   `server/migrations`; never mutate an already-applied migration.
-- Protected persisted changes emit owner-scoped Bifrost events only after the
+- Protected persisted changes emit owner-scoped TypeFerry events only after the
   database write succeeds. Clients treat events as invalidations and refetch
   authoritative RPC state.
 - The sample bearer token is a development seam, not a production identity

@@ -4,13 +4,13 @@ on:
   push:
     branches: [main]
     paths:
-      - "bifrost-ts/**"
+      - "typeferry-ts/**"
       - "docs/conformance/**"
       - "PROTOCOL.md"
       - ".forgejo/workflows/ci.yml"
   pull_request:
     paths:
-      - "bifrost-ts/**"
+      - "typeferry-ts/**"
       - "docs/conformance/**"
       - "PROTOCOL.md"
       - ".forgejo/workflows/ci.yml"
@@ -21,17 +21,17 @@ concurrency:
 
 jobs:
   ci-ts:
-    name: CI (bifrost-ts)
+    name: CI (typeferry-ts)
     runs-on: arm64
     timeout-minutes: 35
     defaults:
       run:
-        working-directory: bifrost-ts
+        working-directory: typeferry-ts
     env:
       NODE_OPTIONS: --max-old-space-size=4096
       REDIS_URL: redis://127.0.0.1:16379
-      BIFROST_MONGODB_TEST_URI: mongodb://127.0.0.1:27018/?replicaSet=bifrost-ci
-      BIFROST_MONGODB_TEST_DB: bifrost_mongodb_ci_test
+      TYPEFERRY_MONGODB_TEST_URI: mongodb://127.0.0.1:27018/?replicaSet=typeferry-ci
+      TYPEFERRY_MONGODB_TEST_DB: typeferry_mongodb_ci_test
     steps:
       - uses: https://data.forgejo.org/actions/checkout@v4
 
@@ -39,7 +39,7 @@ jobs:
         with:
           node-version: 24.19.0
           cache: npm
-          cache-dependency-path: bifrost-ts/package-lock.json
+          cache-dependency-path: typeferry-ts/package-lock.json
 
       - name: Pin npm
         run: npm install --global npm@11.17.0
@@ -72,8 +72,8 @@ jobs:
 
       - name: Start integration services
         env:
-          MONGO_CONTAINER: bifrost-mongodb-ci
-          REDIS_CONTAINER: bifrost-redis-ci
+          MONGO_CONTAINER: typeferry-mongodb-ci
+          REDIS_CONTAINER: typeferry-redis-ci
         shell: bash
         run: |
           set -euo pipefail
@@ -82,7 +82,7 @@ jobs:
             --name "$MONGO_CONTAINER" \
             --publish 127.0.0.1:27018:27018 \
             mongo:7.0 \
-            mongod --bind_ip_all --port 27018 --replSet bifrost-ci
+            mongod --bind_ip_all --port 27018 --replSet typeferry-ci
           docker run --detach --rm \
             --name "$REDIS_CONTAINER" \
             --publish 127.0.0.1:16379:6379 \
@@ -95,7 +95,7 @@ jobs:
             sleep 1
           done
           docker exec "$MONGO_CONTAINER" mongosh --quiet --port 27018 --eval \
-            'rs.initiate({_id:"bifrost-ci",members:[{_id:0,host:"127.0.0.1:27018"}]})'
+            'rs.initiate({_id:"typeferry-ci",members:[{_id:0,host:"127.0.0.1:27018"}]})'
           for attempt in $(seq 1 60); do
             if docker exec "$MONGO_CONTAINER" mongosh --quiet --port 27018 --eval \
               'if (!db.hello().isWritablePrimary) quit(1)' >/dev/null; then
@@ -123,15 +123,15 @@ jobs:
       - name: Stop integration services
         if: always()
         env:
-          MONGO_CONTAINER: bifrost-mongodb-ci
-          REDIS_CONTAINER: bifrost-redis-ci
+          MONGO_CONTAINER: typeferry-mongodb-ci
+          REDIS_CONTAINER: typeferry-redis-ci
         run: docker stop "$MONGO_CONTAINER" "$REDIS_CONTAINER" || true
 
       - uses: https://data.forgejo.org/actions/cache@v4
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('bifrost-ts/package-lock.json') }}
+          key: playwright-${{ runner.os }}-${{ hashFiles('typeferry-ts/package-lock.json') }}
           restore-keys: |
             playwright-${{ runner.os }}-
 
@@ -154,82 +154,3 @@ jobs:
 
       - name: Inspect package
         run: npm pack --dry-run
-
-  publish-ts:
-    name: Publish (bifrost-ts)
-    needs: ci-ts
-    runs-on: arm64
-    if: >-
-      forgejo.event_name == 'push'
-      && forgejo.ref == 'refs/heads/main'
-      && startsWith(forgejo.event.head_commit.message, 'chore(release):')
-    defaults:
-      run:
-        working-directory: bifrost-ts
-    env:
-      NODE_AUTH_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
-      REGISTRY: https://forgejo.example-app.com/api/packages/leonardoventurini/npm/
-    steps:
-      # `needs: ci-ts` keeps publication on the same push SHA that passed CI;
-      # Forgejo 16 does not provide GitHub's `workflow_run` trigger.
-      - uses: https://data.forgejo.org/actions/checkout@v4
-
-      - uses: https://data.forgejo.org/actions/setup-node@v4
-        with:
-          node-version: 24.19.0
-          cache: npm
-          cache-dependency-path: bifrost-ts/package-lock.json
-
-      - name: Pin npm
-        run: npm install --global npm@11.17.0
-
-      - name: Resolve release
-        id: release
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "$(node --version)" = "v24.19.0"
-          test "$(npm --version)" = "11.17.0"
-          version=$(node -p "require('./package.json').version")
-          package_name=$(node -p "require('./package.json').name")
-          echo "version=$version" >> "$FORGEJO_OUTPUT"
-          echo "name=$package_name" >> "$FORGEJO_OUTPUT"
-
-      - name: Skip if version already published
-        id: gate
-        shell: bash
-        run: |
-          set +e
-          out=$(npm view "${{ steps.release.outputs.name }}@${{ steps.release.outputs.version }}" version \
-            --registry "$REGISTRY" 2>&1)
-          status=$?
-          set -e
-          if [ "$status" -eq 0 ]; then
-            test "$out" = "${{ steps.release.outputs.version }}"
-            echo "already_published=true" >> "$FORGEJO_OUTPUT"
-            echo "${{ steps.release.outputs.name }}@${{ steps.release.outputs.version }} is already on Forgejo; skipping."
-          elif printf '%s' "$out" | grep -q 'E404'; then
-            echo "already_published=false" >> "$FORGEJO_OUTPUT"
-          else
-            printf '%s\n' "$out" >&2
-            exit "$status"
-          fi
-
-      - run: npm ci
-        if: steps.gate.outputs.already_published == 'false'
-
-      - name: Security audit
-        if: steps.gate.outputs.already_published == 'false'
-        run: npm audit --audit-level=low
-
-      - name: Build
-        if: steps.gate.outputs.already_published == 'false'
-        run: npm run build
-
-      - name: Inspect package
-        if: steps.gate.outputs.already_published == 'false'
-        run: npm pack --dry-run
-
-      - name: Publish
-        if: steps.gate.outputs.already_published == 'false'
-        run: npm publish --access public

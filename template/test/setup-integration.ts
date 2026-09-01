@@ -6,7 +6,7 @@ const mongoServer = await MongoMemoryReplSet.create({
 })
 
 process.env['CLIENT_ORIGIN'] = 'http://localhost:8000'
-process.env['DATABASE_URL'] = mongoServer.getUri('bifrost-template-test')
+process.env['DATABASE_URL'] = mongoServer.getUri('typeferry-template-test')
 process.env['LOG_LEVEL'] = 'error'
 process.env['NODE_ENV'] = 'test'
 process.env['PORT'] = '8002'

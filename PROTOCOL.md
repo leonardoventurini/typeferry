@@ -1,10 +1,10 @@
-# Bifrost Wire Protocol Specification
+# TypeFerry Wire Protocol Specification
 
-**Version:** 1 (frozen against TS implementation at `bifrost-ts/src` as of
-`@example-app/bifrost@0.2.9`)
+**Version:** 2 (clean-break TypeFerry rename of the protocol previously
+implemented by the TypeScript package)
 
 **Status:** Normative. Any alternate implementation
-(`bifrost-py`, Rust `bifrost-runtime`, …) MUST match this specification
+(`typeferry-py`, Rust `typeferry-runtime`, …) MUST match this specification
 to be considered protocol-conformant. Feature-parity implementations
 MUST additionally match the authoring surface documented in
 `docs/plans/2026-04-20-python-server-port-and-monorepo.md` and
@@ -45,7 +45,7 @@ A **protocol-conformant server** MUST implement every MUST in sections
 2–10. A **feature-parity server** MUST additionally implement the
 authoring surface in section 11.
 
-The existing JavaScript client (`bifrost-ts/src/client`) is the canonical
+The existing JavaScript client (`typeferry-ts/src/client`) is the canonical
 consumer. Any behavior that breaks the JS client against a conformant
 server is a protocol regression.
 
@@ -53,7 +53,7 @@ server is a protocol regression.
 
 ## 2. Transports
 
-Bifrost exposes two client-facing transports (HTTP and WebSocket) and
+TypeFerry exposes two client-facing transports (HTTP and WebSocket) and
 one server-to-server transport (Redis pub/sub for multi-instance event
 propagation).
 
@@ -180,8 +180,8 @@ Rate-limit headers MUST use the `RateLimit-*` standard header set
 
 | Property       | Value                                           |
 |----------------|-------------------------------------------------|
-| Path           | `/bifrost-ws`                                   |
-| Constant       | `BIFROST_WS_PATH` in `src/utils/constants.ts:64` |
+| Path           | `/typeferry-ws`                                   |
+| Constant       | `TYPEFERRY_WS_PATH` in `src/utils/constants.ts:64` |
 | Frame type     | Text (UTF-8)                                    |
 | Frame encoding | EJSON-text via `Presentation.encode/decode`     |
 
@@ -197,7 +197,7 @@ Sources: `src/server/transports/ws-shared.ts:17-20,204-240`.
 
 #### 2.2.2 Connection lifecycle
 
-1. Client opens WebSocket to `/bifrost-ws?uuid=...&token=...&meta=...`.
+1. Client opens WebSocket to `/typeferry-ws?uuid=...&token=...&meta=...`.
 2. If the server enforces CORS, the Origin MUST be validated.
 3. Upgrade completes. The server calls `handleOpen`
    (`src/server/transports/bun-ws-transport.ts:140`).
@@ -239,13 +239,13 @@ Sources: `src/server/transports/ws-shared.ts:17-23,164-197`,
 
 #### 2.2.3 Close codes
 
-Bifrost does not define custom WebSocket close codes. Standard
+TypeFerry does not define custom WebSocket close codes. Standard
 RFC 6455 codes apply (1000 normal, 1006 abnormal). Implementations MUST
-NOT reuse codes in the RFC reserved range for Bifrost-specific signals.
+NOT reuse codes in the RFC reserved range for TypeFerry-specific signals.
 
 ### 2.3 Redis pub/sub transport (optional, multi-instance)
 
-Used exclusively for propagating events between Bifrost server
+Used exclusively for propagating events between TypeFerry server
 instances. Clients never see this transport directly.
 
 | Property            | Value                                                        |
@@ -272,12 +272,12 @@ Source: `src/server/transports/redis-transport.ts:54-62,82-91`,
 
 | Key                                   | Type | Purpose                      |
 |---------------------------------------|------|------------------------------|
-| `bifrost:servers`                     | SET  | active server UUIDs          |
-| `bifrost:clients:<server-uuid>`       | SET  | clients per server           |
-| `bifrost:users:<server-uuid>`         | SET  | authenticated users per server |
+| `typeferry:servers`                     | SET  | active server UUIDs          |
+| `typeferry:clients:<server-uuid>`       | SET  | clients per server           |
+| `typeferry:users:<server-uuid>`         | SET  | authenticated users per server |
 
-On `close()`, the server MUST delete its `bifrost:clients:<uuid>` key and
-`SREM` itself from `bifrost:servers`.
+On `close()`, the server MUST delete its `typeferry:clients:<uuid>` key and
+`SREM` itself from `typeferry:servers`.
 
 ---
 
@@ -497,7 +497,7 @@ them up via `server.getMethod(name)` and `server.methods.get(name)`
 (`src/server/transports/http-transport.ts:213`,
 `src/server/transports/ws-shared.ts:41`).
 
-Bifrost uses two naming conventions in the current codebase:
+TypeFerry uses two naming conventions in the current codebase:
 
 - **Default methods** use a colon: `rpc:login`, `rpc:logout`, `rpc:on`,
   `rpc:off`, `list:methods`.
@@ -584,7 +584,7 @@ Middleware runs **after** schema validation and **before** the handler.
 
 ### 6.6 Execution context
 
-Every method execution is wrapped in `BifrostAsyncLocalStorage.run(...)`
+Every method execution is wrapped in `TypeFerryAsyncLocalStorage.run(...)`
 with:
 
 ```ts
@@ -592,7 +592,7 @@ with:
 ```
 
 Source: `src/server/method.ts:186-193`,
-`src/server/bifrost-async-local-storage.ts`.
+`src/server/typeferry-async-local-storage.ts`.
 
 Feature-parity implementations MUST expose an equivalent ambient
 store (Python `contextvars`, Rust `task_local!`/`tracing`) that survives
@@ -634,7 +634,7 @@ For each event name the server:
 3. If the event is protected and the node is unauthenticated → `false`.
 4. Calls `event.shouldSubscribe(node, eventName, channel)`. If false →
    `false`.
-5. Joins the room `bifrost:${channel}:${eventName}` via the
+5. Joins the room `typeferry:${channel}:${eventName}` via the
    `WebSocketTransport.rooms` registry.
 
 Returns a map `Record<string, boolean>` with per-event success.
@@ -645,7 +645,7 @@ Source: `src/server/methods.ts:51-121`.
 
 Params: same shape as `rpc:on`.
 
-For each event, leaves the room `bifrost:${channel}:${eventName}`.
+For each event, leaves the room `typeferry:${channel}:${eventName}`.
 Missing event → `false`; everything else → `true`.
 
 Source: `src/server/methods.ts:17-48`.
@@ -808,7 +808,7 @@ reported to the client as `INTERNAL_ERROR` and logged server-side
 
 ### 10.1 Room name format
 
-`bifrost:${channel}:${eventName}` (`src/server/methods.ts:13-15`).
+`typeferry:${channel}:${eventName}` (`src/server/methods.ts:13-15`).
 
 - `channel` defaults to the literal string `"NO_CHANNEL"` when the
   caller omits it (`src/utils/constants.ts:66`).
@@ -848,7 +848,7 @@ When `excludeOriginator === true`, the server extracts
 value is passed as `excludeUuid` through both the local propagation
 path and the Redis message.
 
-Conformant servers MUST exclude based on the Bifrost client uuid
+Conformant servers MUST exclude based on the TypeFerry client uuid
 (`ClientNode.uuid`), not the WebSocket peer address or any other
 identifier.
 
@@ -900,7 +900,7 @@ follow.
 
 ### 11.4 Optional MongoDB live-view extension
 
-`@example-app/bifrost/mongodb` MAY register a TypeScript-only live-view
+`typeferry-ts/mongodb` MAY register a TypeScript-only live-view
 extension. It reuses revision-1 `rpc`, `rpc:res`, and `event` envelopes and
 does not add a message type, so servers without this optional capability
 remain protocol-conformant.
@@ -1010,7 +1010,7 @@ windows are not part of this extension.
 | Name                   | Value                       | Source                         |
 |------------------------|-----------------------------|--------------------------------|
 | HTTP endpoint          | `POST /__h`                 | `http-transport.ts:68`         |
-| WS path                | `/bifrost-ws`               | `constants.ts:64`              |
+| WS path                | `/typeferry-ws`               | `constants.ts:64`              |
 | WS UUID max length     | 64                          | `ws-shared.ts:18`              |
 | WS meta max size (B)   | 10 000                      | `ws-shared.ts:19`              |
 | Ping interval (ms)     | 25 000                      | `ws-shared.ts:20`              |
@@ -1058,7 +1058,7 @@ using only the public JS client or raw HTTP/WS bytes.
 
 ## 14. Versioning
 
-This document is revision **1**. The TS implementation is the source of
+This document is revision **2**. The TS implementation is the source of
 truth; spec revisions follow source changes. Any change to:
 
 - wire envelope shapes

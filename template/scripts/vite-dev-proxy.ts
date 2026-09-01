@@ -9,16 +9,16 @@ import type { Plugin } from 'vite'
 
 const BACKEND_PORT = 8002
 
-export function isBifrostHttpPath(url: string | undefined): boolean {
+export function isTypeFerryHttpPath(url: string | undefined): boolean {
   return url === '/__h' || url?.startsWith('/__h/') === true
 }
 
-export function bifrostDevProxy(): Plugin {
+export function typeferryDevProxy(): Plugin {
   return {
-    name: 'bifrost-development-proxy',
+    name: 'typeferry-development-proxy',
     configureServer(server) {
       server.middlewares.use((request, response, next) => {
-        if (!isBifrostHttpPath(request.url)) {
+        if (!isTypeFerryHttpPath(request.url)) {
           next()
           return
         }
@@ -71,7 +71,7 @@ function proxyRequest(
     if (!clientResponse.headersSent) {
       clientResponse.writeHead(502, { 'content-type': 'text/plain' })
     }
-    clientResponse.end(`Bifrost development proxy error: ${error.message}`)
+    clientResponse.end(`TypeFerry development proxy error: ${error.message}`)
   })
   clientRequest.on('aborted', () => proxyRequest.destroy())
   clientRequest.pipe(proxyRequest)

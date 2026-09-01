@@ -2,9 +2,9 @@
 
 ## Context
 
-Production logs showed repeated `[Bifrost] Listener count exceeded for "ready"`
+Production logs showed repeated `[TypeFerry] Listener count exceeded for "ready"`
 warnings while the server appeared slow to respond. The warning came from
-Bifrost's browser-safe event emitter and indicated that `READY` listeners were
+TypeFerry's browser-safe event emitter and indicated that `READY` listeners were
 accumulating.
 
 `Server.isReady()` resolved immediately when `server.ready` was already true,

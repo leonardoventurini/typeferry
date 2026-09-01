@@ -1,4 +1,4 @@
-import { Server } from '@example-app/bifrost/server'
+import { Server } from 'typeferry-ts/server'
 import path from 'node:path'
 
 import { MESSAGES_CHANGED_EVENT } from '@/common/messages'
@@ -71,7 +71,7 @@ async function start(): Promise<void> {
 
   await server.isReady()
   server.acceptConnections = true
-  logger.info({ port: server.port }, 'Bifrost server ready')
+  logger.info({ port: server.port }, 'TypeFerry server ready')
 
   let shuttingDown = false
   const shutdown = async (signal: NodeJS.Signals): Promise<void> => {

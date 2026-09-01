@@ -1,0 +1,32 @@
+[package]
+name = "typeferry"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Type-safe real-time RPC framework — single-import meta crate that re-exports the runtime, transports, auth, and authoring macros"
+keywords = ["rpc", "websocket", "ejson", "axum", "realtime"]
+categories = ["network-programming", "web-programming", "asynchronous"]
+
+[dependencies]
+typeferry-protocol = { workspace = true }
+typeferry-ejson = { workspace = true }
+typeferry-runtime = { workspace = true }
+typeferry-http = { workspace = true, optional = true }
+typeferry-ws = { workspace = true, optional = true }
+typeferry-redis = { workspace = true, optional = true }
+typeferry-auth = { workspace = true, optional = true }
+typeferry-macros = { workspace = true, optional = true }
+
+[features]
+default = ["http", "ws", "macros"]
+http = ["dep:typeferry-http"]
+ws = ["dep:typeferry-ws"]
+redis = ["dep:typeferry-redis"]
+auth = ["dep:typeferry-auth"]
+macros = ["dep:typeferry-macros"]
+full = ["http", "ws", "redis", "auth", "macros"]
+
+[dev-dependencies]
+tokio = { workspace = true }
+serde_json = { workspace = true }

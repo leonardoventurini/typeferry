@@ -1,0 +1,94 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "typeferry-py"
+version = "0.2.0"
+description = "Python port of the TypeFerry real-time RPC framework — server-side feature parity with typeferry-ts"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "UNLICENSED" }
+authors = [{ name = "Leonardo Venturini" }]
+keywords = ["typeferry", "rpc", "websocket", "ejson", "starlette"]
+dependencies = [
+  # Core EJSON + protocol layers depend only on the stdlib. Optional
+  # transports / auth / schema live behind extras (see below).
+]
+
+[project.optional-dependencies]
+http = [
+  "starlette>=0.47",
+  "uvicorn[standard]>=0.37",
+]
+ws = [
+  # Starlette provides WS primitives; uvicorn's 'standard' extras include
+  # websockets for ASGI WebSocket transport.
+]
+redis = [
+  "redis>=5.2",
+]
+auth = [
+  "pyjwt>=2.10",
+  "ua-parser>=1.0",
+  "authlib>=1.6",
+  "google-auth>=2.38",
+]
+schema = [
+  "pydantic>=2.11",
+]
+all = [
+  "typeferry-py[http,ws,redis,auth,schema]",
+]
+dev = [
+  "pytest>=8.3",
+  "pytest-asyncio>=0.25",
+  "httpx>=0.28",
+  "websockets>=13.1",
+  "ruff>=0.9",
+  "mypy>=1.15",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/typeferry"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = ["-ra", "--strict-markers"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["typeferry"]
+mypy_path = "src"
+
+[[tool.mypy.overrides]]
+module = [
+  "pydantic",
+  "pydantic.*",
+  "ua_parser",
+  "ua_parser.*",
+  "google.auth.*",
+  "google.oauth2.*",
+]
+ignore_missing_imports = true
+
+# The ua-parser, google-auth, and Pydantic packages ship partial type
+# information; treat the file-level calls into those untyped APIs as
+# dynamic surfaces on the typeferry.auth boundary.
+[[tool.mypy.overrides]]
+module = [
+  "typeferry.auth.device_info",
+  "typeferry.auth.oauth.google",
+]
+disable_error_code = ["no-untyped-call"]

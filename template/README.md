@@ -1,7 +1,7 @@
-# Bifrost React + MongoDB template
+# TypeFerry React + MongoDB template
 
-A production-minded starter for a typed Bifrost application. It includes a
-React and Tailwind client, Vite development server, Node/Bifrost backend,
+A production-minded starter for a typed TypeFerry application. It includes a
+React and Tailwind client, Vite development server, Node/TypeFerry backend,
 official MongoDB driver, protected RPC methods, owner-scoped real-time events,
 ordered migrations, structured logs, and split Vitest coverage.
 
@@ -26,7 +26,7 @@ docker compose up -d mongodb
 npm run develop
 ```
 
-Open <http://localhost:8000>. Vite serves the React client and proxies Bifrost
+Open <http://localhost:8000>. Vite serves the React client and proxies TypeFerry
 HTTP traffic to the backend on port 8002. WebSocket traffic connects directly
 to port 8002 during development.
 
@@ -44,7 +44,7 @@ intermediate `src/` directory.
 
 The `messages` namespace demonstrates the intended flow:
 
-1. The Bifrost server authenticates the development token and exposes protected
+1. The TypeFerry server authenticates the development token and exposes protected
    `messages.list` and `messages.create` methods.
 2. `messages.create` inserts through the official MongoDB driver.
 3. After the acknowledged write, the server emits `messages:changed` on the
@@ -93,7 +93,7 @@ not jsdom.
 
 ## Development container
 
-Run the Vite and Bifrost hot-reload orchestrator with its MongoDB replica set:
+Run the Vite and TypeFerry hot-reload orchestrator with its MongoDB replica set:
 
 ```sh
 just docker-develop
@@ -103,7 +103,7 @@ Compose bind-mounts the repository into `/app`, so client and server edits are
 visible immediately. A named volume overlays `/app/node_modules`; the container
 runs `npm ci` into that Linux-owned volume before starting, keeping native Linux
 packages separate from macOS dependencies. Vite HMR is available on port 8000
-and the Bifrost backend on port 8002.
+and the TypeFerry backend on port 8002.
 
 Stop the stack with `docker compose down`. Use `docker compose down --volumes`
 only when you intentionally want to discard both MongoDB data and the cached
@@ -117,7 +117,7 @@ Server configuration is validated at startup:
 - `DATABASE_URL`: MongoDB replica-set connection string.
 - `LOG_LEVEL`: `debug`, `info`, `warn`, or `error`.
 - `NODE_ENV`: `development`, `test`, or `production`.
-- `PORT`: Bifrost HTTP/WebSocket port.
+- `PORT`: TypeFerry HTTP/WebSocket port.
 - `SAMPLE_AUTH_TOKEN`: development authentication token, at least 16 characters.
 
 The client uses `VITE_SERVER_PORT` and `VITE_SAMPLE_AUTH_TOKEN` when provided;
@@ -134,24 +134,24 @@ application source remains ESM. Run the server with:
 npm start
 ```
 
-`npm start` serves `dist/client` and Bifrost from the same Node process. Keep
+`npm start` serves `dist/client` and TypeFerry from the same Node process. Keep
 `.env.server` and all real credentials out of version control.
 
 ## Production container
 
 The multi-stage Docker image builds the React client and bundled Node server,
-then copies only `dist` into a non-root runtime image. Bifrost's Hono app serves
+then copies only `dist` into a non-root runtime image. TypeFerry's Hono app serves
 the Vite assets, SPA routes, `/healthz`, RPC, and WebSocket traffic on one port.
 
 ```sh
-docker build -t bifrost-template .
+docker build -t typeferry-template .
 docker run --rm \
   --add-host host.docker.internal:host-gateway \
   --env-file .env.server \
   --env CLIENT_ORIGIN=http://localhost:8002 \
-  --env 'DATABASE_URL=mongodb://host.docker.internal:27018/bifrost-template?replicaSet=rs0&directConnection=true' \
+  --env 'DATABASE_URL=mongodb://host.docker.internal:27018/typeferry-template?replicaSet=rs0&directConnection=true' \
   --publish 8002:8002 \
-  bifrost-template
+  typeferry-template
 ```
 
 Container environments should inject configuration through Docker or the

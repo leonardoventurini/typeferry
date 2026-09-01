@@ -44,9 +44,9 @@ class FilesInRangeTests(unittest.TestCase):
             self.assertTrue(text)
             return "\n".join(
                 [
-                    "bifrost-ts/src/index.ts",
+                    "typeferry-ts/src/index.ts",
                     "",
-                    "bifrost-ts/src/index.ts",
+                    "typeferry-ts/src/index.ts",
                     "README.md",
                 ]
             )
@@ -58,7 +58,7 @@ class FilesInRangeTests(unittest.TestCase):
         ):
             files = BUMP_MODULE.files_in_range(None, "HEAD")
 
-        self.assertEqual(["README.md", "bifrost-ts/src/index.ts"], files)
+        self.assertEqual(["README.md", "typeferry-ts/src/index.ts"], files)
         self.assertEqual(
             [["git", "log", "--format=", "--name-only", "HEAD"]],
             commands,
@@ -73,7 +73,7 @@ class FilesInRangeTests(unittest.TestCase):
             commands.append(args)
             self.assertEqual(BUMP_MODULE.REPO_ROOT, cwd)
             self.assertTrue(text)
-            return "bifrost-py/pyproject.toml\n"
+            return "typeferry-py/pyproject.toml\n"
 
         with patch.object(
             BUMP_MODULE.subprocess,
@@ -82,7 +82,7 @@ class FilesInRangeTests(unittest.TestCase):
         ):
             files = BUMP_MODULE.files_in_range("abc123", "HEAD")
 
-        self.assertEqual(["bifrost-py/pyproject.toml"], files)
+        self.assertEqual(["typeferry-py/pyproject.toml"], files)
         self.assertEqual(
             [["git", "diff", "--name-only", "abc123..HEAD"]],
             commands,

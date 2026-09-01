@@ -1,19 +1,19 @@
-# MongoDB Live Views for Bifrost
+# MongoDB Live Views for TypeFerry
 
 ## Goal and scope
 
-Bifrost should support Meteor-inspired, server-authoritative live MongoDB
+TypeFerry should support Meteor-inspired, server-authoritative live MongoDB
 queries without becoming an ORM or exposing arbitrary client-authored MongoDB
 filters.
 
 The direct rollout adds named, typed publications to
-`@example-app/bifrost/mongodb`, maintains an authoritative result set for each
+`typeferry-ts/mongodb`, maintains an authoritative result set for each
 active subscription, sends an initial snapshot followed by semantic document
 deltas, and exposes framework-independent client state with a React adapter.
 
 This is intentionally more capable than the current `@MongoWatch` bridge:
 
-- `@MongoWatch` broadcasts a durable MongoDB change as a Bifrost event.
+- `@MongoWatch` broadcasts a durable MongoDB change as a TypeFerry event.
 - A live view owns a query, knows which documents are currently in its result
   set, and sends `added`, `changed`, and `removed` operations for that result.
 - The client materializes the snapshot and deltas into a coherent local view
@@ -32,7 +32,7 @@ The TypeScript MongoDB package already provides:
 - connection and collection lifecycle;
 - collection, schema, index, and watch decorators;
 - change streams with `fullDocument: "updateLookup"`;
-- Bifrost event and channel emission;
+- TypeFerry event and channel emission;
 - reconnect-after-error behavior; and
 - ObjectId, validation, timestamp, filter, and find-or-create helpers.
 
@@ -52,12 +52,12 @@ system.
 
 Relevant implementation:
 
-- `bifrost-ts/src/mongodb/change-streams.ts`
-- `bifrost-ts/src/mongodb/registry.ts`
-- `bifrost-ts/src/server/methods.ts`
-- `bifrost-ts/src/server/event.ts`
-- `bifrost-ts/src/client/client-channel.ts`
-- `bifrost-ts/src/react/hooks/use-method.tsx`
+- `typeferry-ts/src/mongodb/change-streams.ts`
+- `typeferry-ts/src/mongodb/registry.ts`
+- `typeferry-ts/src/server/methods.ts`
+- `typeferry-ts/src/server/event.ts`
+- `typeferry-ts/src/client/client-channel.ts`
+- `typeferry-ts/src/react/hooks/use-method.tsx`
 
 ## Evidence and uncertainty
 
@@ -100,10 +100,10 @@ and
 - A targeted MongoDB membership query after each relevant change is acceptable
   for correctness. Shared observation and filtering can optimize this later
   without changing public semantics.
-- Full resynchronization on Bifrost reconnect is acceptable initially. Resume
+- Full resynchronization on TypeFerry reconnect is acceptable initially. Resume
   tokens solve MongoDB source continuity, not acknowledgement of delivery to a
   particular browser.
-- Each Bifrost server instance may run its own collection change source and
+- Each TypeFerry server instance may run its own collection change source and
   serve its locally connected clients. Redis fan-out is unnecessary for
   correctness because every instance observes the same MongoDB deployment.
 
@@ -163,7 +163,7 @@ export interface MongoLiveQuery<
 /** Identifier accepted from a stored MongoDB document. */
 export type MongoLiveSourceId = ObjectId | string | number
 
-/** Identifier materialized after Bifrost EJSON wire conversion. */
+/** Identifier materialized after TypeFerry EJSON wire conversion. */
 export type MongoLiveId =
   | { readonly $objectId: string }
   | string
@@ -335,7 +335,7 @@ A `queryKey` shares only the observer. A slow client resets only its connection
 subscription. A source reset invalidates every dependent observer and advances
 every dependent connection subscription to a new generation.
 
-`BifrostMongoRegistry` owns at most one live-view change source per registered
+`TypeFerryMongoRegistry` owns at most one live-view change source per registered
 collection and fans normalized change notices into active publication
 observers.
 
@@ -435,7 +435,7 @@ The connection subscription is not ready until its connection-local atomic
 handoff completes. Failure to establish either path produces an error; it must
 never return a partial ready state or disturb an existing subscriber.
 
-### 5. Reuse existing Bifrost RPC and event envelopes
+### 5. Reuse existing TypeFerry RPC and event envelopes
 
 The feature does not add a new WebSocket message type. This keeps wire-protocol
 version 1 compatible and avoids forcing unrelated server implementations to
@@ -454,7 +454,7 @@ directly to that node only after authorization; a client cannot authorize
 itself by calling `rpc:on`.
 
 Registration fails if any reserved method or event already exists; it never
-silently replaces application behavior. Bifrost exposes a narrow,
+silently replaces application behavior. TypeFerry exposes a narrow,
 server-owned `sendInternalEvent(node, event, channel, payload)` API so the
 MongoDB package neither reaches into transport internals nor uses
 multi-recipient room broadcast. Ordinary `rpc:on` is always denied for the
@@ -541,7 +541,7 @@ discarded generation. An obsolete request returns the already-current snapshot
 or an explicit stopped result, never creates another observer.
 
 The client registers its local channel listener directly and does not call
-`rpc:on`. Bifrost adds a live-handle lifecycle registry invoked only after the
+`rpc:on`. TypeFerry adds a live-handle lifecycle registry invoked only after the
 socket's authentication result and ordinary channel resubscription have
 completed, whether that result is authenticated or unauthenticated. A
 protected publication requires the former; `protected: false` accepts either.
@@ -551,7 +551,7 @@ create concurrent server subscriptions.
 
 ### 6. Subscription ownership and teardown
 
-A subscription belongs to exactly one live Bifrost WebSocket connection and
+A subscription belongs to exactly one live TypeFerry WebSocket connection and
 cannot be addressed from another connection. Authentication is required iff
 the publication is protected.
 
@@ -571,7 +571,7 @@ Teardown aborts publication work, releases its shared observer reference,
 clears buffered messages, and is idempotent.
 Async cleanup is awaited during normal shutdown.
 
-If Bifrost later supports in-place server context mutation, that change must
+If TypeFerry later supports in-place server context mutation, that change must
 first add a server `CONTEXT_CHANGED` event carrying old and new auth identity;
 the live engine must tear down the old subscriptions before the mutation
 becomes visible. The initial rollout does not infer context changes from a
@@ -585,7 +585,7 @@ No initial claim of cross-process session resumption is made.
 
 Meteor merges documents from multiple publications into collection-global
 Minimongo state. Conflicting top-level fields can therefore resolve
-arbitrarily. Bifrost should not inherit that ambiguity.
+arbitrarily. TypeFerry should not inherit that ambiguity.
 
 The core client owns a `MongoLiveView<TDocument>` per subscription:
 
@@ -621,18 +621,18 @@ no MongoDB or transport logic.
 ### 8. Backpressure is bounded and observable
 
 Live delivery cannot use the current fire-and-forget room broadcast as its
-pressure oracle. Bifrost first adds this transport-neutral socket contract:
+pressure oracle. TypeFerry first adds this transport-neutral socket contract:
 
 ```ts
 /** Result of a transport send used by bounded live delivery. */
-export interface BifrostSendState {
+export interface TypeFerrySendState {
   readonly accepted: boolean
   readonly bufferedBytes: number | null
 }
 
 /** Sends one frame and reports transport pressure when the runtime exposes it. */
-export interface BifrostSocket {
-  sendWithState(data: string): BifrostSendState
+export interface TypeFerrySocket {
+  sendWithState(data: string): TypeFerrySendState
   getBufferedBytes(): number | null
 }
 
@@ -642,7 +642,7 @@ export function sendInternalEvent(
   event: string,
   channel: string,
   payload: unknown,
-): BifrostSendState
+): TypeFerrySendState
 ```
 
 Both Node `ws` and Bun WebSocket adapters report their native buffered byte
@@ -652,14 +652,14 @@ per-node internal-event delivery and own their bounded queue; they do not use
 multi-recipient `RoomRegistry.broadcast`.
 
 `MONGO_LIVE_MAX_QUEUED_BYTES` measures encoded frames still owned by the live
-delivery queue. `BifrostSendState.bufferedBytes` measures bytes already handed
+delivery queue. `TypeFerrySendState.bufferedBytes` measures bytes already handed
 to the native WebSocket transport. Both bounds apply independently; moving a
 frame from one queue to the other never hides total pressure.
 `getBufferedBytes()` is read-only and sends no frame; the slow-consumer grace
 timer uses it to observe pressure recovery.
 
 Named constants define defaults and are configurable through
-`BifrostMongoOptions`:
+`TypeFerryMongoOptions`:
 
 - `MONGO_LIVE_MAX_SUBSCRIPTIONS_PER_CONNECTION = 32`;
 - `MONGO_LIVE_MAX_OBSERVERS_PER_SERVER = 1_000`;
@@ -728,7 +728,7 @@ The live view is:
 
 - server-authoritative;
 - eventually updated from majority-committed MongoDB change events;
-- gap-detecting between Bifrost server and client;
+- gap-detecting between TypeFerry server and client;
 - self-healing through generation resnapshot; and
 - unordered.
 
@@ -796,7 +796,7 @@ generation/sequence checks and idempotent document replacement/removal.
 
 ### Multi-node divergence
 
-- **Impact:** clients attached to different Bifrost nodes temporarily observe
+- **Impact:** clients attached to different TypeFerry nodes temporarily observe
   different generations.
 - **Prevention:** each node reads the authoritative MongoDB source and applies
   identical publication semantics.
@@ -920,44 +920,44 @@ All listed checks are hard gates unless explicitly marked diagnostic.
 ## Execution checklist
 
 - [ ] Define public server/client types and named publication registration —
-      files: `bifrost-ts/src/mongodb/live/types.ts`,
-      `bifrost-ts/src/mongodb/live/publication.ts`,
-      `bifrost-ts/src/mongodb/index.ts`; verify:
+      files: `typeferry-ts/src/mongodb/live/types.ts`,
+      `typeferry-ts/src/mongodb/live/publication.ts`,
+      `typeferry-ts/src/mongodb/index.ts`; verify:
       `bun run test:unit -- src/mongodb/live`; done when invalid definitions,
       raw client filters, duplicate names, invalid identifiers, and
       unauthorized resolution are rejected by types or runtime schemas.
 - [ ] Implement the shared collection change source —
-      files: `bifrost-ts/src/mongodb/live/source.ts`,
-      `bifrost-ts/src/mongodb/registry.ts`; verify source recovery unit tests
+      files: `typeferry-ts/src/mongodb/live/source.ts`,
+      `typeferry-ts/src/mongodb/registry.ts`; verify source recovery unit tests
       and real replica-set integration tests; done when resumable errors
       continue and history loss creates an observable new generation.
 - [ ] Implement authoritative observers and snapshot handoff —
-      files: `bifrost-ts/src/mongodb/live/observer.ts`,
-      `bifrost-ts/src/mongodb/live/engine.ts`; verify gated-snapshot and
+      files: `typeferry-ts/src/mongodb/live/observer.ts`,
+      `typeferry-ts/src/mongodb/live/engine.ts`; verify gated-snapshot and
       membership-transition integration tests; done when every tested ready
       view equals a fresh native MongoDB query.
 - [ ] Implement connection-owned RPC/event delivery and lifecycle teardown —
-      files: `bifrost-ts/src/mongodb/live/server.ts` plus the narrow server
+      files: `typeferry-ts/src/mongodb/live/server.ts` plus the narrow server
       lifecycle/transport hooks required for direct internal-event delivery
       and buffered byte inspection; verify two-client isolation, disconnect,
       auth change, and shutdown integration tests; done when ownership cannot
       cross a connection and all resources reach zero.
 - [ ] Implement bounded batching, coalescing, resync, capacity policy, metrics,
-      and redacted logs — files: `bifrost-ts/src/mongodb/live/delivery.ts`,
-      `bifrost-ts/src/mongodb/live/observability.ts`; verify stalled-client,
+      and redacted logs — files: `typeferry-ts/src/mongodb/live/delivery.ts`,
+      `typeferry-ts/src/mongodb/live/observability.ts`; verify stalled-client,
       overflow, and load tests; done when bounds hold and overload is explicit
       rather than approximate.
 - [ ] Implement framework-independent client materialization and reconnect
-      resubscription — files: `bifrost-ts/src/client/mongodb-live-view.ts`;
+      resubscription — files: `typeferry-ts/src/client/mongodb-live-view.ts`;
       verify property tests with duplicates, gaps, generation changes, early
       deltas, and reconnect; done when invalid sequences always resync.
 - [ ] Add the thin React adapter — files:
-      `bifrost-ts/src/react/hooks/use-mongodb-live-publication.tsx` and package
+      `typeferry-ts/src/react/hooks/use-mongodb-live-publication.tsx` and package
       exports; verify unit, integration, and browser tests; done when the
       adapter exposes core state and cleans up deterministically.
 - [ ] Verify ordered, idempotent shutdown — files:
-      `bifrost-ts/src/mongodb/live/engine.ts`,
-      `bifrost-ts/src/mongodb/registry.ts`; stop accepting subscriptions, mark
+      `typeferry-ts/src/mongodb/live/engine.ts`,
+      `typeferry-ts/src/mongodb/registry.ts`; stop accepting subscriptions, mark
       views non-ready, abort and await snapshots/projections/membership work,
       drain owned delivery tasks, close streams, remove owned server listeners
       and remove reserved registrations only when their object identity still
@@ -967,7 +967,7 @@ All listed checks are hard gates unless explicitly marked diagnostic.
       observer, subscription, or socket write survives closure.
 - [ ] Update the MongoDB documentation, package exports, normative protocol
       notes, shared conformance fixtures, and production setup guidance —
-      files: `bifrost-ts/src/mongodb/README.md`, `bifrost-ts/package.json`,
+      files: `typeferry-ts/src/mongodb/README.md`, `typeferry-ts/package.json`,
       `PROTOCOL.md`, `docs/conformance/`; verify build output imports and every
       conformance runner; done when the existing RPC/event envelopes and new
       default method semantics are documented precisely.
@@ -1084,9 +1084,9 @@ as a separate phased plan.
 - Initial `bun run test:integration` — product tests passed, but the Rust
   conformance suite failed before execution because Cargo workspace
   dependencies named the `forgejo` registry without defining its index.
-- Added repository-scoped `bifrost-rs/.cargo/config.toml`, matching the
+- Added repository-scoped `typeferry-rs/.cargo/config.toml`, matching the
   publishing workflow's sparse Forgejo registry. `cargo build -p
-  bifrost-conformance-server` then passed.
+  typeferry-conformance-server` then passed.
 - Re-run `bun run test:integration` — 11 files and 54 tests passed; one
   existing file and five tests remained capability-skipped.
 - `bun run test:browser` — 2 files and 9 tests passed.

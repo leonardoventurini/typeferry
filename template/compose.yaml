@@ -8,7 +8,7 @@ services:
         condition: service_healthy
     environment:
       CLIENT_ORIGIN: http://localhost:8000
-      DATABASE_URL: mongodb://mongodb:27017/bifrost-template?replicaSet=rs0&directConnection=true
+      DATABASE_URL: mongodb://mongodb:27017/typeferry-template?replicaSet=rs0&directConnection=true
       DEVELOP_ENV_FILE: /dev/null
       LOG_LEVEL: debug
       NODE_ENV: development

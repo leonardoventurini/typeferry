@@ -1,4 +1,4 @@
-import type { ClientNode } from '@example-app/bifrost/server'
+import type { ClientNode } from 'typeferry-ts/server'
 import {
   type InferNamespace,
   Method,
@@ -6,7 +6,7 @@ import {
   Protected,
   registerNamespace,
   Schema,
-} from '@example-app/bifrost/server/decorators'
+} from 'typeferry-ts/server/decorators'
 import { z } from 'zod'
 
 import type {

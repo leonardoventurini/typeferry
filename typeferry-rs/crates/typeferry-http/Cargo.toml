@@ -1,0 +1,24 @@
+[package]
+name = "typeferry-http"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "HTTP transport for TypeFerry (axum-backed POST /__h)"
+
+[dependencies]
+typeferry-ejson = { workspace = true }
+typeferry-protocol = { workspace = true }
+typeferry-runtime = { workspace = true }
+axum = { workspace = true }
+tokio = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+futures = { workspace = true }
+
+[dev-dependencies]
+tower = { workspace = true, features = ["util"] }
+http-body-util = "0.1"

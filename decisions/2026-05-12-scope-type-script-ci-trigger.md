@@ -5,7 +5,7 @@ Status: Accepted
 
 ## Context
 
-The `ci.yml` workflow only validates `bifrost-ts`, but it was triggered by a
+The `ci.yml` workflow only validates `typeferry-ts`, but it was triggered by a
 Rust-only lockfile correction. That made unrelated TypeScript runner behavior
 able to mark Rust maintenance commits red.
 

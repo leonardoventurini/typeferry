@@ -2,6 +2,6 @@ node_modules/
 *.tsbuildinfo
 .DS_Store
 .npmrc
-!bifrost-ts/.npmrc
+!typeferry-ts/.npmrc
 coverage/
 dist/

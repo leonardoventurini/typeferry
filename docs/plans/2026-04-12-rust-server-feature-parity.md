@@ -10,7 +10,7 @@
 
 ## Context
 
-Bifrost is currently a TypeScript-first RPC and realtime framework. The server
+TypeFerry is currently a TypeScript-first RPC and realtime framework. The server
 runtime lives in `src/server` and `src/auth/server`, while the browser-facing
 contract is consumed by the existing JS/TS client in `src/client`.
 
@@ -42,7 +42,7 @@ A Rust server is successful when **both** hold:
 
 ### Protocol parity (wire-level)
 
-- full protocol parity with the existing Bifrost server
+- full protocol parity with the existing TypeFerry server
 - existing JS client can talk to it without knowing or caring that the
   backend is no longer the TypeScript server
 - shared conformance suite passes against both TS and Rust targets
@@ -50,9 +50,9 @@ A Rust server is successful when **both** hold:
 ### Feature parity (server-side authoring surface)
 
 - Rust macros (proc-macro attributes) cover the full TS decorator matrix:
-  `#[bifrost::namespace]`, `#[bifrost::method]`,
-  `#[bifrost::protected]`, `#[bifrost::cached]`, `#[bifrost::schema]`,
-  `#[bifrost::r#use]` — names adapted to Rust conventions
+  `#[typeferry::namespace]`, `#[typeferry::method]`,
+  `#[typeferry::protected]`, `#[typeferry::cached]`, `#[typeferry::schema]`,
+  `#[typeferry::r#use]` — names adapted to Rust conventions
 - a `SchemaValidator` trait covers every validation capability Zod
   exposes today (default implementation via `serde` + `validator`
   crate; pluggable for custom validators), producing identical error
@@ -68,7 +68,7 @@ A Rust server is successful when **both** hold:
   language boundary
 - middleware ordering (`#[r#use]`) preserves TS precedence
 - context propagation via `tokio::task_local!` (or `tracing::Span`)
-  matches `BifrostAsyncLocalStorage.run(...)` wrapping in
+  matches `TypeFerryAsyncLocalStorage.run(...)` wrapping in
   `src/server/method.ts`
 
 ### What is explicitly not required
@@ -89,10 +89,10 @@ A Rust server is successful when **both** hold:
 The first reusable Rust implementation now lives inside the SolidScript
 workspace rather than inline in `solidscript-server`:
 
-- `crates/bifrost-protocol`
-- `crates/bifrost-runtime`
+- `crates/typeferry-protocol`
+- `crates/typeferry-runtime`
 
-That split is the required precursor to any future `bifrost-rs` repository.
+That split is the required precursor to any future `typeferry-rs` repository.
 
 ## Source Of Truth
 
@@ -136,7 +136,7 @@ Protocol parity should include these guarantees.
 
 ### WebSocket parity
 
-- identical path: `/bifrost-ws`
+- identical path: `/typeferry-ws`
 - identical query parameter semantics for:
   - `uuid`
   - `token`
@@ -301,7 +301,7 @@ Recommended Rust stack:
 - `serde` + `serde_json` (baseline JSON; EJSON layered on top)
 - `jsonwebtoken` crate for JWT
 - `redis` crate for Redis transport
-- EJSON: extend the existing `bifrost-protocol` crate in the
+- EJSON: extend the existing `typeferry-protocol` crate in the
   SolidScript workspace, or fork it into a dedicated ejson crate
 
 Success criteria:
@@ -314,7 +314,7 @@ Success criteria:
 
 Implement:
 
-- `/bifrost-ws`
+- `/typeferry-ws`
 - query param parsing for `uuid`, `token`, and `meta`
 - message envelope parsing
 - correlated RPC responses
@@ -366,12 +366,12 @@ Implement proc-macros mirroring `src/server/decorators/`:
 
 | TS decorator        | Rust macro                    | Parity requirement |
 |---------------------|-------------------------------|--------------------|
-| `@Namespace('x')`   | `#[bifrost::namespace("x")]`  | scoped method prefixing identical |
-| `@Method()`         | `#[bifrost::method]`          | same routing semantics, same context access |
-| `@Protected`        | `#[bifrost::protected]`       | identical gating + identical unauth error envelope |
-| `@Cached(ttl)`      | `#[bifrost::cached(ttl = ...)]` | **canonical cache-key parity with TS** (stable EJSON of params); same TTL semantics |
-| `@Schema(ZodT)`     | `#[bifrost::schema(MyStruct)]` | validation via `SchemaValidator` trait; same failure envelope and timing |
-| `@Use(mw)`          | `#[bifrost::r#use(mw)]`       | same outer-to-inner execution order |
+| `@Namespace('x')`   | `#[typeferry::namespace("x")]`  | scoped method prefixing identical |
+| `@Method()`         | `#[typeferry::method]`          | same routing semantics, same context access |
+| `@Protected`        | `#[typeferry::protected]`       | identical gating + identical unauth error envelope |
+| `@Cached(ttl)`      | `#[typeferry::cached(ttl = ...)]` | **canonical cache-key parity with TS** (stable EJSON of params); same TTL semantics |
+| `@Schema(ZodT)`     | `#[typeferry::schema(MyStruct)]` | validation via `SchemaValidator` trait; same failure envelope and timing |
+| `@Use(mw)`          | `#[typeferry::r#use(mw)]`       | same outer-to-inner execution order |
 
 Ship a Rust-native `SchemaValidator` trait. Default implementation uses
 `serde` deserialization + the `validator` crate. Consumers can plug in
@@ -389,7 +389,7 @@ Success criteria:
   method sets and proves identical protocol behavior end-to-end
 - `#[cached]` cache keys are byte-identical to TS for the same params
 - context propagation across async boundaries matches
-  `BifrostAsyncLocalStorage` (validated with nested-method and
+  `TypeFerryAsyncLocalStorage` (validated with nested-method and
   middleware-to-handler tests)
 
 ### Phase 5.75: Auth & OAuth feature parity
@@ -433,7 +433,7 @@ Do not put the Rust implementation inside the existing TypeScript package.
 
 Prefer a sibling repository or a workspace sibling such as:
 
-- `Repositories/example-app/bifrost-rs`
+- `Repositories/example-app/typeferry-rs`
 
 or a multi-language monorepo arrangement only if the release process is made
 explicit first.

@@ -1,11 +1,11 @@
-# Bifrost Conformance Fixtures
+# TypeFerry Conformance Fixtures
 
 This directory is the single normative contract every implementation
 tracks:
 
-- `bifrost-ts/` (TypeScript, reference)
-- `bifrost-py/` (Python port)
-- `bifrost-rs/` (Rust port)
+- `typeferry-ts/` (TypeScript, reference)
+- `typeferry-py/` (Python port)
+- `typeferry-rs/` (Rust port)
 
 Each fixture is a frozen wire-contract point. An implementation is
 conformant iff every fixture produces the expected output using only

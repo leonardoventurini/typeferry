@@ -1,0 +1,59 @@
+"""TypeFerryContext — contextvars-backed execution store."""
+
+from __future__ import annotations
+
+import asyncio
+
+import pytest
+
+from typeferry.server.context import TypeFerryContext
+
+
+def test_outside_context_returns_none() -> None:
+    assert TypeFerryContext.get_store() is None
+
+
+def test_context_manager_installs_and_restores() -> None:
+    assert TypeFerryContext.get_store() is None
+    with TypeFerryContext.run("exec-1", {"user": "alice"}) as ctx:
+        assert TypeFerryContext.get_store() is ctx
+        assert ctx.execution_id == "exec-1"
+        assert ctx.context == {"user": "alice"}
+    assert TypeFerryContext.get_store() is None
+
+
+def test_nested_contexts_stack() -> None:
+    with TypeFerryContext.run("outer", 1):
+        outer = TypeFerryContext.get_store()
+        assert outer is not None
+        with TypeFerryContext.run("inner", 2):
+            inner = TypeFerryContext.get_store()
+            assert inner is not None
+            assert inner.execution_id == "inner"
+        after = TypeFerryContext.get_store()
+        assert after is not None
+        assert after.execution_id == "outer"
+
+
+@pytest.mark.asyncio
+async def test_context_survives_await_boundary() -> None:
+    async def nested() -> str | None:
+        await asyncio.sleep(0)
+        store = TypeFerryContext.get_store()
+        return store.execution_id if store is not None else None
+
+    with TypeFerryContext.run("exec-async", {}):
+        result = await nested()
+    assert result == "exec-async"
+
+
+@pytest.mark.asyncio
+async def test_concurrent_tasks_have_independent_contexts() -> None:
+    async def runner(label: str) -> str | None:
+        with TypeFerryContext.run(label, None):
+            await asyncio.sleep(0.001)
+            store = TypeFerryContext.get_store()
+            return store.execution_id if store is not None else None
+
+    results = await asyncio.gather(runner("a"), runner("b"), runner("c"))
+    assert set(results) == {"a", "b", "c"}

@@ -1,0 +1,21 @@
+[package]
+name = "typeferry-conformance-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Cross-language conformance server — exposes a fixed TypeFerry surface so other languages' clients can drive it end-to-end"
+publish = false
+
+[[bin]]
+name = "typeferry-conformance-server"
+path = "src/main.rs"
+
+[dependencies]
+typeferry-ejson = { workspace = true }
+typeferry-runtime = { workspace = true }
+typeferry-http = { workspace = true }
+typeferry-ws = { workspace = true }
+axum = { workspace = true }
+tokio = { workspace = true }
+serde_json = { workspace = true }
+futures = { workspace = true }

@@ -2,7 +2,7 @@
 
 ## Problem
 
-`@example-app/bifrost@0.4.1` depends on `query-string@7.1.3`, which resolves
+`typeferry-ts@0.4.1` depends on `query-string@7.1.3`, which resolves
 `decode-uri-component@0.2.2`. GHSA-vcc3-ghjq-m6fr reports that every
 `decode-uri-component` release through `0.4.2` can consume excessive CPU when
 decoding malformed attacker-controlled input. The advisory identifies `0.5.0`
@@ -11,18 +11,18 @@ as the patched release.
 ## Evidence
 
 - `npm audit` reports the vulnerable path as
-  `@example-app/bifrost -> query-string -> decode-uri-component`.
-- Bifrost uses `query-string` only to serialize the final plain-object argument
+  `typeferry-ts -> query-string -> decode-uri-component`.
+- TypeFerry uses `query-string` only to serialize the final plain-object argument
   passed to `Client.href()`.
 - `query-string@9.5.0` declares `decode-uri-component@^0.5.0`, supports Node 18
-  and newer, and is compatible with Bifrost's Node 24 runtime and ESM package.
+  and newer, and is compatible with TypeFerry's Node 24 runtime and ESM package.
 
 ## Desired Outcome
 
 - Preserve the observable `Client.href()` query serialization contract.
-- Publish a new immutable Bifrost patch release that resolves only patched
+- Publish a new immutable TypeFerry patch release that resolves only patched
   query decoding code.
-- Produce an audit-clean Bifrost dependency tree.
+- Produce an audit-clean TypeFerry dependency tree.
 - Allow ExampleApp to consume the published registry artifact without a patch or
   source link.
 
@@ -32,7 +32,7 @@ as the patched release.
   patched compatible release through `npm install`.
 - Add exact unit coverage for encoded strings, arrays, nulls, and booleans
   before upgrading.
-- Do not change the public Bifrost API or wire protocol.
+- Do not change the public TypeFerry API or wire protocol.
 - Preserve unrelated worktree content, including the untracked `.claude/`
   directory.
 
@@ -50,7 +50,7 @@ post-upgrade unit assertions will detect a behavior change.
   Verify the build output and package dry-run before publication.
 - Forgejo packages are immutable. If publication fails after accepting a
   version, bump again rather than republishing it.
-- Recovery is to reinstall the preceding published Bifrost version in
+- Recovery is to reinstall the preceding published TypeFerry version in
   consumers; no persisted data or protocol migration is involved.
 
 ## Executable Checklist
@@ -60,8 +60,8 @@ post-upgrade unit assertions will detect a behavior change.
 - [x] Run affected unit tests, lint, typecheck, build, package dry-run, audit,
       and frozen install.
 - [x] Inspect the packed dependency manifest and emitted client import.
-- [x] Bump the Bifrost patch version with npm.
-- [x] Commit and push the verified Bifrost source and lockfile.
+- [x] Bump the TypeFerry patch version with npm.
+- [x] Commit and push the verified TypeFerry source and lockfile.
 - [x] Publish the immutable package and confirm Forgejo exposes it.
 
 ## Direct Rollout

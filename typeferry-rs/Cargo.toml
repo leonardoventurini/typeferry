@@ -1,0 +1,55 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/typeferry-ejson",
+    "crates/typeferry-protocol",
+    "crates/typeferry-runtime",
+    "crates/typeferry-http",
+    "crates/typeferry-ws",
+    "crates/typeferry-redis",
+    "crates/typeferry-auth",
+    "crates/typeferry-macros",
+    "crates/typeferry-conformance-server",
+    "crates/typeferry-conformance",
+    "crates/typeferry",
+]
+
+[workspace.package]
+version = "0.2.0"
+edition = "2024"
+license = "UNLICENSED"
+authors = ["Leonardo Venturini"]
+publish = false
+
+[workspace.dependencies]
+# Inter-crate dependencies remain path-local while final registry identities
+# are intentionally undecided. Workspace publication is disabled above.
+typeferry-protocol = { path = "crates/typeferry-protocol", version = "0.2.0" }
+typeferry-ejson    = { path = "crates/typeferry-ejson",    version = "0.2.0" }
+typeferry-runtime  = { path = "crates/typeferry-runtime",  version = "0.2.0" }
+typeferry-http     = { path = "crates/typeferry-http",     version = "0.2.0" }
+typeferry-ws       = { path = "crates/typeferry-ws",       version = "0.2.0" }
+typeferry-redis    = { path = "crates/typeferry-redis",    version = "0.2.0" }
+typeferry-auth     = { path = "crates/typeferry-auth",     version = "0.2.0" }
+typeferry-macros   = { path = "crates/typeferry-macros",   version = "0.2.0" }
+
+# Shared runtime dependencies. Pin conservatively; individual crates
+# opt in via their own Cargo.toml.
+tokio = { version = "1.47", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["preserve_order"] }
+thiserror = "2.0"
+futures = "0.3"
+tracing = "0.1"
+anyhow = "1.0"
+uuid = { version = "1.13", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+base64 = "0.22"
+indexmap = { version = "2", features = ["serde"] }
+axum = "0.8"
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors"] }
+tokio-tungstenite = "0.27"
+redis = { version = "0.32", features = ["tokio-comp"] }
+jsonwebtoken = "9.3"
+reqwest = { version = "0.12", features = ["json"] }

@@ -1,4 +1,4 @@
-import type { ClientNode } from '@example-app/bifrost/server'
+import type { ClientNode } from 'typeferry-ts/server'
 import { describe, expect, it, vi } from 'vitest'
 
 import { MESSAGES_CHANGED_EVENT } from '@/common/messages'
@@ -16,10 +16,10 @@ describe('messages methods', () => {
     const methods = new MessagesMethods()
 
     const created = await methods.create(client, {
-      text: '  Hello, Bifrost!  ',
+      text: '  Hello, TypeFerry!  ',
     })
 
-    expect(created).toMatchObject({ text: 'Hello, Bifrost!' })
+    expect(created).toMatchObject({ text: 'Hello, TypeFerry!' })
     expect(await getMessagesCollection().countDocuments()).toBe(1)
     expect(await methods.list(client)).toEqual([created])
     expect(channel).toHaveBeenCalledWith('sample-user')

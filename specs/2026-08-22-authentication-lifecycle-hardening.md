@@ -1,16 +1,16 @@
-# Publish authentication lifecycle hardening as Bifrost 0.3.4
+# Publish authentication lifecycle hardening as TypeFerry 0.3.4
 
 ## Goal and scope
 
 Move the framework-owned authentication and readiness fixes currently carried
-as a ExampleApp `patchedDependency` into Bifrost source, publish compiled ESM as
-`@example-app/bifrost@0.3.4`, and upgrade ExampleApp to that immutable release.
+as a ExampleApp `patchedDependency` into TypeFerry source, publish compiled ESM as
+`typeferry-ts@0.3.4`, and upgrade ExampleApp to that immutable release.
 
-The Bifrost release owns HTTP status preservation, stale reconnect-timer
+The TypeFerry release owns HTTP status preservation, stale reconnect-timer
 cancellation, React auth subscription reconciliation, Node/Bun HTTP readiness
 gating, and matching custom `SameSite` support when clearing refresh cookies.
 ExampleApp continues to own its `SameSite=Strict` application policy explicitly;
-Bifrost's generic `SameSite=Lax` default and protocol revision remain unchanged.
+TypeFerry's generic `SameSite=Lax` default and protocol revision remain unchanged.
 
 Risk is high because package publication is externally visible and immutable.
 Abort before publish if source tests, emitted `dist`, tarball contents, or the
@@ -19,12 +19,12 @@ scope.
 
 ## Evidence and uncertainty
 
-- ExampleApp's temporary patch changes six compiled Bifrost files and has already
+- ExampleApp's temporary patch changes six compiled TypeFerry files and has already
   passed cold-start, expired-token, reload, wake, readiness, and transport
   regression coverage.
-- The Bifrost checkout is clean on `main`; Forgejo currently reports `0.3.3` as
+- The TypeFerry checkout is clean on `main`; Forgejo currently reports `0.3.3` as
   the latest npm package version.
-- Bifrost publishes only `bifrost-ts/dist`, and `prepublishOnly` rebuilds it.
+- TypeFerry publishes only `typeferry-ts/dist`, and `prepublishOnly` rebuilds it.
 - The source `CookieOptions` contract already documents `Strict` while the
   normative protocol and all implementations intentionally default to `Lax`.
   Changing the framework default would require a protocol revision and
@@ -57,11 +57,11 @@ real ExampleApp consumer.
 ## Integrated implementation checklist
 
 1. Implement the framework fixes beside their existing source tests in
-   `bifrost-ts/src`; verify the focused Vitest files fail without and pass with
+   `typeferry-ts/src`; verify the focused Vitest files fail without and pass with
    the changes.
 2. Preserve the generic cookie protocol while adding custom clear-policy
    symmetry; verify default Lax and explicit Strict set/clear cases.
-3. Run Bifrost unit, integration, browser, lint, typecheck, build, security
+3. Run TypeFerry unit, integration, browser, lint, typecheck, build, security
    audit, and package inspection gates; stop on any failure, advisory, or
    unexpected tarball path.
 4. Bump to `0.3.4` with Bun, commit and push the verified source, publish once,
@@ -80,11 +80,11 @@ real ExampleApp consumer.
 - Removing readiness gates would reintroduce cold-start anonymous sockets or
   `METHOD_NOT_FOUND`. Direct Node/Bun HTTP and Bun WebSocket tests block the
   release; ExampleApp's startup tests remain the consumer-level oracle.
-- Changing Bifrost's cookie default would silently alter other consumers and
+- Changing TypeFerry's cookie default would silently alter other consumers and
   cross-language conformance. The release preserves Lax and tests ExampleApp's
   explicit Strict policy instead.
 - An upgrade that still resolves the patch or a local link would provide false
-  confidence. ExampleApp must have no Bifrost patch entry/file, its lockfile must
+  confidence. ExampleApp must have no TypeFerry patch entry/file, its lockfile must
   resolve `0.3.4`, and a frozen install must reproduce the package.
 - If push succeeds but publish fails, fix the release problem and publish the
   same committed `0.3.4` only if Forgejo confirms that version is absent. If the
@@ -106,26 +106,26 @@ real ExampleApp consumer.
   compiled implementations and declarations only under `dist`.
 - **Consumer hard gate:** ExampleApp frozen install, 71 authentication Chromium
   tests, 24 focused unit tests, 18 auth/session integration tests, lint,
-  typecheck, and client/server builds must pass without a Bifrost patch.
+  typecheck, and client/server builds must pass without a TypeFerry patch.
 
 ## Execution checklist
 
-- [x] Implement Bifrost source contracts and focused regression tests.
+- [x] Implement TypeFerry source contracts and focused regression tests.
 - [x] Verify emitted ESM, declarations, dependency audit, and package tarball
       contents.
-- [x] Commit, push, publish, and confirm `@example-app/bifrost@0.3.4` in Forgejo.
-- [x] Upgrade ExampleApp and remove every temporary Bifrost patch reference.
+- [x] Commit, push, publish, and confirm `typeferry-ts@0.3.4` in Forgejo.
+- [x] Upgrade ExampleApp and remove every temporary TypeFerry patch reference.
 - [x] Complete consumer verification and commit the direct dependency upgrade.
 
 ## Verification and rollout
 
-The Bifrost package is published only after every framework gate passes. The
+The TypeFerry package is published only after every framework gate passes. The
 published package is then exercised by ExampleApp rather than trusting a local
 link. Abort the ExampleApp rollout if its lockfile resolves anything other than
 `0.3.4`, the installed files differ from the release contract, or any existing
 authentication oracle regresses. Rollback before deployment is ExampleApp commit
 reversion to `0.3.3` plus its patch; after deployment, prefer a corrective
-Bifrost patch release and normal ExampleApp upgrade.
+TypeFerry patch release and normal ExampleApp upgrade.
 
 ## Progress record
 
@@ -133,7 +133,7 @@ Bifrost patch release and normal ExampleApp upgrade.
 
 - Added status-bearing HTTP failures, explicit-connect backoff cancellation,
   post-subscription React reconciliation, and matching Node/Bun readiness gates.
-- Preserved Bifrost's Lax cookie default while allowing an application-supplied
+- Preserved TypeFerry's Lax cookie default while allowing an application-supplied
   SameSite policy to survive cookie clearing.
 - Six focused unit files passed 137 tests; lint and typecheck passed.
 - Sensitivity evidence is inherited from the consumer investigation: without
@@ -150,14 +150,14 @@ Bifrost patch release and normal ExampleApp upgrade.
 - Inspected emitted JavaScript and declarations for all six framework
   contracts. `bun pm pack --dry-run` contains 424 compiled files under `dist`
   plus the release manifest and identifies the artifact as
-  `@example-app/bifrost@0.3.4`.
+  `typeferry-ts@0.3.4`.
 
 ### 2026-08-22 — direct rollout completed
 
-- Published `@example-app/bifrost@0.3.4` from signed commit `2847379`; Forgejo and
+- Published `typeferry-ts@0.3.4` from signed commit `2847379`; Forgejo and
   the package registry both resolve the immutable release and its recorded
   integrity.
-- ExampleApp now resolves the registry package at `0.3.4`, has no Bifrost patch
+- ExampleApp now resolves the registry package at `0.3.4`, has no TypeFerry patch
   entry or compiled patch file, and expresses its Strict cookie policy through
   shared application-owned options.
 - The installed consumer passed a frozen install, 71 Chromium authentication

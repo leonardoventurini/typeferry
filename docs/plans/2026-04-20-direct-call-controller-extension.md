@@ -1,14 +1,14 @@
-# DirectCallController Bifrost Extension Implementation Plan
+# DirectCallController TypeFerry Extension Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `subagent-driven-development` by default to implement this plan task-by-task. If delegation is unavailable, continue in the current session with the same checklist, risk, and verification discipline. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a framework-level DirectCallController extension to Bifrost so apps can build reliable one-to-one audio/video calls without hand-rolling WebRTC signaling, negotiation, and UI adapter state.
+**Goal:** Add a framework-level DirectCallController extension to TypeFerry so apps can build reliable one-to-one audio/video calls without hand-rolling WebRTC signaling, negotiation, and UI adapter state.
 
-**Architecture:** Put the reliability-critical call engine in `bifrost-ts/src/calls/` as a framework-neutral TypeScript controller with explicit state transitions, typed signaling envelopes, WebRTC negotiation, diagnostics, and cleanup ownership. Keep Lit and React as thin adapters over the same controller, and keep server helpers generic enough that applications provide their own authorization, session persistence, and recipient resolution.
+**Architecture:** Put the reliability-critical call engine in `typeferry-ts/src/calls/` as a framework-neutral TypeScript controller with explicit state transitions, typed signaling envelopes, WebRTC negotiation, diagnostics, and cleanup ownership. Keep Lit and React as thin adapters over the same controller, and keep server helpers generic enough that applications provide their own authorization, session persistence, and recipient resolution.
 
-**Tech Stack:** TypeScript, Bifrost `Client`, Bifrost channels/events, Lit `ReactiveController`, React hooks, browser WebRTC APIs, Zod schemas for optional server helpers, Vitest unit/integration/browser runners.
+**Tech Stack:** TypeScript, TypeFerry `Client`, TypeFerry channels/events, Lit `ReactiveController`, React hooks, browser WebRTC APIs, Zod schemas for optional server helpers, Vitest unit/integration/browser runners.
 
-**Delegation Strategy:** Start with one Cortex-first explorer if the implementer has not recently touched Bifrost internals; the deliverable is a 1-page map of client/channel/server/lit/react extension points. Then split work into core types/state machine, WebRTC peer engine, Bifrost signaling transport, server helper, Lit adapter, React adapter, diagnostics, tests, exports, and docs. Do not parallelize edits that touch the same files; parallelize only adapter tests and docs after the core interfaces are stable.
+**Delegation Strategy:** Start with one Cortex-first explorer if the implementer has not recently touched TypeFerry internals; the deliverable is a 1-page map of client/channel/server/lit/react extension points. Then split work into core types/state machine, WebRTC peer engine, TypeFerry signaling transport, server helper, Lit adapter, React adapter, diagnostics, tests, exports, and docs. Do not parallelize edits that touch the same files; parallelize only adapter tests and docs after the core interfaces are stable.
 
 ---
 
@@ -16,37 +16,37 @@
 
 ExampleApp's current direct chat call flow lives inside an application React hook. That made it fast to ship, but it put protocol correctness, WebRTC lifecycle, UI state, and application routing in one place. The result is fragile: initial offers can depend on `onnegotiationneeded`, remote tracks can arrive on the same `MediaStream` object without a UI update, connection state can report `disconnected` temporarily, and each product that wants calls would need to rediscover the same edge cases.
 
-Bifrost is the correct home for the reusable layer because it already owns:
+TypeFerry is the correct home for the reusable layer because it already owns:
 
 - authenticated client identity and context
 - RPC calls through `Client.call`
 - channel subscription and event propagation
-- Lit controllers in `bifrost-ts/src/lit`
-- React hooks in `bifrost-ts/src/react`
+- Lit controllers in `typeferry-ts/src/lit`
+- React hooks in `typeferry-ts/src/react`
 - server decorators and runtime authorization hooks
 
-Bifrost should not own application-specific friend lists, conversations, or UI. The extension should own call mechanics and provide typed seams where the app supplies domain policy.
+TypeFerry should not own application-specific friend lists, conversations, or UI. The extension should own call mechanics and provide typed seams where the app supplies domain policy.
 
 ## Assumption Validation Pass
 
-These assumptions were checked against the current Bifrost repository before
+These assumptions were checked against the current TypeFerry repository before
 this revision:
 
-- `bifrost-ts/tsconfig.build.json` already includes `src/**/*`, so adding
+- `typeferry-ts/tsconfig.build.json` already includes `src/**/*`, so adding
   `src/calls/**` does not require a tsconfig include change.
-- `bun run typecheck` currently succeeds in `bifrost-ts/`, so the package is
+- `bun run typecheck` currently succeeds in `typeferry-ts/`, so the package is
   in a clean TypeScript baseline for this plan.
 - `bun run test:unit -- src/lit/internal.unit.spec.ts` runs only the filtered
   test file and passes, so the command style used throughout this plan is
   valid for targeted verification.
 - `Client.channel(name)` returns `ClientChannel | Client | null`; it returns
-  `null` for invalid/falsy names. The Bifrost transport must guard that case
+  `null` for invalid/falsy names. The TypeFerry transport must guard that case
   instead of assuming a channel object.
 - Existing Lit controllers that bind a client extend
-  `BifrostClientBoundController` and call `bindClient()` from
+  `TypeFerryClientBoundController` and call `bindClient()` from
   `hostConnected()`/`hostUpdate()`. The DirectCall Lit adapter must follow that
   pattern; `afterClientChange()` will not run unless the adapter binds.
-- Bifrost server channels warn for unregistered events. The server helper or
+- TypeFerry server channels warn for unregistered events. The server helper or
   documentation must include direct-call event registration guidance.
 - The generic server helper cannot prove application authorization by itself.
   Authorization tests must use a concrete example namespace with app-supplied
@@ -65,14 +65,14 @@ The extension must support these behaviors:
 - offer/answer glare handling with perfect-negotiation roles
 - ICE candidate queueing before remote description is ready
 - deterministic initial offer dispatch from caller
-- reconnection-safe Bifrost subscription binding
+- reconnection-safe TypeFerry subscription binding
 - deterministic cleanup on controller disconnect, call end, and peer end
 - optional diagnostics suitable for UI display and bug reports
 - framework-neutral core with Lit and React adapters
 
 The extension must not require:
 
-- a Bifrost server database
+- a TypeFerry server database
 - a built-in friend/conversation model
 - a particular TURN provider
 - app UI components
@@ -108,11 +108,11 @@ Consumers use the core directly when they own rendering:
 ```ts
 import {
   DirectCallController,
-  createBifrostDirectCallTransport,
-} from '@example-app/bifrost/calls'
+  createTypeFerryDirectCallTransport,
+} from 'typeferry-ts/calls'
 
 const controller = new DirectCallController({
-  transport: createBifrostDirectCallTransport({
+  transport: createTypeFerryDirectCallTransport({
     client,
     events: {
       answered: 'direct-call:answered',
@@ -134,14 +134,14 @@ const controller = new DirectCallController({
 })
 ```
 
-Lit consumers use the same constructor shape as Bifrost's other
+Lit consumers use the same constructor shape as TypeFerry's other
 client-bound Lit controllers: host, client source, then controller options.
 
 ```ts
-import { BifrostDirectCallController } from '@example-app/bifrost/lit'
+import { TypeFerryDirectCallController } from 'typeferry-ts/lit'
 
 class CallPanel extends LitElement {
-  private readonly calls = new BifrostDirectCallController(
+  private readonly calls = new TypeFerryDirectCallController(
     this,
     () => this.client,
     {
@@ -156,7 +156,7 @@ class CallPanel extends LitElement {
 React consumers use:
 
 ```ts
-import { useDirectCall } from '@example-app/bifrost/react'
+import { useDirectCall } from 'typeferry-ts/react'
 
 const call = useDirectCall({
   peerId,
@@ -167,7 +167,7 @@ const call = useDirectCall({
 
 ### Core Types
 
-Create `bifrost-ts/src/calls/types.ts`:
+Create `typeferry-ts/src/calls/types.ts`:
 
 ```ts
 export type DirectCallId = string
@@ -292,7 +292,7 @@ export interface DirectCallError {
 
 ### Signaling Transport Interface
 
-Create `bifrost-ts/src/calls/signaling-transport.ts`:
+Create `typeferry-ts/src/calls/signaling-transport.ts`:
 
 ```ts
 import type {
@@ -340,7 +340,7 @@ export interface DirectCallSignalingTransport {
 
 ### Controller Options
 
-Create `bifrost-ts/src/calls/direct-call-controller.ts`:
+Create `typeferry-ts/src/calls/direct-call-controller.ts`:
 
 ```ts
 export interface DirectCallControllerOptions {
@@ -499,62 +499,62 @@ await flushPendingIceCandidates()
 
 Create or modify these files:
 
-- Create `bifrost-ts/src/calls/index.ts` for public exports.
-- Create `bifrost-ts/src/calls/types.ts` for shared types.
-- Create `bifrost-ts/src/calls/signaling-transport.ts` for app transport contracts.
-- Create `bifrost-ts/src/calls/bifrost-transport.ts` for the default client/channel transport adapter.
-- Create `bifrost-ts/src/calls/direct-call-controller.ts` for the framework-neutral engine.
-- Create `bifrost-ts/src/calls/direct-call-controller.unit.spec.ts` for state-machine and fake WebRTC tests.
-- Create `bifrost-ts/src/calls/bifrost-transport.unit.spec.ts` for transport method/event wiring.
-- Create `bifrost-ts/src/calls/server.ts` for generic server helper types and schemas.
-- Create `bifrost-ts/src/calls/server.unit.spec.ts` for schemas and event helper tests.
-- Create `bifrost-ts/src/calls/server.integration.spec.ts` for route/auth helper tests.
-- Create `bifrost-ts/src/lit/direct-call-controller.ts` for the Lit wrapper.
-- Modify `bifrost-ts/src/lit/index.ts` to export the Lit wrapper.
-- Create `bifrost-ts/src/lit/direct-call-controller.unit.spec.ts` for Lit controller behavior.
-- Create `bifrost-ts/src/react/hooks/use-direct-call.tsx` for the React hook.
-- Modify `bifrost-ts/src/react/hooks/index.ts` and `bifrost-ts/src/react/index.ts` to export the hook.
-- Create `bifrost-ts/src/react/hooks/use-direct-call.unit.spec.tsx` for React adapter behavior.
-- Modify `bifrost-ts/package.json` to add `./calls` export.
-- Modify `bifrost-ts/tsconfig.build.json` only if declarations do not include the new folder.
+- Create `typeferry-ts/src/calls/index.ts` for public exports.
+- Create `typeferry-ts/src/calls/types.ts` for shared types.
+- Create `typeferry-ts/src/calls/signaling-transport.ts` for app transport contracts.
+- Create `typeferry-ts/src/calls/typeferry-transport.ts` for the default client/channel transport adapter.
+- Create `typeferry-ts/src/calls/direct-call-controller.ts` for the framework-neutral engine.
+- Create `typeferry-ts/src/calls/direct-call-controller.unit.spec.ts` for state-machine and fake WebRTC tests.
+- Create `typeferry-ts/src/calls/typeferry-transport.unit.spec.ts` for transport method/event wiring.
+- Create `typeferry-ts/src/calls/server.ts` for generic server helper types and schemas.
+- Create `typeferry-ts/src/calls/server.unit.spec.ts` for schemas and event helper tests.
+- Create `typeferry-ts/src/calls/server.integration.spec.ts` for route/auth helper tests.
+- Create `typeferry-ts/src/lit/direct-call-controller.ts` for the Lit wrapper.
+- Modify `typeferry-ts/src/lit/index.ts` to export the Lit wrapper.
+- Create `typeferry-ts/src/lit/direct-call-controller.unit.spec.ts` for Lit controller behavior.
+- Create `typeferry-ts/src/react/hooks/use-direct-call.tsx` for the React hook.
+- Modify `typeferry-ts/src/react/hooks/index.ts` and `typeferry-ts/src/react/index.ts` to export the hook.
+- Create `typeferry-ts/src/react/hooks/use-direct-call.unit.spec.tsx` for React adapter behavior.
+- Modify `typeferry-ts/package.json` to add `./calls` export.
+- Modify `typeferry-ts/tsconfig.build.json` only if declarations do not include the new folder.
 - Create `docs/calls/direct-call-controller.md` as consumer documentation.
-- Modify `PROTOCOL.md` only if the implementation adds normative wire envelopes beyond ordinary app events/methods. If the default transport only wraps existing Bifrost RPC and event primitives, document the extension in `docs/calls/` instead.
+- Modify `PROTOCOL.md` only if the implementation adds normative wire envelopes beyond ordinary app events/methods. If the default transport only wraps existing TypeFerry RPC and event primitives, document the extension in `docs/calls/` instead.
 
 ## Task 1: Core Types and Public Export
 
 **Files:**
-- Create: `bifrost-ts/src/calls/types.ts`
-- Create: `bifrost-ts/src/calls/signaling-transport.ts`
-- Create: `bifrost-ts/src/calls/index.ts`
-- Modify: `bifrost-ts/package.json`
+- Create: `typeferry-ts/src/calls/types.ts`
+- Create: `typeferry-ts/src/calls/signaling-transport.ts`
+- Create: `typeferry-ts/src/calls/index.ts`
+- Modify: `typeferry-ts/package.json`
 
 **Execution:**
 - Owner: `worker`
 - Support: `none`
 - Risk: `low`
-- Verification: `cd bifrost-ts && bun run typecheck`
+- Verification: `cd typeferry-ts && bun run typecheck`
 
 - [ ] **Step 1: Create `types.ts`**
 
-Paste the complete type block from the "Core Types" section into `bifrost-ts/src/calls/types.ts`.
+Paste the complete type block from the "Core Types" section into `typeferry-ts/src/calls/types.ts`.
 
 - [ ] **Step 2: Create `signaling-transport.ts`**
 
-Paste the complete transport interface block from the "Signaling Transport Interface" section into `bifrost-ts/src/calls/signaling-transport.ts`.
+Paste the complete transport interface block from the "Signaling Transport Interface" section into `typeferry-ts/src/calls/signaling-transport.ts`.
 
 - [ ] **Step 3: Create `index.ts`**
 
 ```ts
 export * from './types'
 export * from './signaling-transport'
-export * from './bifrost-transport'
+export * from './typeferry-transport'
 export * from './direct-call-controller'
 export * from './server'
 ```
 
 - [ ] **Step 4: Add the package export**
 
-Add this entry to `bifrost-ts/package.json` `exports`:
+Add this entry to `typeferry-ts/package.json` `exports`:
 
 ```json
 "./calls": {
@@ -568,7 +568,7 @@ Add this entry to `bifrost-ts/package.json` `exports`:
 Run:
 
 ```bash
-cd bifrost-ts
+cd typeferry-ts
 bun run typecheck
 ```
 
@@ -577,21 +577,21 @@ Expected: no TypeScript errors.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add bifrost-ts/src/calls/types.ts bifrost-ts/src/calls/signaling-transport.ts bifrost-ts/src/calls/index.ts bifrost-ts/package.json
+git add typeferry-ts/src/calls/types.ts typeferry-ts/src/calls/signaling-transport.ts typeferry-ts/src/calls/index.ts typeferry-ts/package.json
 git commit -m "feat: add direct call extension types"
 ```
 
 ## Task 2: Framework-Neutral Controller Skeleton
 
 **Files:**
-- Create: `bifrost-ts/src/calls/direct-call-controller.ts`
-- Create: `bifrost-ts/src/calls/direct-call-controller.unit.spec.ts`
+- Create: `typeferry-ts/src/calls/direct-call-controller.ts`
+- Create: `typeferry-ts/src/calls/direct-call-controller.unit.spec.ts`
 
 **Execution:**
 - Owner: `worker`
 - Support: `none`
 - Risk: `medium`
-- Verification: `cd bifrost-ts && bun run test:unit -- src/calls/direct-call-controller.unit.spec.ts`
+- Verification: `cd typeferry-ts && bun run test:unit -- src/calls/direct-call-controller.unit.spec.ts`
 
 - [ ] **Step 1: Write the controller construction test**
 
@@ -633,7 +633,7 @@ describe('DirectCallController', () => {
 Run:
 
 ```bash
-cd bifrost-ts
+cd typeferry-ts
 bun run test:unit -- src/calls/direct-call-controller.unit.spec.ts
 ```
 
@@ -740,17 +740,17 @@ export class DirectCallController {
 - [ ] **Step 4: Run the test and commit**
 
 ```bash
-cd bifrost-ts
+cd typeferry-ts
 bun run test:unit -- src/calls/direct-call-controller.unit.spec.ts
-git add bifrost-ts/src/calls/direct-call-controller.ts bifrost-ts/src/calls/direct-call-controller.unit.spec.ts
+git add typeferry-ts/src/calls/direct-call-controller.ts typeferry-ts/src/calls/direct-call-controller.unit.spec.ts
 git commit -m "feat: add direct call controller skeleton"
 ```
 
 ## Task 3: WebRTC Peer Engine
 
 **Files:**
-- Modify: `bifrost-ts/src/calls/direct-call-controller.ts`
-- Modify: `bifrost-ts/src/calls/direct-call-controller.unit.spec.ts`
+- Modify: `typeferry-ts/src/calls/direct-call-controller.ts`
+- Modify: `typeferry-ts/src/calls/direct-call-controller.unit.spec.ts`
 
 **Execution:**
 - Owner: `worker`
@@ -986,30 +986,30 @@ Signal handling must:
 - [ ] **Step 6: Run targeted unit tests**
 
 ```bash
-cd bifrost-ts
+cd typeferry-ts
 bun run test:unit -- src/calls/direct-call-controller.unit.spec.ts
 ```
 
 Expected: all tests pass.
 
-## Task 4: Bifrost Client Transport
+## Task 4: TypeFerry Client Transport
 
 **Files:**
-- Create: `bifrost-ts/src/calls/bifrost-transport.ts`
-- Create: `bifrost-ts/src/calls/bifrost-transport.unit.spec.ts`
+- Create: `typeferry-ts/src/calls/typeferry-transport.ts`
+- Create: `typeferry-ts/src/calls/typeferry-transport.unit.spec.ts`
 
 **Execution:**
 - Owner: `worker`
 - Support: `none`
 - Risk: `medium`
-- Verification: `cd bifrost-ts && bun run test:unit -- src/calls/bifrost-transport.unit.spec.ts`
+- Verification: `cd typeferry-ts && bun run test:unit -- src/calls/typeferry-transport.unit.spec.ts`
 
 - [ ] **Step 1: Define transport options**
 
 ```ts
 import type { Client, ClientChannel } from '../client'
 
-export interface BifrostDirectCallTransportEvents {
+export interface TypeFerryDirectCallTransportEvents {
   incoming: string
   answered: string
   declined: string
@@ -1017,7 +1017,7 @@ export interface BifrostDirectCallTransportEvents {
   signal: string
 }
 
-export interface BifrostDirectCallTransportMethods {
+export interface TypeFerryDirectCallTransportMethods {
   start: string
   answer: string
   decline: string
@@ -1025,20 +1025,20 @@ export interface BifrostDirectCallTransportMethods {
   signal: string
 }
 
-export interface BifrostDirectCallTransportOptions {
+export interface TypeFerryDirectCallTransportOptions {
   client: Client | (() => Client)
   selfId: () => string | null | undefined
   getUserChannel: (selfId: string) => string
-  events: BifrostDirectCallTransportEvents
-  methods: BifrostDirectCallTransportMethods
+  events: TypeFerryDirectCallTransportEvents
+  methods: TypeFerryDirectCallTransportMethods
 }
 ```
 
 - [ ] **Step 2: Implement the transport**
 
 ```ts
-export function createBifrostDirectCallTransport(
-  options: BifrostDirectCallTransportOptions,
+export function createTypeFerryDirectCallTransport(
+  options: TypeFerryDirectCallTransportOptions,
 ): DirectCallSignalingTransport {
   const getClient = (): Client =>
     typeof options.client === 'function' ? options.client() : options.client
@@ -1112,15 +1112,15 @@ subscriptions while another local listener for the same event remains.
 ## Task 5: Generic Server Helper
 
 **Files:**
-- Create: `bifrost-ts/src/calls/server.ts`
-- Create: `bifrost-ts/src/calls/server.unit.spec.ts`
-- Create: `bifrost-ts/src/calls/server.integration.spec.ts`
+- Create: `typeferry-ts/src/calls/server.ts`
+- Create: `typeferry-ts/src/calls/server.unit.spec.ts`
+- Create: `typeferry-ts/src/calls/server.integration.spec.ts`
 
 **Execution:**
 - Owner: `worker`
 - Support: `reviewer`
 - Risk: `high`
-- Verification: `cd bifrost-ts && bun run test:unit -- src/calls/server.unit.spec.ts && bun run test:integration -- src/calls/server.integration.spec.ts`
+- Verification: `cd typeferry-ts && bun run test:unit -- src/calls/server.unit.spec.ts && bun run test:integration -- src/calls/server.integration.spec.ts`
 
 Server helpers must not assume conversations or friends. They provide schemas,
 event registration helpers, and example-safe emit helpers. The concrete
@@ -1189,7 +1189,7 @@ class DirectCallMethods {
       callContext.getSelfId(client),
     )
     emitDirectCallSession(
-      global.Bifrost,
+      global.TypeFerry,
       callContext.getUserChannel(recipientId),
       events.incoming,
       session,
@@ -1214,33 +1214,33 @@ Tests must prove:
 ## Task 6: Lit Adapter
 
 **Files:**
-- Create: `bifrost-ts/src/lit/direct-call-controller.ts`
-- Create: `bifrost-ts/src/lit/direct-call-controller.unit.spec.ts`
-- Modify: `bifrost-ts/src/lit/index.ts`
+- Create: `typeferry-ts/src/lit/direct-call-controller.ts`
+- Create: `typeferry-ts/src/lit/direct-call-controller.unit.spec.ts`
+- Modify: `typeferry-ts/src/lit/index.ts`
 
 **Execution:**
 - Owner: `worker`
 - Support: `none`
 - Risk: `medium`
-- Verification: `cd bifrost-ts && bun run test:unit -- src/lit/direct-call-controller.unit.spec.ts`
+- Verification: `cd typeferry-ts && bun run test:unit -- src/lit/direct-call-controller.unit.spec.ts`
 
-Implement `BifrostDirectCallController` as a thin `ReactiveController`:
+Implement `TypeFerryDirectCallController` as a thin `ReactiveController`:
 
 ```ts
-export interface BifrostDirectCallLitOptions
+export interface TypeFerryDirectCallLitOptions
   extends Omit<DirectCallControllerOptions, 'transport'> {
-  transport: Omit<BifrostDirectCallTransportOptions, 'client'>
+  transport: Omit<TypeFerryDirectCallTransportOptions, 'client'>
 }
 
-export class BifrostDirectCallController extends BifrostClientBoundController {
+export class TypeFerryDirectCallController extends TypeFerryClientBoundController {
   private controller: DirectCallController | null = null
   private unsubscribeState: (() => void) | null = null
   private snapshot: DirectCallState = createInitialDirectCallState()
 
   constructor(
     host: ReactiveControllerHost,
-    client: BifrostClientSource,
-    private readonly options: BifrostDirectCallLitOptions,
+    client: TypeFerryClientSource,
+    private readonly options: TypeFerryDirectCallLitOptions,
   ) {
     super(host, client)
     this.attach()
@@ -1279,7 +1279,7 @@ export class BifrostDirectCallController extends BifrostClientBoundController {
     this.disposeController()
     this.controller = new DirectCallController({
       ...this.options,
-      transport: createBifrostDirectCallTransport({
+      transport: createTypeFerryDirectCallTransport({
         ...this.options.transport,
         client: () => this.resolveClient(),
       }),
@@ -1316,16 +1316,16 @@ Tests must prove:
 ## Task 7: React Adapter
 
 **Files:**
-- Create: `bifrost-ts/src/react/hooks/use-direct-call.tsx`
-- Create: `bifrost-ts/src/react/hooks/use-direct-call.unit.spec.tsx`
-- Modify: `bifrost-ts/src/react/hooks/index.ts`
-- Modify: `bifrost-ts/src/react/index.ts`
+- Create: `typeferry-ts/src/react/hooks/use-direct-call.tsx`
+- Create: `typeferry-ts/src/react/hooks/use-direct-call.unit.spec.tsx`
+- Modify: `typeferry-ts/src/react/hooks/index.ts`
+- Modify: `typeferry-ts/src/react/index.ts`
 
 **Execution:**
 - Owner: `worker`
 - Support: `none`
 - Risk: `medium`
-- Verification: `cd bifrost-ts && bun run test:unit -- src/react/hooks/use-direct-call.unit.spec.tsx`
+- Verification: `cd typeferry-ts && bun run test:unit -- src/react/hooks/use-direct-call.unit.spec.tsx`
 
 Implement a hook that creates exactly one core controller per stable
 transport/options identity and subscribes via `useSyncExternalStore`. Because
@@ -1343,7 +1343,7 @@ export function useDirectCall(options: UseDirectCallOptions): DirectCallControll
     () =>
       new DirectCallController({
         ...options,
-        transport: createBifrostDirectCallTransport({
+        transport: createTypeFerryDirectCallTransport({
           ...options.transport,
           client,
         }),
@@ -1382,18 +1382,18 @@ Tests must prove:
   names, channel derivation, or ICE configuration change
 - unmount calls `dispose`
 - state updates propagate to hook consumers
-- changing the Bifrost client disposes and recreates the controller
+- changing the TypeFerry client disposes and recreates the controller
 
 ## Task 8: Browser-Level Media Tests
 
 **Files:**
-- Create: `bifrost-ts/src/calls/direct-call-controller.browser.spec.ts`
+- Create: `typeferry-ts/src/calls/direct-call-controller.browser.spec.ts`
 
 **Execution:**
 - Owner: `worker`
 - Support: `verifier`
 - Risk: `high`
-- Verification: `cd bifrost-ts && bun run test:browser -- src/calls/direct-call-controller.browser.spec.ts`
+- Verification: `cd typeferry-ts && bun run test:browser -- src/calls/direct-call-controller.browser.spec.ts`
 
 Browser tests should use real `MediaStream`, canvas capture streams, and fake peer connections only where needed. Cover:
 
@@ -1408,8 +1408,8 @@ Do not use jsdom for these tests.
 ## Task 9: Diagnostics and Debuggability
 
 **Files:**
-- Modify: `bifrost-ts/src/calls/types.ts`
-- Modify: `bifrost-ts/src/calls/direct-call-controller.ts`
+- Modify: `typeferry-ts/src/calls/types.ts`
+- Modify: `typeferry-ts/src/calls/direct-call-controller.ts`
 - Modify: `docs/calls/direct-call-controller.md`
 
 **Execution:**
@@ -1463,7 +1463,7 @@ export function snapshotDirectCallDiagnostics(
 - Owner: `worker`
 - Support: `reviewer`
 - Risk: `low`
-- Verification: `rg -n "DirectCallController|@example-app/bifrost/calls" docs README.md`
+- Verification: `rg -n "DirectCallController|typeferry-ts/calls" docs README.md`
 
 Documentation must include:
 
@@ -1489,7 +1489,7 @@ Troubleshooting matrix:
 
 The extension is complete when:
 
-- `@example-app/bifrost/calls` exports the core controller and types.
+- `typeferry-ts/calls` exports the core controller and types.
 - Lit and React adapters use the same core controller.
 - Server helpers are optional and app-policy agnostic.
 - Initial caller offer is sent deterministically.
@@ -1501,7 +1501,7 @@ The extension is complete when:
 - Tests pass:
 
 ```bash
-cd bifrost-ts
+cd typeferry-ts
 bun run test:unit -- src/calls src/lit/direct-call-controller.unit.spec.ts src/react/hooks/use-direct-call.unit.spec.tsx
 bun run test:integration -- src/calls/server.integration.spec.ts
 bun run test:browser -- src/calls/direct-call-controller.browser.spec.ts
@@ -1511,14 +1511,14 @@ bun run build
 
 ## Migration Plan for ExampleApp
 
-After publishing Bifrost with this extension:
+After publishing TypeFerry with this extension:
 
-1. Update ExampleApp with `bun update @example-app/bifrost --latest`.
-2. Replace `src/client/systems/example-app/pages/use-direct-voice-call.ts` with `useDirectCall` from Bifrost.
-3. Keep ExampleApp's `directVoice` methods initially, but convert them to use Bifrost's server schemas and emit helpers.
+1. Update ExampleApp with `bun update typeferry-ts --latest`.
+2. Replace `src/client/systems/example-app/pages/use-direct-voice-call.ts` with `useDirectCall` from TypeFerry.
+3. Keep ExampleApp's `directVoice` methods initially, but convert them to use TypeFerry's server schemas and emit helpers.
 4. Keep the direct chat rail UI in React until the controller migration is stable.
-5. Migrate call capsule and chat rail to Lit as a second phase using `BifrostDirectCallController`.
-6. Delete ExampleApp's local WebRTC fake tests after equivalent Bifrost tests pass and ExampleApp has one browser integration test proving app wiring.
+5. Migrate call capsule and chat rail to Lit as a second phase using `TypeFerryDirectCallController`.
+6. Delete ExampleApp's local WebRTC fake tests after equivalent TypeFerry tests pass and ExampleApp has one browser integration test proving app wiring.
 
 ## Self-Review
 
@@ -1544,12 +1544,12 @@ Risk review:
 
 Revision applied:
 
-- The original instinct to put all server behavior behind generated decorators was rejected. Bifrost can provide schemas and helpers, but applications must retain domain authorization and session ownership.
+- The original instinct to put all server behavior behind generated decorators was rejected. TypeFerry can provide schemas and helpers, but applications must retain domain authorization and session ownership.
 - The Lit adapter sketch was revised to match the current
-  `BifrostClientBoundController` lifecycle; it now binds in
+  `TypeFerryClientBoundController` lifecycle; it now binds in
   `hostConnected()`/`hostUpdate()` and exposes `state` instead of pretending to
   implement every `DirectCallState` field.
-- The Bifrost transport sketch now accounts for `Client.channel()` returning
+- The TypeFerry transport sketch now accounts for `Client.channel()` returning
   `null` and unsubscribes only from events with no remaining local listeners.
 - The remote-track regression test now drives the fake peer connection's
   `ontrack` callback rather than adding public test-only controller methods.

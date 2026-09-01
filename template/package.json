@@ -1,5 +1,5 @@
 {
-  "name": "bifrost-react-mongodb-template",
+  "name": "typeferry-react-mongodb-template",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -41,7 +41,7 @@
     "clean": "rimraf dist"
   },
   "dependencies": {
-    "@example-app/bifrost": "0.4.1",
+    "typeferry-ts": "file:../typeferry-ts",
     "mongodb": "^7.6.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",

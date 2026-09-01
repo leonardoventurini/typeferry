@@ -1,8 +1,8 @@
-# Node.js-only runtime for bifrost-ts
+# Node.js-only runtime for typeferry-ts
 
 ## Context
 
-`bifrost-ts` currently maintains Bun-native Hono/WebSocket transports and an
+`typeferry-ts` currently maintains Bun-native Hono/WebSocket transports and an
 Express/`ws` Node fallback, while its tests and build already execute on Node.
 This dual runtime produces different public HTTP application types and requires
 Bun ambient declarations in consumers. ExampleApp's Hono route tree cannot use the
@@ -10,13 +10,13 @@ Express fallback.
 
 ## Decision
 
-Version `0.4.0` makes `bifrost-ts` Node.js-only, using exact Node `24.19.0`, npm
+Version `0.4.0` makes `typeferry-ts` Node.js-only, using exact Node `24.19.0`, npm
 `11.17.0`, `@hono/node-server`, and `ws`. One Node Hono transport owns HTTP and
 WebSocket traffic. Bun transports, runtime detection, Express fallback, Bun
 types, Bun package artifacts, and Bun-based TypeScript CI/publication are
 removed.
 
-The wire protocol remains unchanged. `bifrost-py` continues to implement the
+The wire protocol remains unchanged. `typeferry-py` continues to implement the
 same `PROTOCOL.md` contract.
 
 ## Rejected alternatives

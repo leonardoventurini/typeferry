@@ -1,0 +1,17 @@
+[package]
+name = "typeferry-ejson"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "EJSON serialization for the TypeFerry wire protocol"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+base64 = { workspace = true }
+chrono = { workspace = true }
+indexmap = { workspace = true }
+
+[dev-dependencies]

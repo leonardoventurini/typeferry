@@ -1,11 +1,11 @@
-# Migrate bifrost-ts completely to Node.js
+# Migrate typeferry-ts completely to Node.js
 
 ## Goal and scope
 
-Migrate `bifrost-ts` from Bun to exact Node.js `24.19.0` and npm `11.17.0`
+Migrate `typeferry-ts` from Bun to exact Node.js `24.19.0` and npm `11.17.0`
 without changing `PROTOCOL.md` semantics. The finished TypeScript package must
 install, build, test, audit, package, publish, and serve HTTP/WebSocket traffic
-without Bun. `bifrost-py`, Rust planning artifacts, and immutable history remain
+without Bun. `typeferry-py`, Rust planning artifacts, and immutable history remain
 outside the mechanical migration.
 
 Risk is medium because this changes a published framework's runtime, source API,
@@ -102,7 +102,7 @@ src/server` passes including Node Hono and WebSocket sensitivity cases.
 - Hard gate: `npm pack --dry-run` lists only intended compiled/package files;
   an extracted tarball imports every public export and typechecks without Bun.
 - Hard gate: a hidden-file-aware scan and seeded config test find no active Bun
-  API, type, command, image, lock, config, or environment marker in `bifrost-ts`
+  API, type, command, image, lock, config, or environment marker in `typeferry-ts`
   or current TypeScript workflows/guidance.
 - Sensitivity: detach the WebSocket upgrade listener and prove the real transport
   integration test fails; restore it and retain red/green evidence.
@@ -110,7 +110,7 @@ src/server` passes including Node Hono and WebSocket sensitivity cases.
 ## Execution checklist
 
 - [x] Implement and test the Node/Hono listener — files:
-      `bifrost-ts/src/server/transports/node-hono-transport.ts`, focused specs;
+      `typeferry-ts/src/server/transports/node-hono-transport.ts`, focused specs;
       verify: focused Vitest; done when HTTP and WebSocket share one listener.
 - [x] Remove Bun/Express runtime paths — files: server, transports, socket types,
       tests and dependencies; verify: server unit/integration smoke; done when
@@ -138,7 +138,7 @@ src/server` passes including Node Hono and WebSocket sensitivity cases.
 No database or protocol migration is involved. Keep `0.3.4` and `0.4.0`
 available, with ExampleApp pinned to the published `0.4.1` tarball that passed the
 clean-consumer smoke. Record exact commands/results here while executing and
-commit this spec with the Bifrost change.
+commit this spec with the TypeFerry change.
 
 ### Recorded evidence
 
@@ -162,7 +162,7 @@ commit this spec with the Bifrost change.
   `26858c2ebacaa51b1c1b93582d5d373efa9c093b` and integrity
   `sha512-ZfZEFLn+anVN4z9NnYwoVB8pD0/q+x7aOvh0MFy9mW7RFHUrhfrYUeRstwAMKlz9/BBBvVM8jVfcx1SfijF+aA==`.
 - ExampleApp completed an immutable `npm ci` against the published registry
-  tarball, resolved `@example-app/bifrost@0.4.0` without a link or patch, passed its
+  tarball, resolved `typeferry-ts@0.4.0` without a link or patch, passed its
   Node server integration and final arm64 HTTP/WebSocket container journey, and
   reported zero npm audit vulnerabilities.
 - The final independent consumer review then found two defects not covered by

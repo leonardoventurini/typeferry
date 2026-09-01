@@ -3,7 +3,7 @@
 
 Reads the commit range ``$BASE..$HEAD`` (defaults to ``last-release-commit..HEAD``),
 classifies each commit, computes the highest bump level per package
-(bifrost-ts / bifrost-py / bifrost-rs), and rewrites the matching
+(typeferry-ts / typeferry-py / typeferry-rs), and rewrites the matching
 manifest. Prints a JSON summary on stdout for downstream tooling
 (release-bump.yml uses it to construct the commit message).
 
@@ -43,22 +43,22 @@ class Package:
 
 PACKAGES: tuple[Package, ...] = (
     Package(
-        name="bifrost-ts",
-        path="bifrost-ts",
-        manifest=REPO_ROOT / "bifrost-ts/package.json",
-        aliases=("ts", "bifrost-ts"),
+        name="typeferry-ts",
+        path="typeferry-ts",
+        manifest=REPO_ROOT / "typeferry-ts/package.json",
+        aliases=("ts", "typeferry-ts"),
     ),
     Package(
-        name="bifrost-py",
-        path="bifrost-py",
-        manifest=REPO_ROOT / "bifrost-py/pyproject.toml",
-        aliases=("py", "bifrost-py"),
+        name="typeferry-py",
+        path="typeferry-py",
+        manifest=REPO_ROOT / "typeferry-py/pyproject.toml",
+        aliases=("py", "typeferry-py"),
     ),
     Package(
-        name="bifrost-rs",
-        path="bifrost-rs",
-        manifest=REPO_ROOT / "bifrost-rs/Cargo.toml",
-        aliases=("rs", "bifrost-rs"),
+        name="typeferry-rs",
+        path="typeferry-rs",
+        manifest=REPO_ROOT / "typeferry-rs/Cargo.toml",
+        aliases=("rs", "typeferry-rs"),
     ),
 )
 
@@ -231,15 +231,15 @@ def bump_version(current: str, level: str) -> str:
 
 def read_version(pkg: Package) -> str:
     text = pkg.manifest.read_text()
-    if pkg.name == "bifrost-ts":
+    if pkg.name == "typeferry-ts":
         m = re.search(r'"version"\s*:\s*"([^"]+)"', text)
-    elif pkg.name == "bifrost-py":
+    elif pkg.name == "typeferry-py":
         m = re.search(
             r'\[project\][^\[]*?\bversion\s*=\s*"([^"]+)"',
             text,
             flags=re.DOTALL,
         )
-    elif pkg.name == "bifrost-rs":
+    elif pkg.name == "typeferry-rs":
         m = re.search(
             r'\[workspace\.package\][^\[]*?\bversion\s*=\s*"([^"]+)"',
             text,
@@ -254,14 +254,14 @@ def read_version(pkg: Package) -> str:
 
 def write_version(pkg: Package, new_version: str) -> None:
     text = pkg.manifest.read_text()
-    if pkg.name == "bifrost-ts":
+    if pkg.name == "typeferry-ts":
         text = re.sub(
             r'("version"\s*:\s*")[^"]+(")',
             rf"\g<1>{new_version}\g<2>",
             text,
             count=1,
         )
-    elif pkg.name == "bifrost-py":
+    elif pkg.name == "typeferry-py":
         text = re.sub(
             r'(\[project\][^\[]*?\bversion\s*=\s*")[^"]+(")',
             rf"\g<1>{new_version}\g<2>",
@@ -269,7 +269,7 @@ def write_version(pkg: Package, new_version: str) -> None:
             count=1,
             flags=re.DOTALL,
         )
-    elif pkg.name == "bifrost-rs":
+    elif pkg.name == "typeferry-rs":
         old = read_version(pkg)
         text = re.sub(
             r'(\[workspace\.package\][^\[]*?\bversion\s*=\s*")[^"]+(")',
@@ -278,7 +278,7 @@ def write_version(pkg: Package, new_version: str) -> None:
             count=1,
             flags=re.DOTALL,
         )
-        # Inside `[workspace.dependencies]`, every `bifrost-* = { ...
+        # Inside `[workspace.dependencies]`, every `typeferry-* = { ...
         # version = "<old>" ... }` pin must move with the workspace
         # version so the umbrella crate's published artifact references
         # the just-published sibling crates.
@@ -289,7 +289,7 @@ def write_version(pkg: Package, new_version: str) -> None:
 
 
 def _bump_workspace_dependency_pins(text: str, old: str, new: str) -> str:
-    """Rewrite `bifrost-* version = "<old>"` lines inside `[workspace.dependencies]`."""
+    """Rewrite `typeferry-* version = "<old>"` lines inside `[workspace.dependencies]`."""
 
     out_lines: list[str] = []
     in_workspace_deps = False
@@ -297,7 +297,7 @@ def _bump_workspace_dependency_pins(text: str, old: str, new: str) -> str:
         stripped = line.strip()
         if stripped.startswith("[") and stripped.endswith("]"):
             in_workspace_deps = stripped == "[workspace.dependencies]"
-        elif in_workspace_deps and stripped.startswith("bifrost-"):
+        elif in_workspace_deps and stripped.startswith("typeferry-"):
             line = re.sub(
                 rf'(version\s*=\s*"){re.escape(old)}(")',
                 rf"\g<1>{new}\g<2>",

@@ -2,7 +2,7 @@
 
 ## Context
 
-Bifrost today is a single TypeScript package (`@example-app/bifrost`) that ships
+TypeFerry today is a single TypeScript package (`typeferry-ts`) that ships
 client, server, auth, React, Lit, EJSON, and utility surfaces from one
 `src/` tree. The Rust parity plan
 (`docs/plans/2026-04-12-rust-server-feature-parity.md`) was widened to
@@ -12,7 +12,7 @@ full server feature parity in lockstep with this plan; both now target
 This plan covers two concerns that must be done in the correct order:
 
 1. **Repository restructure** — carve the current TS package into
-   `bifrost-ts/` and create a sibling `bifrost-py/` without forcing a new npm
+   `typeferry-ts/` and create a sibling `typeferry-py/` without forcing a new npm
    publish or breaking existing consumers.
 2. **Python server port** — produce a Python library with feature parity
    to the current TS server: every server-authoring capability, every
@@ -31,7 +31,7 @@ The Python library is successful when **all** of these hold:
 
 ### Protocol parity (wire-level)
 
-- the existing `@example-app/bifrost` JS client can talk to it without knowing
+- the existing `typeferry-ts` JS client can talk to it without knowing
   the backend is Python
 - the shared conformance suite passes against both TS and Python targets
 - EJSON, HTTP RPC envelope, WebSocket envelope, and Redis propagation
@@ -56,7 +56,7 @@ The Python library is successful when **all** of these hold:
   same params on either server produce the same cache hit
 - middleware ordering (`@Use`) preserves TS precedence
 - context propagation via `contextvars` matches
-  `BifrostAsyncLocalStorage.run(...)` wrapping in `src/server/method.ts`
+  `TypeFerryAsyncLocalStorage.run(...)` wrapping in `src/server/method.ts`
 
 ### What is explicitly not required
 
@@ -73,15 +73,15 @@ The Python library is successful when **all** of these hold:
 
 ## Guiding Constraint: No Unnecessary Republish
 
-`@example-app/bifrost@0.2.9` is already published and immutable on the Forgejo
+`typeferry-ts@0.2.9` is already published and immutable on the Forgejo
 npm registry. The restructure itself must ship **nothing new**:
 
-- Moving `src/` into `bifrost-ts/src/` must not change any exported API
+- Moving `src/` into `typeferry-ts/src/` must not change any exported API
   surface, nor the byte contents of a freshly built `dist/`.
 - No version bump, no publish, until a legitimate TS change lands post-move.
-- Consumer import paths (`@example-app/bifrost/client`, `/server`, `/react`,
+- Consumer import paths (`typeferry-ts/client`, `/server`, `/react`,
   …) must remain stable because `package.json` `exports` are unchanged and
-  `files: ["dist"]` continues to map to `bifrost-ts/dist/` at publish time.
+  `files: ["dist"]` continues to map to `typeferry-ts/dist/` at publish time.
 
 If a regression forces republishing, the fix should be the smallest possible
 bump on the TS package; the Python effort should not cause TS churn.
@@ -89,8 +89,8 @@ bump on the TS package; the Python effort should not cause TS churn.
 ## Target Repository Shape
 
 ```
-bifrost/
-├── bifrost-ts/
+typeferry/
+├── typeferry-ts/
 │   ├── src/                    # current src/*
 │   ├── scripts/                # current scripts/*
 │   ├── package.json
@@ -102,9 +102,9 @@ bifrost/
 │   ├── vitest.config.unit.ts
 │   ├── vitest.config.integration.ts
 │   └── vitest.config.browser.ts
-├── bifrost-py/
+├── typeferry-py/
 │   ├── pyproject.toml
-│   ├── src/bifrost/…           # see Phase 2
+│   ├── src/typeferry/…           # see Phase 2
 │   └── tests/
 ├── docs/
 │   ├── conformance/            # shared, language-neutral
@@ -121,7 +121,7 @@ bifrost/
 
 Notes:
 
-- `node_modules/`, `coverage/`, `dist/` live inside `bifrost-ts/` and stay
+- `node_modules/`, `coverage/`, `dist/` live inside `typeferry-ts/` and stay
   gitignored.
 - `.claude/` and `.codex/` stay at repo root (per-repo agent config).
 - `package-lock.json` should be deleted during the move (Bun-only repo per
@@ -129,7 +129,7 @@ Notes:
 
 ## Phase 0 — Repository Restructure (no behavior change)
 
-Goal: pure relocation. A fresh `bun run build` in `bifrost-ts/` must produce
+Goal: pure relocation. A fresh `bun run build` in `typeferry-ts/` must produce
 a `dist/` byte-identical to pre-move `dist/` for the same git SHA of
 `src/**`.
 
@@ -137,30 +137,30 @@ Pre-audit confirmation (verified against current repo):
 
 - `tsconfig.build.json` uses `rootDir: "./src"` and `outDir: "./dist"` —
   both relative to the tsconfig, survive the move.
-- `tsconfig.json` has `paths: {"@example-app/bifrost/*": ["./src/*"]}` with
+- `tsconfig.json` has `paths: {"typeferry-ts/*": ["./src/*"]}` with
   `baseUrl: "."` — survives because both are relative.
 - `scripts/prepare-dist.mjs` resolves `new URL('../dist/', import.meta.url)`
   — survives because it's relative to the script file.
 - `package.json` `exports` paths all point to `./dist/...` — survive.
 - `vitest.config.*.ts` all use `path.resolve(__dirname, 'src')` — survive.
-  `vitest.config.browser.ts` also aliases `@example-app/bifrost/` to
-  `node_modules/@example-app/bifrost/src`, but grep shows no runtime imports
+  `vitest.config.browser.ts` also aliases `typeferry-ts/` to
+  `node_modules/typeferry-ts/src`, but grep shows no runtime imports
   of that specifier (only one jsdoc example in
   `src/server/decorators/register.ts`) — the alias is effectively dead
   config, and moving it is safe.
 - `.gitignore` already matches `node_modules/`, `dist/`, `coverage/`
-  globally, so they continue to be ignored under `bifrost-ts/`.
+  globally, so they continue to be ignored under `typeferry-ts/`.
 - Only one source file uses `__dirname`
   (`src/test/node/http.unit.spec.ts`), and it resolves a test-fixture
   `./static` directory relative to itself — survives.
-- `src/server/bifrost-async-local-storage.ts` imports from `async_hooks`
+- `src/server/typeferry-async-local-storage.ts` imports from `async_hooks`
   (Node built-in). Port target: Python `contextvars.Context().run()`,
   since `src/server/method.ts` wraps each call in
-  `BifrostAsyncLocalStorage.run(...)`.
+  `TypeFerryAsyncLocalStorage.run(...)`.
 
 Steps:
 
-1. `git mv` these into `bifrost-ts/`:
+1. `git mv` these into `typeferry-ts/`:
    - `src/`, `scripts/`
    - `package.json`, `bun.lock`, `bunfig.toml`, `.npmrc`
    - `tsconfig.json`, `tsconfig.build.json`
@@ -173,32 +173,32 @@ Steps:
    be needed because no dependency specifiers change.
 4. Either leave `.gitignore` as-is (current globs already match nested
    `node_modules/`, `dist/`, `coverage/`) or tighten to explicit
-   `bifrost-ts/dist/` etc. Prefer leaving as-is to minimize noise.
+   `typeferry-ts/dist/` etc. Prefer leaving as-is to minimize noise.
 5. Update `.forgejo/workflows/ci.yml`:
-   - Add `defaults.run.working-directory: bifrost-ts` to TS jobs (or set
+   - Add `defaults.run.working-directory: typeferry-ts` to TS jobs (or set
      `working-directory` on each `run:` step).
    - Cache key `hashFiles('bun.lock')` must be updated to
-     `hashFiles('bifrost-ts/bun.lock')`.
-   - Cache `path: node_modules` must become `path: bifrost-ts/node_modules`.
+     `hashFiles('typeferry-ts/bun.lock')`.
+   - Cache `path: node_modules` must become `path: typeferry-ts/node_modules`.
    - Note: the current workflow has **no publish step**. The "tag-gated
      publish" recommendation in Phase 7 is advisory for when one is added,
      not a change to the current CI.
 6. Update `CLAUDE.md`:
-   - Replace `src/*` references with `bifrost-ts/src/*`.
-   - Reference the new `vitest.config.*` paths under `bifrost-ts/`.
-   - Add a short "Python sibling" section pointing at `bifrost-py/`.
+   - Replace `src/*` references with `typeferry-ts/src/*`.
+   - Reference the new `vitest.config.*` paths under `typeferry-ts/`.
+   - Add a short "Python sibling" section pointing at `typeferry-py/`.
 7. Verification before commit:
-   - `cd bifrost-ts && bun install && bun run typecheck`
+   - `cd typeferry-ts && bun install && bun run typecheck`
    - `bun run test:unit && bun run test:integration && bun run test:browser`
    - `bun run build`, then `diff -r dist/ /tmp/pre-move-dist/` expects empty.
    - `git status` shows pure renames (detect renames: `git diff -M`).
-8. Single commit as `chore: restructure into bifrost-ts/` — no version bump.
+8. Single commit as `chore: restructure into typeferry-ts/` — no version bump.
 
 Exit criteria:
 
 - Next TS release (whenever it comes) produces the same user-visible
   artifact as before.
-- No `bifrost-py/` content yet; that arrives in Phase 2.
+- No `typeferry-py/` content yet; that arrives in Phase 2.
 
 ## Phase 1 — Freeze the Protocol Contract
 
@@ -206,7 +206,7 @@ Reuse and extend the Rust-parity spec outputs, language-neutral:
 
 1. Write `docs/conformance/protocol-spec.md` covering:
    - HTTP envelope (`POST /__h`, `text/plain` EJSON, headers, cookies)
-   - WebSocket envelope (`/bifrost-ws`, query params, `MessageType.*`)
+   - WebSocket envelope (`/typeferry-ws`, query params, `MessageType.*`)
    - Default methods: `rpc:login`, `rpc:logout`, `rpc:on`, `rpc:off`,
      `list:methods` (see `Methods` enum in `src/utils/constants.ts`)
    - Auth timing and state transitions
@@ -228,7 +228,7 @@ Reuse and extend the Rust-parity spec outputs, language-neutral:
    - Boots any server target via a small adapter.
    - Uses only the published JS client plus raw HTTP/WS where necessary.
    - Runs the fixture matrix.
-   - Lives either in `bifrost-ts/src/test/conformance/` (driven by Vitest)
+   - Lives either in `typeferry-ts/src/test/conformance/` (driven by Vitest)
      or in a top-level `conformance/` package. Prefer the former to reuse
      the existing client tests.
 4. Baseline: run the harness against the current TS server; treat all
@@ -241,17 +241,17 @@ Exit criteria:
 - Any TS change that would alter the wire contract must update the spec +
   fixtures explicitly.
 
-## Phase 2 — `bifrost-py` Skeleton
+## Phase 2 — `typeferry-py` Skeleton
 
 Create the Python project without implementing behavior yet.
 
 ### Layout
 
 ```
-bifrost-py/
+typeferry-py/
 ├── pyproject.toml
 ├── README.md
-├── src/bifrost/
+├── src/typeferry/
 │   ├── __init__.py
 │   ├── protocol/
 │   │   ├── __init__.py
@@ -275,7 +275,7 @@ bifrost-py/
 │   │   ├── server_channel.py
 │   │   ├── room_registry.py
 │   │   ├── default_methods.py
-│   │   ├── context.py         # contextvars-based, parity with bifrost-async-local-storage.ts
+│   │   ├── context.py         # contextvars-based, parity with typeferry-async-local-storage.ts
 │   │   └── transports/
 │   │       ├── __init__.py
 │   │       ├── http.py        # Starlette app
@@ -368,7 +368,7 @@ Mirrors Rust-parity Phase 2.
 Implement:
 
 - `POST /__h` handler.
-- EJSON request parsing and response encoding via `bifrost.ejson.presentation`.
+- EJSON request parsing and response encoding via `typeferry.ejson.presentation`.
 - Header semantics: `x-client-id`, `x-api-key`.
 - Public vs protected method gating.
 - `rpc:login`, `rpc:logout`.
@@ -385,7 +385,7 @@ Implement:
 
 Success:
 
-- The JS client in `bifrost-ts/` test harness can call methods against a
+- The JS client in `typeferry-ts/` test harness can call methods against a
   Python server spawned in CI.
 - HTTP slice of the conformance suite passes against Python target.
 - `list:methods` returns the same registered-method shape as TS.
@@ -394,7 +394,7 @@ Success:
 
 Implement:
 
-- `/bifrost-ws` endpoint on the Starlette app.
+- `/typeferry-ws` endpoint on the Starlette app.
 - Query param parsing: `uuid`, `token`, `meta`.
 - Full envelope set: `rpc`, `rpc:void`, `rpc:res`, `event`, `auth`, `ping`,
   `pong`.
@@ -518,15 +518,15 @@ Success:
 
 Two independent packages, two independent release cadences.
 
-### `bifrost-ts`
+### `typeferry-ts`
 
-- Unchanged publish flow: bump `bifrost-ts/package.json` version, tag,
-  Forgejo npm publish from `bifrost-ts/dist/`.
+- Unchanged publish flow: bump `typeferry-ts/package.json` version, tag,
+  Forgejo npm publish from `typeferry-ts/dist/`.
 - No change in package name, exports, or consumer import paths.
 
-### `bifrost-py`
+### `typeferry-py`
 
-- Package name candidate: `example-app-bifrost` on PyPI, or Forgejo-hosted
+- Package name candidate: `typeferry-py` on PyPI, or Forgejo-hosted
   PyPI package.
 - Versioning milestones:
   - `0.1.0` — HTTP parity (Phase 3)
@@ -544,8 +544,8 @@ Two independent packages, two independent release cadences.
 Update `.forgejo/workflows/ci.yml` to:
 
 - **Path-filtered jobs:**
-  - TS jobs run on changes under `bifrost-ts/**` or `docs/conformance/**`.
-  - Python jobs run on changes under `bifrost-py/**` or
+  - TS jobs run on changes under `typeferry-ts/**` or `docs/conformance/**`.
+  - Python jobs run on changes under `typeferry-py/**` or
     `docs/conformance/**`.
 - **Conformance matrix job:**
   - Boots TS server, runs harness → must be green.
@@ -576,7 +576,7 @@ cache-key canonicalization are the most likely parity trap. Mitigation:
 
 ### Async Context Propagation
 
-`src/server/bifrost-async-local-storage.ts` uses Node's `AsyncLocalStorage`.
+`src/server/typeferry-async-local-storage.ts` uses Node's `AsyncLocalStorage`.
 Python's `contextvars` behaves similarly but diverges in task spawning
 rules. Lock down with explicit tests: nested method calls, concurrent
 subscriptions, middleware → handler context handoff.
@@ -615,14 +615,14 @@ simultaneous content edits during the move commit. Reviewers should see
 The current `.forgejo/workflows/ci.yml` does not publish at all — release
 is a manual `bun publish` from a checkout. The reorg therefore cannot
 accidentally republish. When a publish step is later added, gate it on a
-tag trigger, not a branch push, so an unchanged `bifrost-ts/package.json`
+tag trigger, not a branch push, so an unchanged `typeferry-ts/package.json`
 cannot race against the registry's immutability rule.
 
 ### Consumer Import Paths
 
-ExampleApp consumers must continue to import from `@example-app/bifrost/*`
+ExampleApp consumers must continue to import from `typeferry-ts/*`
 only. If anyone currently imports
-`node_modules/@example-app/bifrost/src/...` (a known regression per
+`node_modules/typeferry-ts/src/...` (a known regression per
 `CLAUDE.md`), fix those consumers before the move lands so the reorg does
 not get blamed for a preexisting issue.
 
@@ -650,7 +650,7 @@ tracked in Phases 3, 6.5, and 6.75 — they are no longer deferred.
    `dist/` byte-identity.
 2. **Phase 1** — freeze protocol spec and conformance harness against
    current TS server.
-3. **Phase 2** — stand up `bifrost-py` skeleton (incl. decorator module
+3. **Phase 2** — stand up `typeferry-py` skeleton (incl. decorator module
    stubs) with CI green at zero tests.
 4. **Phase 3** — Python HTTP parity incl. `list:methods` and rate
    limiting; conformance HTTP slice green.

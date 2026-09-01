@@ -162,7 +162,7 @@ Sensitivity evidence:
 Commands:
 
 ```sh
-cd bifrost-ts
+cd typeferry-ts
 bun run test:unit -- src/mongodb/live
 bun run test:integration -- src/mongodb/live
 bun run lint

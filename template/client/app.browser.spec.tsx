@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
     | undefined,
 }))
 
-vi.mock('@example-app/bifrost/react', () => ({
+vi.mock('typeferry-ts/react', () => ({
   useAuth: () => ({ authenticated: true }),
   useClient: () => ({
     context: { user: { _id: 'sample-user' } },
@@ -31,7 +31,7 @@ vi.mock('@example-app/bifrost/react', () => ({
 
 const firstMessage: Message = {
   id: 'message-1',
-  text: 'Hello, Bifrost!',
+  text: 'Hello, TypeFerry!',
   createdAt: '2026-08-30T12:00:00.000Z',
 }
 const secondMessage: Message = {
@@ -55,7 +55,7 @@ describe('App', () => {
     expect(
       await screen.findByRole('heading', { name: 'Real-time messages' }),
     ).toBeVisible()
-    expect(await screen.findByText('Hello, Bifrost!')).toBeVisible()
+    expect(await screen.findByText('Hello, TypeFerry!')).toBeVisible()
     expect(mocks.remoteEventOptions).toEqual({
       active: true,
       channel: 'sample-user',

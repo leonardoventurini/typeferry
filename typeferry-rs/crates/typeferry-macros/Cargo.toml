@@ -1,0 +1,23 @@
+[package]
+name = "typeferry-macros"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Authoring macros for TypeFerry (#[method], #[namespace], #[protected], #[cached], #[schema], #[r#use])"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1"
+quote = "1"
+syn = { version = "2", features = ["full"] }
+
+[dev-dependencies]
+typeferry-runtime = { workspace = true }
+tokio = { workspace = true }
+serde_json = { workspace = true }
+futures = { workspace = true }
+async-trait = "0.1"
+trybuild = "1"

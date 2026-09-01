@@ -3,11 +3,11 @@ import tailwindcss from '@tailwindcss/vite'
 import path from 'node:path'
 import { defineConfig } from 'vite'
 
-import { bifrostDevProxy } from './scripts/vite-dev-proxy.ts'
+import { typeferryDevProxy } from './scripts/vite-dev-proxy.ts'
 
 export default defineConfig({
   root: 'client',
-  plugins: [bifrostDevProxy(), react(), tailwindcss()],
+  plugins: [typeferryDevProxy(), react(), tailwindcss()],
   server: {
     allowedHosts: true,
     watch: {
