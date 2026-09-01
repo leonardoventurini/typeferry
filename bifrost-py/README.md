@@ -1,5 +1,8 @@
 # bifrost-py
 
+Current release: `0.2.0`, adding optional application-owned WebSocket handshake
+authentication with fail-closed precedence over query-token authentication.
+
 Python port of the Bifrost real-time RPC framework, targeting
 **server-side feature parity** with the TypeScript package
 `@example-app/bifrost`.
