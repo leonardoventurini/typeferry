@@ -14,10 +14,6 @@
       "types": "./dist/client/index.d.ts",
       "import": "./dist/client/index.js"
     },
-    "./lit": {
-      "types": "./dist/lit/index.d.ts",
-      "import": "./dist/lit/index.js"
-    },
     "./server": {
       "types": "./dist/server/index.d.ts",
       "import": "./dist/server/index.js"
@@ -100,15 +96,11 @@
   },
   "peerDependencies": {
     "@react-oauth/google": ">=0.12",
-    "lit": ">=3",
     "mongodb": ">=6",
     "react": ">=18"
   },
   "peerDependenciesMeta": {
     "mongodb": {
-      "optional": true
-    },
-    "lit": {
       "optional": true
     },
     "react": {
@@ -137,7 +129,6 @@
     "eslint-plugin-security": "^4.0.1",
     "globals": "^17.7.0",
     "jsdom": "^30.0.1",
-    "lit": "^3.3.2",
     "mongodb": "^7.5.0",
     "playwright": "^1.61.1",
     "postcss": "^8.5.26",

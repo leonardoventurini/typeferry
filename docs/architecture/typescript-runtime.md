@@ -13,7 +13,6 @@ Status: informative. Follow [`typeferry-ts/AGENTS.md`](../../typeferry-ts/AGENTS
 | Serialization | `typeferry-ts/src/ejson/` | EJSON conversion, equality, cloning, custom models |
 | Shared utilities | `typeferry-ts/src/utils/` | Protocol shapes, constants, throttling, helpers |
 | React adapter | `typeferry-ts/src/react/` | Hooks and provider over the core client |
-| Lit adapter | `typeferry-ts/src/lit/` | Lit integration over the core client |
 | MongoDB extension | `typeferry-ts/src/mongodb/` | Typed collections and live invalidation over the native driver |
 | Test infrastructure | `typeferry-ts/src/test/` | Shared harnesses and conformance integration |
 
@@ -21,7 +20,7 @@ Status: informative. Follow [`typeferry-ts/AGENTS.md`](../../typeferry-ts/AGENTS
 
 `Server` and its registered method/event primitives define application behavior. `NodeHonoTransport` owns the Hono application and Node HTTP listener. `WebSocketTransport` attaches upgrade handling to the same listener before startup. Connected peers become `ClientNode` instances used by dispatch, auth, rooms, and event routing.
 
-Client-side `Client`, `ClientHttp`, and `ClientSocket` coordinate calls and connection state. React and Lit surfaces observe or invoke that core; they must not reimplement transport, caching, or auth behavior.
+Client-side `Client`, `ClientHttp`, and `ClientSocket` coordinate calls and connection state. The React surface observes or invokes that core; it must not reimplement transport, caching, or auth behavior. Other UI frameworks integrate through the framework-agnostic client instead of package-owned adapters.
 
 ## Contract surfaces
 

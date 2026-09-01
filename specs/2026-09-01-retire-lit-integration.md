@@ -7,7 +7,7 @@ TypeFerry currently maintains two UI-framework adapters even though React is the
 ## Evidence
 
 - `typeferry-ts/package.json` exports `typeferry-ts/lit` and declares Lit as an optional peer and development dependency.
-- `typeferry-ts/src/lit/` contains reactive controllers, utilities, and unit tests.
+- `typeferry-ts/src/lit/` contains sixteen reactive-controller, utility, index, and unit-test files.
 - Root, package, end-user, and architecture documentation advertise Lit alongside React.
 - `docs/plans/2026-04-20-direct-call-controller-extension.md` contains broader core/React design work plus proposed Lit-specific tasks.
 - The package is private and registry publishing remains disabled, but removing `typeferry-ts/lit` is still a public contract change for repository-local consumers.
@@ -18,7 +18,7 @@ Fully remove the Lit integration and retain React as TypeFerry's only UI-framewo
 
 ## Scope and Contracts
 
-- Delete `typeferry-ts/src/lit/`, including its tests.
+- Delete `typeferry-ts/src/lit/`, including its sixteen source and test files.
 - Remove the `./lit` package export, Lit peer metadata, Lit development dependency, and lockfile packages that are no longer reachable.
 - Remove the current Lit guide and every active end-user or architecture claim that Lit is supported.
 - Rewrite Lit-specific sections of the broader direct-call plan to describe a React-only UI adapter direction; do not delete the entire plan.
@@ -38,16 +38,16 @@ No replacement unit tests are needed for deleted behavior. Verification begins w
 
 ## Acceptance Criteria
 
-- [ ] `typeferry-ts/src/lit/` and its tests no longer exist.
-- [ ] `typeferry-ts/lit` is not exported and no compatibility stub exists.
-- [ ] Lit is absent from package peer dependencies, development dependencies, peer metadata, and reachable lockfile packages.
-- [ ] React is the only documented UI-framework adapter; the core client remains supported independently.
-- [ ] Active documentation contains no stale Lit guide or links.
-- [ ] The direct-call plan retains core/React material and contains no actionable Lit implementation work.
-- [ ] Agent instructions and architecture documentation reflect the React-only adapter direction.
-- [ ] Lint, typecheck, split tests, build, package inspection, lockfile integrity, Markdown links, and `git diff --check` pass.
-- [ ] A decision record captures the immediate Lit API retirement and consequences.
-- [ ] Task-owned changes are committed semantically and the worktree is clean.
+- [x] `typeferry-ts/src/lit/` and its tests no longer exist.
+- [x] `typeferry-ts/lit` is not exported and no compatibility stub exists.
+- [x] Lit is absent from package peer dependencies, development dependencies, peer metadata, and reachable lockfile packages.
+- [x] React is the only documented UI-framework adapter; the core client remains supported independently.
+- [x] Active documentation contains no stale Lit guide or links.
+- [x] The direct-call plan retains core/React material and contains no actionable Lit implementation work.
+- [x] Agent instructions and architecture documentation reflect the React-only adapter direction.
+- [x] Lint, typecheck, split tests, build, package inspection, lockfile integrity, Markdown links, and `git diff --check` pass.
+- [x] A decision record captures the immediate Lit API retirement and consequences.
+- [x] Task-owned changes are committed semantically and the worktree is clean.
 
 ## Risks and Recovery
 

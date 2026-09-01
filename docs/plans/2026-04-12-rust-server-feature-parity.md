@@ -26,7 +26,6 @@ Client-side concerns are out of scope because the JS client remains the
 canonical consumer:
 
 - React adapter ergonomics
-- Lit adapter ergonomics
 - inferred client types
 
 Server-side concerns are in scope and must be feature-parity:
@@ -85,7 +84,7 @@ A Rust server is successful when **both** hold:
   equivalent)
 - TypeScript type inference parity (Rust's own generic system provides
   the equivalent static story)
-- reimplementation of React/Lit integration (client-side)
+- reimplementation of the React integration (client-side)
 
 ## Current Implementation Landing Zone
 
@@ -207,7 +206,6 @@ Protocol parity should include these guarantees.
 Client-side and syntax-level concerns stay out of scope:
 
 - React hooks (client-side)
-- Lit controllers (client-side)
 - TS-identical macro syntax (Rust proc-macros match *semantics*, not
   source shape)
 - Bun, Express, or Hono implementation parity at the module level
@@ -519,7 +517,7 @@ This plan does not require:
 - deprecating the TS server
 - supporting every internal helper from day one
 - replacing the authoring model for TS users
-- reimplementing client-side surfaces (React, Lit, type inference)
+- reimplementing client-side surfaces (React, type inference)
 
 It establishes the boundary that makes a feature-complete Rust
 implementation realistic and incremental.

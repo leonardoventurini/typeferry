@@ -7,11 +7,11 @@
 
 **Goal:** Add a framework-level DirectCallController extension to TypeFerry so apps can build reliable one-to-one audio/video calls without hand-rolling WebRTC signaling, negotiation, and UI adapter state.
 
-**Architecture:** Put the reliability-critical call engine in `typeferry-ts/src/calls/` as a framework-neutral TypeScript controller with explicit state transitions, typed signaling envelopes, WebRTC negotiation, diagnostics, and cleanup ownership. Keep Lit and React as thin adapters over the same controller, and keep server helpers generic enough that applications provide their own authorization, session persistence, and recipient resolution.
+**Architecture:** Put the reliability-critical call engine in `typeferry-ts/src/calls/` as a framework-neutral TypeScript controller with explicit state transitions, typed signaling envelopes, WebRTC negotiation, diagnostics, and cleanup ownership. Keep React as a thin adapter over the same controller, and keep server helpers generic enough that applications provide their own authorization, session persistence, and recipient resolution.
 
-**Tech Stack:** TypeScript, TypeFerry `Client`, TypeFerry channels/events, Lit `ReactiveController`, React hooks, browser WebRTC APIs, Zod schemas for optional server helpers, Vitest unit/integration/browser runners.
+**Tech Stack:** TypeScript, TypeFerry `Client`, TypeFerry channels/events, React hooks, browser WebRTC APIs, Zod schemas for optional server helpers, Vitest unit/integration/browser runners.
 
-**Delegation Strategy:** Start with one Cortex-first explorer if the implementer has not recently touched TypeFerry internals; the deliverable is a 1-page map of client/channel/server/lit/react extension points. Then split work into core types/state machine, WebRTC peer engine, TypeFerry signaling transport, server helper, Lit adapter, React adapter, diagnostics, tests, exports, and docs. Do not parallelize edits that touch the same files; parallelize only adapter tests and docs after the core interfaces are stable.
+**Delegation Strategy:** Start with one Cortex-first explorer if the implementer has not recently touched TypeFerry internals; the deliverable is a 1-page map of client/channel/server/react extension points. Then split work into core types/state machine, WebRTC peer engine, TypeFerry signaling transport, server helper, React adapter, diagnostics, tests, exports, and docs. Do not parallelize edits that touch the same files; parallelize only adapter tests and docs after the core interfaces are stable.
 
 ---
 
@@ -24,7 +24,6 @@ TypeFerry is the correct home for the reusable layer because it already owns:
 - authenticated client identity and context
 - RPC calls through `Client.call`
 - channel subscription and event propagation
-- Lit controllers in `typeferry-ts/src/lit`
 - React hooks in `typeferry-ts/src/react`
 - server decorators and runtime authorization hooks
 
@@ -39,16 +38,9 @@ this revision:
   `src/calls/**` does not require a tsconfig include change.
 - `bun run typecheck` currently succeeds in `typeferry-ts/`, so the package is
   in a clean TypeScript baseline for this plan.
-- `bun run test:unit -- src/lit/internal.unit.spec.ts` runs only the filtered
-  test file and passes, so the command style used throughout this plan is
-  valid for targeted verification.
 - `Client.channel(name)` returns `ClientChannel | Client | null`; it returns
   `null` for invalid/falsy names. The TypeFerry transport must guard that case
   instead of assuming a channel object.
-- Existing Lit controllers that bind a client extend
-  `TypeFerryClientBoundController` and call `bindClient()` from
-  `hostConnected()`/`hostUpdate()`. The DirectCall Lit adapter must follow that
-  pattern; `afterClientChange()` will not run unless the adapter binds.
 - TypeFerry server channels warn for unregistered events. The server helper or
   documentation must include direct-call event registration guidance.
 - The generic server helper cannot prove application authorization by itself.
@@ -71,7 +63,7 @@ The extension must support these behaviors:
 - reconnection-safe TypeFerry subscription binding
 - deterministic cleanup on controller disconnect, call end, and peer end
 - optional diagnostics suitable for UI display and bug reports
-- framework-neutral core with Lit and React adapters
+- framework-neutral core with a React adapter
 
 The extension must not require:
 
@@ -79,13 +71,13 @@ The extension must not require:
 - a built-in friend/conversation model
 - a particular TURN provider
 - app UI components
-- React in Lit consumers, or Lit in React consumers
+- a UI-framework dependency in core consumers
 
 ## Proposed Public API
 
 ### Package Exports
 
-Add a new `./calls` export and re-export adapter helpers from existing framework surfaces:
+Add a new `./calls` export and re-export the adapter helper from the React surface:
 
 ```json
 {
@@ -93,10 +85,6 @@ Add a new `./calls` export and re-export adapter helpers from existing framework
     "./calls": {
       "types": "./dist/calls/index.d.ts",
       "import": "./dist/calls/index.js"
-    },
-    "./lit": {
-      "types": "./dist/lit/index.d.ts",
-      "import": "./dist/lit/index.js"
     },
     "./react": {
       "types": "./dist/react/index.d.ts",
@@ -135,25 +123,6 @@ const controller = new DirectCallController({
     selfId: () => String(client.context.userId ?? ''),
   }),
 })
-```
-
-Lit consumers use the same constructor shape as TypeFerry's other
-client-bound Lit controllers: host, client source, then controller options.
-
-```ts
-import { TypeFerryDirectCallController } from 'typeferry-ts/lit'
-
-class CallPanel extends LitElement {
-  private readonly calls = new TypeFerryDirectCallController(
-    this,
-    () => this.client,
-    {
-      contextId: () => this.conversationId,
-      peerId: () => this.peerId,
-      transport: this.transportOptions,
-    },
-  )
-}
 ```
 
 React consumers use:
@@ -512,9 +481,6 @@ Create or modify these files:
 - Create `typeferry-ts/src/calls/server.ts` for generic server helper types and schemas.
 - Create `typeferry-ts/src/calls/server.unit.spec.ts` for schemas and event helper tests.
 - Create `typeferry-ts/src/calls/server.integration.spec.ts` for route/auth helper tests.
-- Create `typeferry-ts/src/lit/direct-call-controller.ts` for the Lit wrapper.
-- Modify `typeferry-ts/src/lit/index.ts` to export the Lit wrapper.
-- Create `typeferry-ts/src/lit/direct-call-controller.unit.spec.ts` for Lit controller behavior.
 - Create `typeferry-ts/src/react/hooks/use-direct-call.tsx` for the React hook.
 - Modify `typeferry-ts/src/react/hooks/index.ts` and `typeferry-ts/src/react/index.ts` to export the hook.
 - Create `typeferry-ts/src/react/hooks/use-direct-call.unit.spec.tsx` for React adapter behavior.
@@ -1214,109 +1180,7 @@ Tests must prove:
 - the integration test defines a tiny example namespace using the helper
   callbacks; do not test authorization against the helper alone
 
-## Task 6: Lit Adapter
-
-**Files:**
-- Create: `typeferry-ts/src/lit/direct-call-controller.ts`
-- Create: `typeferry-ts/src/lit/direct-call-controller.unit.spec.ts`
-- Modify: `typeferry-ts/src/lit/index.ts`
-
-**Execution:**
-- Owner: `worker`
-- Support: `none`
-- Risk: `medium`
-- Verification: `cd typeferry-ts && bun run test:unit -- src/lit/direct-call-controller.unit.spec.ts`
-
-Implement `TypeFerryDirectCallController` as a thin `ReactiveController`:
-
-```ts
-export interface TypeFerryDirectCallLitOptions
-  extends Omit<DirectCallControllerOptions, 'transport'> {
-  transport: Omit<TypeFerryDirectCallTransportOptions, 'client'>
-}
-
-export class TypeFerryDirectCallController extends TypeFerryClientBoundController {
-  private controller: DirectCallController | null = null
-  private unsubscribeState: (() => void) | null = null
-  private snapshot: DirectCallState = createInitialDirectCallState()
-
-  constructor(
-    host: ReactiveControllerHost,
-    client: TypeFerryClientSource,
-    private readonly options: TypeFerryDirectCallLitOptions,
-  ) {
-    super(host, client)
-    this.attach()
-  }
-
-  get state(): DirectCallState {
-    return this.snapshot
-  }
-
-  get status(): DirectCallStatus {
-    return this.snapshot.status
-  }
-
-  startCall(): Promise<void> {
-    return this.requireController().startCall()
-  }
-
-  toggleCamera(): Promise<void> {
-    return this.requireController().toggleCamera()
-  }
-
-  hostConnected(): void {
-    this.bindClient()
-  }
-
-  hostUpdate(): void {
-    this.bindClient()
-  }
-
-  hostDisconnected(): void {
-    this.disposeController()
-    super.hostDisconnected()
-  }
-
-  protected afterClientChange(): void {
-    this.disposeController()
-    this.controller = new DirectCallController({
-      ...this.options,
-      transport: createTypeFerryDirectCallTransport({
-        ...this.options.transport,
-        client: () => this.resolveClient(),
-      }),
-    })
-    this.unsubscribeState = this.controller.subscribe(state => {
-      this.snapshot = state
-      this.requestUpdate()
-    })
-  }
-
-  private requireController(): DirectCallController {
-    if (!this.controller) this.bindClient()
-    if (!this.controller) throw new Error('DirectCallController not ready')
-    return this.controller
-  }
-
-  private disposeController(): void {
-    this.unsubscribeState?.()
-    this.unsubscribeState = null
-    this.controller?.dispose()
-    this.controller = null
-    this.snapshot = createInitialDirectCallState()
-  }
-}
-```
-
-Tests must prove:
-
-- host update is requested when controller state changes
-- disconnect disposes the core controller
-- client changes replace the core controller
-- options can be functions so Lit hosts can bind reactive properties without recreating the adapter
-
-## Task 7: React Adapter
+## Task 6: React Adapter
 
 **Files:**
 - Create: `typeferry-ts/src/react/hooks/use-direct-call.tsx`
@@ -1387,7 +1251,7 @@ Tests must prove:
 - state updates propagate to hook consumers
 - changing the TypeFerry client disposes and recreates the controller
 
-## Task 8: Browser-Level Media Tests
+## Task 7: Browser-Level Media Tests
 
 **Files:**
 - Create: `typeferry-ts/src/calls/direct-call-controller.browser.spec.ts`
@@ -1408,7 +1272,7 @@ Browser tests should use real `MediaStream`, canvas capture streams, and fake pe
 
 Do not use jsdom for these tests.
 
-## Task 9: Diagnostics and Debuggability
+## Task 8: Diagnostics and Debuggability
 
 **Files:**
 - Modify: `typeferry-ts/src/calls/types.ts`
@@ -1456,7 +1320,7 @@ export function snapshotDirectCallDiagnostics(
 }
 ```
 
-## Task 10: Documentation
+## Task 9: Documentation
 
 **Files:**
 - Create: `docs/calls/direct-call-controller.md`
@@ -1471,7 +1335,6 @@ export function snapshotDirectCallDiagnostics(
 Documentation must include:
 
 - quick start for core controller
-- quick start for Lit
 - quick start for React
 - server integration example
 - TURN configuration guidance
@@ -1493,7 +1356,7 @@ Troubleshooting matrix:
 The extension is complete when:
 
 - `typeferry-ts/calls` exports the core controller and types.
-- Lit and React adapters use the same core controller.
+- The React adapter uses the framework-neutral core controller.
 - Server helpers are optional and app-policy agnostic.
 - Initial caller offer is sent deterministically.
 - Camera toggles renegotiate or queue renegotiation until stable.
@@ -1505,7 +1368,7 @@ The extension is complete when:
 
 ```bash
 cd typeferry-ts
-bun run test:unit -- src/calls src/lit/direct-call-controller.unit.spec.ts src/react/hooks/use-direct-call.unit.spec.tsx
+bun run test:unit -- src/calls src/react/hooks/use-direct-call.unit.spec.tsx
 bun run test:integration -- src/calls/server.integration.spec.ts
 bun run test:browser -- src/calls/direct-call-controller.browser.spec.ts
 bun run typecheck
@@ -1520,14 +1383,13 @@ After publishing TypeFerry with this extension:
 2. Replace `src/client/systems/example-app/pages/use-direct-voice-call.ts` with `useDirectCall` from TypeFerry.
 3. Keep ExampleApp's `directVoice` methods initially, but convert them to use TypeFerry's server schemas and emit helpers.
 4. Keep the direct chat rail UI in React until the controller migration is stable.
-5. Migrate call capsule and chat rail to Lit as a second phase using `TypeFerryDirectCallController`.
-6. Delete ExampleApp's local WebRTC fake tests after equivalent TypeFerry tests pass and ExampleApp has one browser integration test proving app wiring.
+5. Delete ExampleApp's local WebRTC fake tests after equivalent TypeFerry tests pass and ExampleApp has one browser integration test proving app wiring.
 
 ## Self-Review
 
 Spec coverage:
 
-- Core controller, WebRTC behavior, signaling transport, server helper, Lit adapter, React adapter, diagnostics, docs, and ExampleApp migration are each mapped to tasks.
+- Core controller, WebRTC behavior, signaling transport, server helper, React adapter, diagnostics, docs, and ExampleApp migration are each mapped to tasks.
 
 Placeholder scan:
 
@@ -1548,10 +1410,6 @@ Risk review:
 Revision applied:
 
 - The original instinct to put all server behavior behind generated decorators was rejected. TypeFerry can provide schemas and helpers, but applications must retain domain authorization and session ownership.
-- The Lit adapter sketch was revised to match the current
-  `TypeFerryClientBoundController` lifecycle; it now binds in
-  `hostConnected()`/`hostUpdate()` and exposes `state` instead of pretending to
-  implement every `DirectCallState` field.
 - The TypeFerry transport sketch now accounts for `Client.channel()` returning
   `null` and unsubscribes only from events with no remaining local listeners.
 - The remote-track regression test now drives the fake peer connection's

@@ -2,7 +2,7 @@
 
 TypeFerry is a type-safe, real-time RPC framework with HTTP and WebSocket transports, server events and channels, authentication primitives, EJSON serialization, and shared conformance across TypeScript, Python, and Rust.
 
-The TypeScript implementation includes browser clients plus React and Lit integrations. Python and Rust provide server-side implementations of the same wire protocol.
+The TypeScript implementation includes browser clients plus a React integration. Python and Rust provide server-side implementations of the same wire protocol.
 
 > [!IMPORTANT]
 > TypeFerry is public source but its npm, PyPI, and crates.io packages are not published yet. Package names and release automation remain intentionally disabled. Use the repository-local workflows below and see [release status](RELEASING.md).
@@ -11,7 +11,7 @@ The TypeScript implementation includes browser clients plus React and Lit integr
 
 | Implementation | Server | Browser client | UI adapters | Status and entry point |
 |---|---:|---:|---|---|
-| [TypeScript](typeferry-ts/README.md) | Yes, Node.js | Yes | React and Lit | Reference implementation |
+| [TypeScript](typeferry-ts/README.md) | Yes, Node.js | Yes | React | Reference implementation |
 | [Python](typeferry-py/README.md) | Yes | No | — | Server-side protocol parity |
 | [Rust](typeferry-rs/README.md) | Yes | No | — | Modular server-side protocol parity |
 
@@ -24,7 +24,7 @@ All implementations share the normative [wire protocol](PROTOCOL.md) and [confor
 - Server-to-client events, named channels, rooms, and optional Redis propagation.
 - Authentication hooks, JWT/session helpers, cookies, and OAuth building blocks.
 - EJSON support for dates, binary data, regular expressions, non-finite numbers, and custom types.
-- React hooks and Lit reactive controllers over the same TypeScript client.
+- React hooks over the same framework-agnostic TypeScript client.
 - An optional TypeScript MongoDB extension for typed collections and live invalidation.
 - Cross-language fixtures and interoperability tests.
 
@@ -57,7 +57,6 @@ The template includes a Node.js server, WebSocket client, React UI, MongoDB repl
 - [TypeScript server and RPC](docs/typescript/server-rpc.md)
 - [TypeScript client](docs/typescript/client.md)
 - [React integration](docs/typescript/react.md)
-- [Lit integration](docs/typescript/lit.md)
 - [Authentication](docs/typescript/authentication.md)
 - [Events and channels](docs/typescript/events-and-channels.md)
 - [MongoDB extension](docs/typescript/mongodb.md)

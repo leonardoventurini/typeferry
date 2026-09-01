@@ -19,7 +19,6 @@ Use this page to choose the smallest guide that matches what you are building. [
 | Create a server and RPC methods | [Server and RPC](typescript/server-rpc.md) |
 | Use the browser or Node client | [Client](typescript/client.md) |
 | Bind TypeFerry to React | [React](typescript/react.md) |
-| Bind TypeFerry to Lit | [Lit](typescript/lit.md) |
 | Add authentication and sessions | [Authentication](typescript/authentication.md) |
 | Publish and consume events | [Events and channels](typescript/events-and-channels.md) |
 | Use typed MongoDB collections and live invalidation | [MongoDB](typescript/mongodb.md) |

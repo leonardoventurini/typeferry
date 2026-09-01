@@ -6,7 +6,7 @@
 ## Context
 
 TypeFerry today is a single TypeScript package (`typeferry-ts`) that ships
-client, server, auth, React, Lit, EJSON, and utility surfaces from one
+client, server, auth, React, EJSON, and utility surfaces from one
 `src/` tree. The Rust parity plan
 (`docs/plans/2026-04-12-rust-server-feature-parity.md`) was widened to
 full server feature parity in lockstep with this plan; both now target
@@ -24,7 +24,7 @@ This plan covers two concerns that must be done in the correct order:
    Pydantic where TS uses decorators + Zod), and validated by shared
    conformance tests.
 
-Client-side surfaces (`src/client`, `src/react`, `src/lit`) stay out of
+Client-side surfaces (`src/client`, `src/react`) stay out of
 scope because the existing JS client continues to be the canonical
 consumer. Feature parity is a **server-side** goal.
 
@@ -69,7 +69,7 @@ The Python library is successful when **all** of these hold:
   Python-native equivalent)
 - TS type inference parity (Python generics + `TypedDict` + Pydantic
   models provide the equivalent static story)
-- React/Lit integrations (client-side, out of repo scope for the port)
+- React integration (client-side, out of repo scope for the port)
 - Bun/Hono/Express module shapes (transport behavior must match, module
   layout does not)
 - internal module layout inside the library
@@ -632,7 +632,7 @@ not get blamed for a preexisting issue.
 ## Explicit Non-Goals
 
 - Python client library (the existing JS client remains canonical).
-- Python-side React/Lit equivalents (client-side surface, out of scope).
+- Python-side React equivalents (client-side surface, out of scope).
 - TS-identical decorator syntax or TS-identical static type inference
   (Python ports the *semantics*, not the syntax).
 - Zod as the runtime schema engine (Pydantic is the Python-native

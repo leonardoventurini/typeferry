@@ -6,7 +6,7 @@ TypeFerry is a multi-language monorepo implementing one wire protocol. Start wit
 
 - `PROTOCOL.md` — normative cross-language wire protocol.
 - `docs/conformance/` — normative fixture formats and shared executable examples.
-- `typeferry-ts/` — TypeScript client, Node.js server, auth, adapters, EJSON, and MongoDB extension. Follow `typeferry-ts/AGENTS.md`.
+- `typeferry-ts/` — TypeScript client, Node.js server, auth, React adapter, EJSON, and MongoDB extension. Follow `typeferry-ts/AGENTS.md`.
 - `typeferry-py/` — Python server implementation. Follow `typeferry-py/AGENTS.md`.
 - `typeferry-rs/` — Rust server workspace. Follow `typeferry-rs/AGENTS.md`.
 - `template/` — standalone TypeScript application template. Follow `template/AGENTS.md`.
@@ -23,6 +23,7 @@ TypeFerry is a multi-language monorepo implementing one wire protocol. Start wit
 - Read the nearest `AGENTS.md` before modifying files under a package or template.
 - Design tests before implementation and run the narrowest relevant suite first. Expand verification in proportion to the affected contract.
 - Keep public APIs strongly typed. Do not weaken TypeScript or Python strictness, and preserve explicit Rust types and error boundaries.
+- React is the only maintained UI-framework adapter. Other UI frameworks integrate through the core TypeScript client unless a future architecture decision explicitly expands the supported adapter surface.
 - Use semantic comments for non-obvious invariants and multiline API documentation for public or complex contracts.
 - Keep documentation links and commands current when paths, scripts, exports, or behavior change.
 - Use semantic commits with path-limited staging. Never bypass Git hooks unless the user explicitly requests it.

@@ -87,7 +87,7 @@ pytest
 
 ## Boundaries and references
 
-- Server-side protocol parity is the goal; use the TypeScript package for browser, React, or Lit clients.
+- Server-side protocol parity is the goal; use the TypeScript package for browser or React clients.
 - [`PROTOCOL.md`](../PROTOCOL.md) is the normative wire contract.
 - [Python runtime architecture](../docs/architecture/python-runtime.md) explains package internals.
 - [Shared conformance](../docs/conformance/README.md) covers interoperability.

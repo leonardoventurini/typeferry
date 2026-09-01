@@ -12,7 +12,7 @@ These instructions apply under `typeferry-ts/` and extend the repository root in
 
 ## Architecture
 
-- `src/client/` and `src/server/` contain the core runtime. Keep React and Lit adapters thin and transport-agnostic.
+- `src/client/` and `src/server/` contain the core runtime. Keep the React adapter thin and transport-agnostic. Other UI frameworks integrate through the core client rather than package-owned adapters.
 - `src/utils/` and `src/ejson/` own shared protocol helpers and serialization.
 - `src/auth/client/` and `src/auth/server/` form a separate auth slice; avoid coupling auth policy to transport internals.
 - `src/server/decorators/` owns registration metadata, method/event modules own RPC primitives, and `src/server/transports/` owns Node.js transports.

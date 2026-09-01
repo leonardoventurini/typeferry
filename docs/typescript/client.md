@@ -1,6 +1,6 @@
 # TypeScript Client
 
-The core client works independently of React or Lit and can use WebSocket or HTTP calls against a TypeFerry server.
+The core client works independently of React and can use WebSocket or HTTP calls against a TypeFerry server.
 
 ```ts
 // client/typeferry.ts
@@ -38,6 +38,6 @@ Use `client.void(...)` when no result is needed. Call options can select HTTP be
 
 ## Lifecycle
 
-Create one client per browser application unless isolation is intentional. Observe its connection state, handle rejected promises, and close application-owned clients during teardown. For UI state, prefer the [React hooks](react.md) or [Lit controllers](lit.md), which reuse this client rather than replacing it.
+Create one client per browser application unless isolation is intentional. Observe its connection state, handle rejected promises, and close application-owned clients during teardown. For React UI state, prefer the [React hooks](react.md), which reuse this client rather than replacing it. Other UI frameworks can integrate directly with the framework-agnostic client lifecycle.
 
 For live updates, see [events and channels](events-and-channels.md). For identity context and reconnection behavior, see [authentication](authentication.md).

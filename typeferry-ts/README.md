@@ -1,6 +1,6 @@
 # typeferry-ts
 
-The TypeScript implementation of TypeFerry provides the reference Node.js server, browser/Node client, React hooks, Lit controllers, authentication helpers, EJSON, and an optional MongoDB extension.
+The TypeScript implementation of TypeFerry provides the reference Node.js server, browser/Node client, React hooks, authentication helpers, EJSON, and an optional MongoDB extension.
 
 > [!IMPORTANT]
 > `typeferry-ts` is not published to npm. The repository package is intentionally private while its final registry identity is selected. Use the repository-local [`template/`](../template/) workflow described in the [quickstart](../docs/getting-started.md).
@@ -21,7 +21,6 @@ The TypeScript implementation of TypeFerry provides the reference Node.js server
 | `typeferry-ts/server/transports` | Node HTTP, WebSocket, and Redis transports |
 | `typeferry-ts/client` | Core client and connection APIs |
 | `typeferry-ts/react` | React provider and hooks |
-| `typeferry-ts/lit` | Lit reactive controllers |
 | `typeferry-ts/auth` | Shared auth, token, session, and cookie helpers |
 | `typeferry-ts/auth/server/oauth` | Server OAuth providers |
 | `typeferry-ts/auth/client/oauth` | Client OAuth helpers |
@@ -72,4 +71,4 @@ npm pack --dry-run
 
 ## Guides
 
-Start at the [documentation home](../docs/README.md) or jump to [server and RPC](../docs/typescript/server-rpc.md), [client](../docs/typescript/client.md), [React](../docs/typescript/react.md), [Lit](../docs/typescript/lit.md), [authentication](../docs/typescript/authentication.md), [events and channels](../docs/typescript/events-and-channels.md), [MongoDB](../docs/typescript/mongodb.md), [EJSON](../docs/typescript/ejson.md), or [deployment](../docs/typescript/deployment.md).
+Start at the [documentation home](../docs/README.md) or jump to [server and RPC](../docs/typescript/server-rpc.md), [client](../docs/typescript/client.md), [React](../docs/typescript/react.md), [authentication](../docs/typescript/authentication.md), [events and channels](../docs/typescript/events-and-channels.md), [MongoDB](../docs/typescript/mongodb.md), [EJSON](../docs/typescript/ejson.md), or [deployment](../docs/typescript/deployment.md).
