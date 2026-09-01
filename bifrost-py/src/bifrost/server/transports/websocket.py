@@ -32,6 +32,8 @@ from bifrost.server.socket import SocketState
 from bifrost.server.transports.ws_shared import (
     PING_INTERVAL_MS,
     PING_PAYLOAD,
+    WebSocketHandshake,
+    WebSocketHandshakeAuthenticator,
     authenticate_node,
     handle_rpc,
     handle_rpc_void,
@@ -99,12 +101,14 @@ class WebSocketTransport:
         server: Server,
         origins: list[str] | None = None,
         path: str = BIFROST_WS_PATH,
+        handshake_authenticator: WebSocketHandshakeAuthenticator | None = None,
     ) -> None:
         self.server = server
         self.rooms = RoomRegistry()
         self.path = path
         self.origins = set(origins) if origins else None
         self.accept_connections = True
+        self.handshake_authenticator = handshake_authenticator
         self.route = WebSocketRoute(path, self._endpoint)
         self._ping_tasks: dict[int, asyncio.Task[None]] = {}
         self._pong_received: dict[int, bool] = {}
@@ -148,7 +152,17 @@ class WebSocketTransport:
         self._pong_received[id(socket)] = True
 
         try:
-            await authenticate_node(self.server, node, token)
+            await authenticate_node(
+                self.server,
+                node,
+                token,
+                self.handshake_authenticator,
+                WebSocketHandshake(
+                    path=ws.url.path,
+                    headers={name.lower(): value for name, value in ws.headers.items()},
+                    query={name: value for name, value in ws.query_params.items()},
+                ),
+            )
             await self._receive_loop(node, ws, socket)
         except WebSocketDisconnect:
             pass

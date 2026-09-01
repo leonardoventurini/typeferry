@@ -25,7 +25,14 @@ import {
   handleRpc,
   handleRpcVoid,
   parseMeta,
+  type WebSocketHandshake,
+  type WebSocketHandshakeAuthenticator,
   validateUuid,
+} from './ws-shared'
+
+export type {
+  WebSocketHandshake,
+  WebSocketHandshakeAuthenticator,
 } from './ws-shared'
 
 export enum WebSocketTransportEvents {
@@ -39,6 +46,10 @@ const UPGRADE_FORBIDDEN_RESPONSE =
 
 export interface WebSocketTransportOptions {
   path?: string
+  /**
+   * Application-owned handshake auth; rejection never falls back to token auth.
+   */
+  handshakeAuthenticator?: WebSocketHandshakeAuthenticator
   cors?: {
     credentials?: boolean
     origin?: string | string[]
@@ -55,6 +66,7 @@ export class WebSocketTransport {
 
   private path: string
   private origins: Set<string> | null
+  private handshakeAuthenticator?: WebSocketHandshakeAuthenticator
   private pingTimers = new Map<BifrostSocket, ReturnType<typeof setInterval>>()
   private pongReceived = new Map<BifrostSocket, boolean>()
 
@@ -66,6 +78,7 @@ export class WebSocketTransport {
     this.server = server
     this.path = opts?.path ?? BIFROST_WS_PATH
     this.origins = origins?.length ? new Set(origins) : null
+    this.handshakeAuthenticator = opts?.handshakeAuthenticator
 
     this.wss = new WebSocketServer({ noServer: true })
     this.wss.on('error', (error: Error) =>
@@ -125,6 +138,17 @@ export class WebSocketTransport {
     const uuid = validateUuid(url.searchParams.get('uuid'))
     const token = url.searchParams.get('token') ?? undefined
     const meta = parseMeta(url.searchParams.get('meta'))
+    const handshake: WebSocketHandshake = {
+      path: url.pathname,
+      headers: Object.fromEntries(
+        Object.entries(req.headers).flatMap(([name, value]) => {
+          if (typeof value === 'string') return [[name, value]]
+          if (Array.isArray(value)) return [[name, value.join(', ')]]
+          return []
+        }),
+      ),
+      query: Object.fromEntries(url.searchParams.entries()),
+    }
 
     const node = new ClientNode(
       this.server,
@@ -157,7 +181,13 @@ export class WebSocketTransport {
     })
 
     this.startPing(ws)
-    authenticateNode(this.server, node, token)
+    authenticateNode(
+      this.server,
+      node,
+      token,
+      this.handshakeAuthenticator,
+      handshake,
+    )
   }
 
   private handleMessage(node: ClientNode, raw: Buffer | string): void {

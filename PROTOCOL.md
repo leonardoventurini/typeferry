@@ -218,6 +218,21 @@ Sources: `src/server/transports/ws-shared.ts:17-20,204-240`.
 6. If a peer fails to respond to ping within the next interval, the
    server SHOULD terminate the socket.
 
+#### 2.2.3 Application-owned handshake authentication
+
+Server transports MAY expose an optional application-owned handshake
+authenticator for hosts whose authority is carried by protected request metadata
+such as an HttpOnly session cookie rather than a query token. This is an authoring
+extension; it does not change the wire envelopes in section 2.2.2.
+
+When configured, the authenticator receives the admitted client node plus a
+framework-neutral snapshot containing the request path, normalized headers, and
+query parameters. It runs under the same 5000 ms authentication timeout and emits
+the same `{ t: "auth", authenticated }` result as token authentication. Its result
+takes precedence for the connection: a rejection, timeout, or error MUST fail
+closed and MUST NOT fall back to query-token authentication. When the extension is
+absent, the token behavior in section 2.2.2 remains unchanged.
+
 Sources: `src/server/transports/ws-shared.ts:17-23,164-197`,
 `src/server/transports/websocket-transport.ts:175-185`,
 `src/server/transports/bun-ws-transport.ts:140`.

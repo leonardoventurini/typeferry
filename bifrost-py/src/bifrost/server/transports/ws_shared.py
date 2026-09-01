@@ -12,6 +12,8 @@ import json
 import logging
 import re
 import secrets
+from collections.abc import Awaitable, Callable, Mapping
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from bifrost.ejson.presentation import Presentation
@@ -32,6 +34,20 @@ PING_INTERVAL_MS = 25_000
 
 # Pre-encoded ping frame — avoids re-encoding on every tick.
 PING_PAYLOAD = Presentation.encode({"t": MessageType.PING.value})
+
+
+@dataclass(frozen=True, slots=True)
+class WebSocketHandshake:
+    """Framework-neutral metadata for application-owned authentication."""
+
+    path: str
+    headers: Mapping[str, str]
+    query: Mapping[str, str]
+
+
+type WebSocketHandshakeAuthenticator = Callable[
+    [ClientNode, WebSocketHandshake], Any | Awaitable[Any]
+]
 
 
 _UUID_SANITIZE = re.compile(r"[^a-zA-Z0-9-]")
@@ -152,6 +168,8 @@ async def authenticate_node(
     server: Server,
     node: ClientNode,
     token: str | None,
+    handshake_authenticator: WebSocketHandshakeAuthenticator | None = None,
+    handshake: WebSocketHandshake | None = None,
 ) -> None:
     """Race the auth callback against :data:`AUTH_TIMEOUT_MS`.
 
@@ -159,17 +177,21 @@ async def authenticate_node(
     ``{t:"auth", authenticated: false}`` matching PROTOCOL.md §2.2.2.
     """
 
-    if not server.is_auth_enabled or not token:
+    if handshake_authenticator is None and (not server.is_auth_enabled or not token):
         await node.emit_auth_result(False)
         return
 
     async def _run_auth() -> Any:
         import inspect as _inspect
 
-        fn = server.auth
-        if fn is None:
-            return False
-        outcome = fn(node, {"token": token})
+        if handshake_authenticator is not None:
+            metadata = handshake or WebSocketHandshake(path="", headers={}, query={})
+            outcome = handshake_authenticator(node, metadata)
+        else:
+            fn = server.auth
+            if fn is None:
+                return False
+            outcome = fn(node, {"token": token})
         if _inspect.isawaitable(outcome):
             return await outcome
         return outcome

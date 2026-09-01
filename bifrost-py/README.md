@@ -34,3 +34,25 @@ cd bifrost-py
 pip install -e '.[dev]'
 pytest
 ```
+
+## Application-owned WebSocket authentication
+
+Hosts that retain authority in protected handshake metadata can configure an
+optional authenticator without copying credentials into the WebSocket URL:
+
+```python
+from bifrost.server.transports.websocket import WebSocketTransport
+
+
+async def authenticate_handshake(node, handshake):
+    return await application_session_context(handshake.headers)
+
+
+transport = WebSocketTransport(
+    server,
+    handshake_authenticator=authenticate_handshake,
+)
+```
+
+The callback result takes precedence over token auth and uses Bifrost's existing
+five-second authentication timeout. Rejection, errors, and timeout fail closed.

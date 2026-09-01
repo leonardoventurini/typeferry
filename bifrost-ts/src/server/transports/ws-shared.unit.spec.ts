@@ -801,6 +801,49 @@ describe('authenticateNode', () => {
     expect(node.emitAuthResult).toHaveBeenCalledWith(true)
   })
 
+  it('authenticates from application handshake metadata without a token', async () => {
+    const result = { user: { _id: 'administrator' } }
+    const node = createMockNode()
+    const server = createMockServer({ isAuthEnabled: false })
+    const handshake = {
+      path: '/bifrost-ws',
+      headers: { cookie: 'session=opaque' },
+      query: {},
+    }
+    const authenticator = vi.fn().mockResolvedValue(result)
+
+    await authenticateNode(
+      server as any,
+      node as any,
+      undefined,
+      authenticator,
+      handshake,
+    )
+
+    expect(authenticator).toHaveBeenCalledWith(node, handshake)
+    expect(server.auth.call).not.toHaveBeenCalled()
+    expect(node.authenticated).toBe(true)
+    expect(node.setContext).toHaveBeenCalledWith(result)
+    expect(node.emitAuthResult).toHaveBeenCalledWith(true)
+  })
+
+  it('does not fall back to token auth after handshake rejection', async () => {
+    const node = createMockNode()
+    const server = createMockServer({ isAuthEnabled: true })
+
+    await authenticateNode(
+      server as any,
+      node as any,
+      'valid-token',
+      vi.fn().mockResolvedValue(false),
+      { path: '/bifrost-ws', headers: {}, query: { token: 'valid-token' } },
+    )
+
+    expect(server.auth.call).not.toHaveBeenCalled()
+    expect(node.authenticated).toBe(false)
+    expect(node.emitAuthResult).toHaveBeenCalledWith(false)
+  })
+
   it('emits false when auth returns a falsy result', async () => {
     const node = createMockNode()
     const server = createMockServer({

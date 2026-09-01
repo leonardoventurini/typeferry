@@ -23,6 +23,23 @@ export const PING_INTERVAL_MS = 25000
 /** Pre-encoded ping payload — avoids EJSON.stringify on every tick. */
 export const PING_PAYLOAD = Presentation.encode({ t: MessageType.PING })
 
+/**
+ * Framework-neutral metadata exposed to an application handshake authenticator.
+ */
+export interface WebSocketHandshake {
+  readonly path: string
+  readonly headers: Readonly<Record<string, string>>
+  readonly query: Readonly<Record<string, string>>
+}
+
+/**
+ * Optional application-owned authentication for an admitted WebSocket.
+ */
+export type WebSocketHandshakeAuthenticator = (
+  node: ClientNode,
+  handshake: WebSocketHandshake,
+) => unknown | Promise<unknown>
+
 // ---------------------------------------------------------------------------
 // RPC handling
 // ---------------------------------------------------------------------------
@@ -174,15 +191,24 @@ function handleRpcError(
 export async function authenticateNode(
   server: Server,
   node: ClientNode,
-  token: string | undefined
+  token: string | undefined,
+  handshakeAuthenticator?: WebSocketHandshakeAuthenticator,
+  handshake?: WebSocketHandshake,
 ): Promise<void> {
-  if (!server.isAuthEnabled || !token) {
+  if (!handshakeAuthenticator && (!server.isAuthEnabled || !token)) {
     node.emitAuthResult(false)
     return
   }
 
   try {
-    const authPromise = server.auth.call(node, { token })
+    const authPromise = handshakeAuthenticator
+      ? Promise.resolve(
+          handshakeAuthenticator(
+            node,
+            handshake ?? { path: '', headers: {}, query: {} },
+          ),
+        )
+      : server.auth.call(node, { token })
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('Auth timeout')), AUTH_TIMEOUT_MS)
     )

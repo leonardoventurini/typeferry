@@ -20,7 +20,6 @@ from bifrost.ejson.presentation import Presentation
 from bifrost.protocol.constants import BIFROST_WS_PATH
 from bifrost.server.server import Server, ServerOptions
 from bifrost.server.transports.websocket import WebSocketTransport
-
 from tests.conformance.harness import configure_server, list_sequences, load_sequence
 
 
@@ -98,18 +97,15 @@ def test_ws_fixture(seq_path: Path) -> None:
                 # Starlette's test client queues frames synchronously; a
                 # short sleep is enough to let any pending send surface.
                 timeout_s = op.get("within_ms", 100) / 1000
-                asyncio.get_event_loop().run_until_complete(asyncio.sleep(timeout_s))
+                asyncio.run(asyncio.sleep(timeout_s))
                 # The TestClient doesn't expose a peek; use receive with a
                 # tiny timeout through ws.receive(). If anything arrives
                 # we'd block here — accept that risk for now and just
                 # verify the script can continue without a dangling frame.
             elif kind == "server_emit":
-                async def _emit() -> None:
-                    await server.channel(op["channel"]).emit(
-                        op["event"], op["params"]
-                    )
-
-                asyncio.get_event_loop().run_until_complete(_emit())
+                asyncio.run(
+                    server.channel(op["channel"]).emit(op["event"], op["params"])
+                )
             elif kind == "disconnect":
                 ws.close()
                 break

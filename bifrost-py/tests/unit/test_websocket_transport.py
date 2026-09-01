@@ -14,7 +14,11 @@ from bifrost.protocol.messages import MessageType
 from bifrost.server.method import MethodOptions
 from bifrost.server.server import AuthSetup, Server, ServerOptions
 from bifrost.server.transports.websocket import WebSocketTransport
-from bifrost.server.transports.ws_shared import validate_meta, validate_uuid
+from bifrost.server.transports.ws_shared import (
+    WebSocketHandshake,
+    validate_meta,
+    validate_uuid,
+)
 from bifrost.utils.errors import Errors, PublicError
 
 
@@ -69,6 +73,59 @@ def test_connect_with_auth_enabled_and_token() -> None:
     with client.websocket_connect(f"{BIFROST_WS_PATH}?token=good-token") as ws:
         msg = _decode(ws.receive_text())
         assert msg == {"t": MessageType.AUTH.value, "authenticated": True}
+
+
+def test_connect_authenticates_from_application_handshake_without_token() -> None:
+    server = Server(ServerOptions(host="localhost", port=0))
+    observed: list[WebSocketHandshake] = []
+
+    async def authenticate(_node: Any, handshake: WebSocketHandshake) -> dict[str, Any]:
+        observed.append(handshake)
+        assert handshake.headers["x-test-session"] == "opaque"
+        return {"user": {"_id": "administrator"}}
+
+    transport = WebSocketTransport(server, handshake_authenticator=authenticate)
+    server.websocket_transport = transport
+    client = TestClient(Starlette(routes=transport.routes()))
+
+    with client.websocket_connect(
+        BIFROST_WS_PATH, headers={"x-test-session": "opaque"}
+    ) as ws:
+        assert _decode(ws.receive_text()) == {
+            "t": MessageType.AUTH.value,
+            "authenticated": True,
+        }
+
+    assert observed[0].path == BIFROST_WS_PATH
+
+
+def test_handshake_rejection_does_not_fall_back_to_token_auth() -> None:
+    server = Server(ServerOptions(host="localhost", port=0))
+    token_auth_called = False
+
+    async def token_auth(_node: Any, _context: dict[str, Any]) -> dict[str, Any]:
+        nonlocal token_auth_called
+        token_auth_called = True
+        return {"user": {"_id": "token-user"}}
+
+    async def log_in(_node: Any, _params: Any) -> bool:
+        return True
+
+    async def reject(_node: Any, _handshake: WebSocketHandshake) -> bool:
+        return False
+
+    server.set_auth(AuthSetup(auth=token_auth, log_in=log_in))
+    transport = WebSocketTransport(server, handshake_authenticator=reject)
+    server.websocket_transport = transport
+    client = TestClient(Starlette(routes=transport.routes()))
+
+    with client.websocket_connect(f"{BIFROST_WS_PATH}?token=valid") as ws:
+        assert _decode(ws.receive_text()) == {
+            "t": MessageType.AUTH.value,
+            "authenticated": False,
+        }
+
+    assert token_auth_called is False
 
 
 def test_rpc_happy_path() -> None:

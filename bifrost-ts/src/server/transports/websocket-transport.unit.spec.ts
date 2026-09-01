@@ -318,6 +318,11 @@ describe('WebSocketTransport', () => {
         server,
         expect.anything(),
         expect.anything(),
+        undefined,
+        expect.objectContaining({
+          path: '/bifrost-ws',
+          query: expect.objectContaining({ token: 'test-token' }),
+        }),
       )
     })
 
