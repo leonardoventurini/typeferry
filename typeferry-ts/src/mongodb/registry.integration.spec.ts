@@ -241,4 +241,53 @@ describe('mongodb registry integration', () => {
       await mongo.close()
     }
   })
+
+  it('accepts generated ObjectIds across strict root union alternatives', async () => {
+    @MongoCollection(harness.collectionName('root_union_records'))
+    @MongoSchema(
+      z.union([
+        z.strictObject({
+          kind: z.literal('custom'),
+          details: z.strictObject({ label: z.string() }),
+        }),
+        z.strictObject({ kind: z.literal('system'), key: z.string() }),
+      ]),
+    )
+    class RootUnionRecordsDefinition {}
+
+    const RecordsCollection = typedMongoCollection<
+      | {
+          readonly kind: 'custom'
+          readonly details: { readonly label: string }
+        }
+      | { readonly kind: 'system'; readonly key: string }
+    >(RootUnionRecordsDefinition)
+    const mongo = await createTypeFerryMongo({
+      db: harness.db,
+      collections: [RecordsCollection],
+      ensureSchemas: true,
+    })
+
+    try {
+      const Records = mongo.collection(RecordsCollection)
+      const RawRecords = mongo.collectionByName<Document>(
+        mongo.meta(RecordsCollection).name,
+      )
+
+      await expect(
+        Records.insertOne({ kind: 'custom', details: { label: 'Risk' } }),
+      ).resolves.toMatchObject({ acknowledged: true })
+      await expect(
+        Records.insertOne({ kind: 'system', key: 'blood-pressure' }),
+      ).resolves.toMatchObject({ acknowledged: true })
+      await expect(
+        RawRecords.insertOne({
+          kind: 'custom',
+          details: { _id: new ObjectId(), label: 'Risk' },
+        }),
+      ).rejects.toMatchObject({ code: 121 })
+    } finally {
+      await mongo.close()
+    }
+  })
 })

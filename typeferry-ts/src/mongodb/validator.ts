@@ -236,14 +236,24 @@ function convertJsonType(value: string): readonly string[] | string {
 }
 
 function allowGeneratedObjectId(schema: JsonObject): void {
-  if (schema.bsonType !== 'object') return
+  if (schema.bsonType === 'object') {
+    const properties = schema.properties
+    if (!isJsonObject(properties) || Object.hasOwn(properties, '_id')) return
 
-  const properties = schema.properties
-  if (!isJsonObject(properties) || Object.hasOwn(properties, '_id')) return
+    schema.properties = {
+      _id: { bsonType: 'objectId' },
+      ...properties,
+    }
+    return
+  }
 
-  schema.properties = {
-    _id: { bsonType: 'objectId' },
-    ...properties,
+  for (const combinator of ['allOf', 'anyOf', 'oneOf'] as const) {
+    const alternatives = schema[combinator]
+    if (!Array.isArray(alternatives)) continue
+
+    for (const alternative of alternatives) {
+      if (isJsonObject(alternative)) allowGeneratedObjectId(alternative)
+    }
   }
 }
 

@@ -171,4 +171,54 @@ describe('MongoDB Zod validator compiler', () => {
       ),
     ).toThrow(/Tuple schemas are not supported.*properties\.values/)
   })
+
+  it('permits generated ObjectIds in strict root union alternatives only', () => {
+    const compiled = toMongoJsonSchema(
+      z.union([
+        z.strictObject({
+          kind: z.literal('custom'),
+          details: z.strictObject({ label: z.string() }),
+        }),
+        z.strictObject({ kind: z.literal('system'), key: z.string() }),
+      ]),
+    )
+
+    expect(compiled).toMatchObject({
+      anyOf: [
+        {
+          properties: {
+            _id: { bsonType: 'objectId' },
+            details: {
+              additionalProperties: false,
+              properties: { label: { bsonType: 'string' } },
+            },
+          },
+        },
+        { properties: { _id: { bsonType: 'objectId' } } },
+      ],
+    })
+    expect(
+      (
+        compiled.anyOf as readonly {
+          readonly properties: { readonly details?: { properties: object } }
+        }[]
+      )[0]?.properties.details?.properties,
+    ).not.toHaveProperty('_id')
+  })
+
+  it('preserves explicit identifiers in strict root union alternatives', () => {
+    const compiled = toMongoJsonSchema(
+      z.union([
+        z.strictObject({ _id: z.string(), kind: z.literal('external') }),
+        z.strictObject({ kind: z.literal('internal') }),
+      ]),
+    )
+
+    expect(compiled).toMatchObject({
+      anyOf: [
+        { properties: { _id: { bsonType: 'string' } } },
+        { properties: { _id: { bsonType: 'objectId' } } },
+      ],
+    })
+  })
 })
