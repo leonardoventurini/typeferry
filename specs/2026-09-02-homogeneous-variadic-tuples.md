@@ -41,7 +41,7 @@ VitaFlow and resume its full reconciliation tests.
 - [x] Add failing homogeneous, fixed, and heterogeneous tuple tests.
 - [x] Implement lossless homogeneous variadic tuple compilation.
 - [x] Run all release gates and package verification.
-- [ ] Publish npm package and push annotated `v0.7.2`.
+- [x] Publish npm package and push annotated `v0.7.2`.
 - [ ] Upgrade and verify VitaFlow.
 
 ## Acceptance criteria
@@ -50,4 +50,4 @@ VitaFlow and resume its full reconciliation tests.
       `minItems: 1`.
 - [x] Unsupported tuple forms still fail closed.
 - [x] MongoDB rejects empty and invalid-element writes with code 121.
-- [ ] The npm artifact and Git tag identify the verified patch.
+- [x] The npm artifact and Git tag identify the verified patch.
