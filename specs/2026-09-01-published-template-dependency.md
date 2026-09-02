@@ -73,17 +73,31 @@ TypeFerry dependency for the template and all current-facing documentation.
 
 ## Executable Checklist
 
-- [ ] Commit this specification and the test contract that rejects the old
+- [x] Commit this specification and the test contract that rejects the old
   dependency source.
-- [ ] Update package tests, version, engine metadata, release validation, and
+- [x] Update package tests, version, engine metadata, release validation, and
   release documentation for `0.6.1`.
-- [ ] Run the complete npm release gate, commit the release, and publish it.
-- [ ] Install `typeferry@^0.6.1` in `template/` with its pinned Mise toolchain.
-- [ ] Update every current-facing documentation reference.
-- [ ] Run focused repository and dependency-resolution checks.
-- [ ] Run the complete template verification surface and npm audit.
-- [ ] Add a decision record for the template dependency-source policy.
-- [ ] Commit the verified implementation with semantic, path-limited staging.
+- [x] Run the complete npm release gate, commit the release, and publish it.
+- [x] Install `typeferry@^0.6.1` in `template/` with its pinned Mise toolchain.
+- [x] Update every current-facing documentation reference.
+- [x] Run focused repository and dependency-resolution checks.
+- [x] Run the complete template verification surface and npm audit.
+- [x] Add a decision record for the template dependency-source policy.
+- [x] Commit the verified implementation with semantic, path-limited staging.
+
+## Verification Results
+
+- npm registry metadata confirmed `typeferry@0.6.1`, consumer Node.js range
+  `>=24.19.0 <27`, and the expected published integrity digest.
+- Repository rebrand and publication dependency contracts passed, and a
+  current-facing scan found no remaining pending-publication or local-file
+  guidance.
+- On the template's pinned Node.js `26.5.1`, formatting, lint, strict typecheck,
+  11 unit tests, 2 integration tests, 1 browser test, client/server builds, and
+  `npm audit --audit-level=low` passed.
+- npm reported zero vulnerabilities. Installation warned that three transitive
+  optional `fsevents` versions have unapproved install scripts; the packages are
+  macOS filesystem-watcher variants and no script approval was added.
 
 ## Direct Rollout
 

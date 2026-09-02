@@ -1,6 +1,7 @@
 # Getting Started
 
-This quickstart runs the repository-local TypeScript application template against the local `typeferry` package. After the first public release, registry consumers can instead install it with `npm install typeferry`.
+This quickstart runs the TypeScript application template against the published
+`typeferry` package from npm.
 
 ## Prerequisites
 
@@ -19,7 +20,8 @@ mise install
 mise exec -- npm ci
 ```
 
-The template resolves the `typeferry` package through `file:../typeferry-ts`, so repository development always exercises the local implementation.
+The template installs the compatible `typeferry` release declared in its npm
+manifest and locked dependency graph.
 
 ## 2. Start MongoDB
 

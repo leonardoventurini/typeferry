@@ -5,7 +5,7 @@ TypeFerry is a type-safe, real-time RPC framework with HTTP and WebSocket transp
 The TypeScript implementation includes browser clients plus a React integration. Python and Rust provide server-side implementations of the same wire protocol.
 
 > [!IMPORTANT]
-> The TypeScript package is configured for public npm releases as `typeferry`. Python and Rust publication remains disabled. See [release status](RELEASING.md).
+> The TypeScript package is published on npm as `typeferry`. Python and Rust publication remains disabled. See [release status](RELEASING.md).
 
 ## Implementations
 
@@ -19,13 +19,11 @@ All implementations share the normative [wire protocol](PROTOCOL.md) and [confor
 
 ## Install the TypeScript package
 
-After the first public release:
-
 ```sh
 npm install typeferry
 ```
 
-Applications import focused exports such as `typeferry/client`, `typeferry/server`, and `typeferry/react`. Until the initial upload completes, use the repository-local workflow below.
+Applications import focused exports such as `typeferry/client`, `typeferry/server`, and `typeferry/react`.
 
 ## Define RPC methods with decorators
 
@@ -80,7 +78,8 @@ The method is available as `greeting.hello` over HTTP and WebSocket, with runtim
 
 ## Run the local application
 
-The fastest repository-development path is the template, which consumes `typeferry` through a local `file:../typeferry-ts` dependency.
+The fastest development path is the template, which installs the published
+`typeferry` package from npm.
 
 Prerequisites:
 

@@ -14,7 +14,9 @@ npm run build
 npm pack --dry-run
 ```
 
-Repository development resolves the local package during its build, as the [template](../../template/README.md) does with a `file:` dependency. Registry consumers install `typeferry` from npm.
+Applications install TypeFerry from npm. The [template](../../template/README.md)
+builds and tests against the published package rather than the repository source
+tree.
 
 ## Production checklist
 

@@ -3,7 +3,7 @@
 Use this page to choose the smallest guide that matches what you are building. [`PROTOCOL.md`](../PROTOCOL.md) is the normative source for wire behavior; these guides explain application development against the current implementations.
 
 > [!NOTE]
-> The TypeScript package is configured for npm release as `typeferry`; Python and Rust publication remains disabled. Repository contributors should begin with the local [quickstart](getting-started.md) and consult [`RELEASING.md`](../RELEASING.md) for operator guidance.
+> The TypeScript package is published on npm as `typeferry`; Python and Rust publication remains disabled. Begin with the [quickstart](getting-started.md) and consult [`RELEASING.md`](../RELEASING.md) for operator guidance.
 
 ## Start here
 
