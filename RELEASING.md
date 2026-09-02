@@ -6,11 +6,12 @@ The TypeScript implementation is configured for operator-controlled publication 
 
 | Implementation | Registry identity | Version | Status |
 |---|---|---:|---|
-| TypeScript | `typeferry` | `0.6.0` | Public npm release enabled |
+| TypeScript | `typeferry` | `0.6.1` | Public npm release enabled |
 | Python | `typeferry-py` | `0.2.0` | Temporary identity; publication disabled |
 | Rust | `typeferry` and `typeferry-*` | `0.2.0` | Workspace publication disabled |
 
-The npm name check returned no public `typeferry` package document on 2026-09-01. That result is not a reservation: the release recipe rechecks the exact version immediately before upload, and successful publication is the definitive availability test.
+TypeFerry is published publicly on npm. The release recipe rechecks that the
+exact candidate version is absent immediately before every upload.
 
 ## npm Release Gate
 
@@ -40,7 +41,7 @@ The recipe requires:
 - automatic installation and selection of the exact Node/npm versions through Mise;
 - a clean tracked and untracked worktree on `main`;
 - successful `npm whoami` against the public registry;
-- package identity `typeferry@0.6.0` and an absent registry version;
+- package identity `typeferry@0.6.1` and an absent registry version;
 - the complete non-uploading release gate.
 
 Only after those checks does it execute `npm publish --access public`. It does not bump versions, create Git tags, push commits, or store credentials.
