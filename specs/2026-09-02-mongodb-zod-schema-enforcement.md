@@ -58,24 +58,24 @@ Make `@MongoSchema` the application-owned structural schema declaration. TypeFer
 
 ## Executable Checklist
 
-- [ ] Add failing compiler, metadata, registry, lifecycle, and integration tests.
-- [ ] Implement BSON-aware Zod helpers and bounded BSON schema compilation.
-- [ ] Implement explicit and startup schema reconciliation.
-- [ ] Update MongoDB API documentation and architecture guidance.
-- [ ] Add a decision record.
-- [ ] Run focused and complete TypeFerry verification.
-- [ ] Commit the feature semantically.
-- [ ] Bump and verify `typeferry@0.7.0` separately.
-- [ ] Publish npm package and push the release commit plus `v0.7.0` tag.
+- [x] Add failing compiler, metadata, registry, lifecycle, and integration tests.
+- [x] Implement BSON-aware Zod helpers and bounded BSON schema compilation.
+- [x] Implement explicit and startup schema reconciliation.
+- [x] Update MongoDB API documentation and architecture guidance.
+- [x] Add a decision record.
+- [x] Run focused and complete TypeFerry verification.
+- [x] Commit the feature semantically.
+- [x] Bump and verify `typeferry@0.7.0` separately.
+- [x] Publish npm package and push the release commit plus `v0.7.0` tag.
 - [ ] Upgrade and fully migrate VitaFlow under its own specification.
 
 ## Acceptance Criteria
 
-- [ ] `@MongoSchema` is the only application-authored structural schema needed for TypeFerry-managed MongoDB validation.
-- [ ] Supported schemas produce deterministic MongoDB BSON validators.
-- [ ] Unsupported structural schemas fail before traffic is accepted.
-- [ ] Missing and existing collections receive strict/error validation.
-- [ ] Native driver collections, clients, sessions, and transactions remain available without wrappers.
-- [ ] Documentation separates database-enforced structure from Zod/domain-only refinements.
-- [ ] All TypeFerry release gates pass for `0.7.0`.
-- [ ] The npm version and Git tag are published without a GitHub release.
+- [x] `@MongoSchema` is the only application-authored structural schema needed for TypeFerry-managed MongoDB validation.
+- [x] Supported schemas produce deterministic MongoDB BSON validators.
+- [x] Unsupported structural schemas fail before traffic is accepted.
+- [x] Missing and existing collections receive strict/error validation.
+- [x] Native driver collections, clients, sessions, and transactions remain available without wrappers.
+- [x] Documentation separates database-enforced structure from Zod/domain-only refinements.
+- [x] All TypeFerry release gates pass for `0.7.0`.
+- [x] The npm version and Git tag are published without a GitHub release.

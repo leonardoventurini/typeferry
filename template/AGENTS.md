@@ -25,7 +25,7 @@ from `template/`; it is not an npm workspace member of the parent repository.
 - Application UI is React with Tailwind CSS. Keep `styles.css` as the Tailwind
   entry point and express component styling with utilities rather than adding
   a parallel raw-CSS component system.
-- Consume only published `typeferry-ts` exports. Never alias or import its
+- Consume only published `typeferry` exports. Never alias or import its
   source tree.
 - The official `mongodb` driver is the only database abstraction. Do not add
   Mongoose. Local MongoDB runs as a single-node replica set on host port 27018

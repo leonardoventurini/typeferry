@@ -6,14 +6,13 @@ The TypeScript implementation is configured for operator-controlled publication 
 
 | Implementation | Registry identity | Version | Status |
 |---|---|---:|---|
-| TypeScript | `typeferry` | `0.6.1` (published); `0.7.0` (candidate) | Public npm release enabled; candidate prepared |
+| TypeScript | `typeferry` | `0.7.0` | Published npm release; public publication enabled |
 | Python | `typeferry-py` | `0.2.0` | Temporary identity; publication disabled |
 | Rust | `typeferry` and `typeferry-*` | `0.2.0` | Workspace publication disabled |
 
-TypeFerry is published publicly on npm at `0.6.1`. The next candidate is
-`0.7.0`, which includes the MongoDB schema-enforcement feature. The release
-recipe rechecks that the exact candidate version is absent immediately before
-every upload.
+TypeFerry is published publicly on npm at `0.7.0`, including MongoDB
+schema enforcement. The release recipe rechecks that the exact candidate
+version is absent immediately before every future upload.
 
 ## npm Release Gate
 
