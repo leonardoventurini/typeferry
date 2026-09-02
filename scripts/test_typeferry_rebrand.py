@@ -12,6 +12,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 LEGACY_BRAND = "bi" + "frost"
 PUBLIC_TYPESCRIPT_NAME = "typeferry"
+PUBLIC_TYPESCRIPT_RANGE = "^0.6.0"
 TEMPORARY_PYTHON_NAME = "typeferry-py"
 
 
@@ -72,13 +73,13 @@ class TypeFerryRebrandTest(unittest.TestCase):
         self.assertIn("`/typeferry-ws`", protocol)
         self.assertIn("`typeferry:servers`", protocol)
 
-    def test_template_uses_local_public_typescript_identity(self) -> None:
+    def test_template_uses_published_typescript_package(self) -> None:
         package_json = json.loads(
             (REPO_ROOT / "template/package.json").read_text(encoding="utf-8")
         )
 
         self.assertEqual(
-            "file:../typeferry-ts",
+            PUBLIC_TYPESCRIPT_RANGE,
             package_json["dependencies"][PUBLIC_TYPESCRIPT_NAME],
         )
 
