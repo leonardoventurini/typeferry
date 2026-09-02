@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
 const EXPECTED_NAME = 'typeferry'
-const EXPECTED_VERSION = '0.7.2'
+const EXPECTED_VERSION = '0.7.3'
 const NPM_REGISTRY = 'https://registry.npmjs.org/'
 const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const PACKAGE_DIR = path.join(ROOT_DIR, 'typeferry-ts')

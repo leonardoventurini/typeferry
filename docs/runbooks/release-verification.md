@@ -70,6 +70,13 @@ The packaging command is expected to remain blocked or unsuitable while workspac
 
 Protocol-facing releases also run shared fixture and cross-language commands from the [protocol-change runbook](protocol-changes.md). Confirm `PROTOCOL.md`, fixtures, and implementation versions describe the same behavior.
 
+## Repository boundary
+
+This runbook validates only tests and artifacts owned by TypeFerry. Never add a
+consumer checkout path or invoke another repository's test suite here.
+Downstream projects own their compatibility validation and may install the
+packed TypeFerry artifact from their own release workflow.
+
 ## Acceptance criteria
 
 - All executed checks and environmental limitations are reported separately.

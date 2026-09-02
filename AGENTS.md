@@ -27,6 +27,12 @@ TypeFerry is a multi-language monorepo implementing one wire protocol. Start wit
 - Use semantic comments for non-obvious invariants and multiline API documentation for public or complex contracts.
 - Keep documentation links and commands current when paths, scripts, exports, or behavior change.
 - Use semantic commits with path-limited staging. Never bypass Git hooks unless the user explicitly requests it.
+- Repository test and release commands may execute only test suites tracked by
+  this repository. Never copy, discover, invoke, or encode a path to another
+  repository's tests or checkout.
+- Downstream compatibility validation belongs to the downstream repository. A
+  consumer may install a packed TypeFerry artifact and run its own tests, but
+  TypeFerry release tooling must remain consumer-agnostic.
 
 ## Change routing
 
