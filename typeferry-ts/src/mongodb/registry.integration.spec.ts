@@ -21,6 +21,7 @@ function createCollections(boardName: string, nodeName: string) {
       _id: objectId(),
       name: z.string(),
       author: objectId(),
+      enabled: z.boolean().optional(),
     }),
   )
   @MongoIndex({ author: 1 })
@@ -163,6 +164,15 @@ describe('mongodb registry integration', () => {
           _id: new ObjectId(),
           name: 'Invalid',
           author: 'not-an-object-id',
+        }),
+      ).rejects.toMatchObject({ code: 121 })
+
+      await expect(
+        RawBoards.insertOne({
+          _id: new ObjectId(),
+          name: 'Invalid boolean',
+          author: new ObjectId(),
+          enabled: 'yes',
         }),
       ).rejects.toMatchObject({ code: 121 })
 

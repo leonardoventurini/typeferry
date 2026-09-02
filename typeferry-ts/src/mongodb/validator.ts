@@ -148,6 +148,10 @@ function convertSchema(value: unknown, path: readonly string[]): JsonObject {
       continue
     }
 
+    if (key === 'readOnly') {
+      continue
+    }
+
     if (key === 'format') {
       if (typeof value.pattern !== 'string') {
         throwUnsupported(
@@ -187,6 +191,7 @@ function convertJsonTypes(value: unknown): string | readonly string[] {
 
 function convertJsonType(value: string): readonly string[] | string {
   if (value === 'number' || value === 'integer') return BSON_NUMERIC_TYPES
+  if (value === 'boolean') return 'bool'
   return value
 }
 

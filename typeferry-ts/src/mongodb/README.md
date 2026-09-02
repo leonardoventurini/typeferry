@@ -112,8 +112,9 @@ database rejects reconciliation; a client opened by TypeFerry is closed during
 that failure path.
 
 The compiler supports objects, required and optional fields, nullable fields,
-arrays, unions, literals and enums, strings, representable numeric constraints,
-TypeFerry `objectId()`, and `z.date()`. A generated `_id` field is permitted
+arrays, unions, literals and enums, strings, booleans, representable numeric
+constraints, TypeFerry `objectId()`, and `z.date()`. Zod's `readOnly`
+annotation is discarded while its underlying structure remains enforced. A generated `_id` field is permitted
 when the payload schema omits `_id`; an explicit `_id` schema always takes
 precedence. Unsupported structural schemas fail closed with their schema path
 rather than producing an unconstrained validator. Cross-field refinements are

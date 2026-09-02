@@ -72,7 +72,7 @@ describe('MongoDB Zod validator compiler', () => {
     ).toMatchObject({
       properties: {
         kind: { bsonType: 'string', enum: ['board'] },
-        enabled: { bsonType: 'boolean' },
+        enabled: { bsonType: 'bool' },
       },
     })
   })
@@ -121,5 +121,16 @@ describe('MongoDB Zod validator compiler', () => {
     expect(() =>
       toMongoJsonSchema(z.strictObject({ website: z.url() })),
     ).toThrow(/properties\.website\.format/)
+  })
+
+  it('maps readonly booleans to MongoDB BSON bool validation', () => {
+    expect(
+      toMongoJsonSchema(
+        z.strictObject({ enabled: z.boolean().readonly() }).readonly(),
+      ),
+    ).toMatchObject({
+      bsonType: 'object',
+      properties: { enabled: { bsonType: 'bool' } },
+    })
   })
 })
