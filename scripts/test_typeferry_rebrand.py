@@ -12,7 +12,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 LEGACY_BRAND = "bi" + "frost"
 PUBLIC_TYPESCRIPT_NAME = "typeferry"
-PUBLIC_TYPESCRIPT_RANGE = "^0.6.0"
+PUBLIC_TYPESCRIPT_RANGE = "^0.6.1"
 TEMPORARY_PYTHON_NAME = "typeferry-py"
 
 
@@ -38,7 +38,8 @@ class TypeFerryRebrandTest(unittest.TestCase):
             (REPO_ROOT / "typeferry-ts/package.json").read_text(encoding="utf-8")
         )
         self.assertEqual(PUBLIC_TYPESCRIPT_NAME, package_json["name"])
-        self.assertEqual("0.6.0", package_json["version"])
+        self.assertEqual("0.6.1", package_json["version"])
+        self.assertEqual(">=24.19.0 <27", package_json["engines"]["node"])
         self.assertNotIn("private", package_json)
         self.assertEqual(
             {"access": "public", "registry": "https://registry.npmjs.org/"},

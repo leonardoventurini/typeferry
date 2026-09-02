@@ -2,10 +2,11 @@
 
 ## Problem
 
-The TypeScript package is now published to npm as `typeferry@0.6.0`, but the
-application template still resolves it through `file:../typeferry-ts`. Current
-documentation also describes publication as pending and presents the local
-file dependency as the repository-development workflow.
+The TypeScript package is now published to npm as `typeferry@0.6.0`, but its
+exact Node.js `24.19.0` consumer engine prevents the Node.js `26.5.1`
+application template from installing it. The template still resolves the
+package through `file:../typeferry-ts`, and current documentation describes
+publication as pending or presents the local file dependency as the workflow.
 
 ## Evidence
 
@@ -14,38 +15,49 @@ file dependency as the repository-development workflow.
 - `template/package.json` and `template/package-lock.json` resolve `typeferry`
   from `file:../typeferry-ts`.
 - `scripts/test_typeferry_rebrand.py` requires that local dependency contract.
+- A registry install under the template's pinned toolchain fails with
+  `EBADENGINE` because `typeferry@0.6.0` requires Node.js `24.19.0` exactly.
 - `README.md`, `docs/README.md`, `docs/getting-started.md`, and
   `docs/typescript/deployment.md` contain pre-publication or local-file guidance.
 
 ## Desired Outcome
 
-Make the published npm package the only default TypeFerry dependency for the
-application template and all current-facing documentation, using the compatible
-range `^0.6.0`.
+Publish `typeferry@0.6.1` with consumer support for Node.js versions from
+`24.19.0` through the Node.js 26 line, then make that release the only default
+TypeFerry dependency for the template and all current-facing documentation.
 
 ## Scope, Assumptions, and Contracts
 
+- Change the public package's `engines.node` contract to `>=24.19.0 <27` while
+  retaining exact Node.js `24.19.0` for development, CI, and publication.
+- Release the compatibility correction as patch version `0.6.1`; do not change
+  runtime APIs, exports, wire behavior, or production dependencies.
+- Verify, commit, and publish the package through the existing guarded
+  `just publish-npm` workflow before migrating the template.
 - Change the template's existing production dependency source from the local
-  repository path to npm range `^0.6.0` and regenerate its lockfile with npm.
+  repository path to npm range `^0.6.1` and regenerate its lockfile with npm.
 - Update the repository contract test before changing the manifest so it
   requires the published dependency range.
 - Remove all current-facing claims that npm publication is pending or that the
   template resolves the local TypeScript source tree.
 - Preserve historical specifications and decisions as historical evidence.
-- Do not change TypeFerry APIs, protocol behavior, package exports, or the
-  publication status of the Python and Rust implementations.
+- Do not change the publication status of the Python and Rust implementations.
 - Do not retain an alternate documented `file:` workflow.
 
 ## Test Strategy and Acceptance Criteria
 
-1. The repository contract test requires `typeferry` dependency `^0.6.0`.
-2. The template manifest and lockfile resolve registry package `typeferry@0.6.0`
+1. Package contract tests require version `0.6.1`, consumer Node.js range
+   `>=24.19.0 <27`, and the exact development/release toolchain.
+2. The complete npm release gate passes and the registry reports `0.6.1` as
+   published with the intended engine metadata.
+3. The repository contract test requires `typeferry` dependency `^0.6.1`.
+4. The template manifest and lockfile resolve registry package `typeferry@0.6.1`
    with npm integrity metadata and no local link entry.
-3. A current-surface scan finds no pending-publication or local-file guidance
+5. A current-surface scan finds no pending-publication or local-file guidance
    outside historical records.
-4. Template format checking, linting, strict type checking, unit, integration,
+6. Template format checking, linting, strict type checking, unit, integration,
    and browser tests, client and server builds, and npm audit pass.
-5. Repository contract tests and `git diff --check` pass.
+7. Repository contract tests and `git diff --check` pass.
 
 ## Risks and Recovery
 
@@ -54,14 +66,19 @@ range `^0.6.0`.
 - A published artifact could differ from the local source checkout. Running the
   complete template verification surface against the registry artifact catches
   packaging or export defects.
-- Recovery is a normal revert of the manifest, lockfile, tests, and guidance.
-  Existing npm publication is not changed by this task.
+- npm publication is effectively irreversible. If `0.6.1` is incorrect,
+  deprecate it and publish a higher patch; never reuse the version.
+- Repository changes after publication remain recoverable through a normal
+  revert, but reverting package metadata does not remove the registry artifact.
 
 ## Executable Checklist
 
 - [ ] Commit this specification and the test contract that rejects the old
   dependency source.
-- [ ] Install `typeferry@^0.6.0` in `template/` with its pinned Mise toolchain.
+- [ ] Update package tests, version, engine metadata, release validation, and
+  release documentation for `0.6.1`.
+- [ ] Run the complete npm release gate, commit the release, and publish it.
+- [ ] Install `typeferry@^0.6.1` in `template/` with its pinned Mise toolchain.
 - [ ] Update every current-facing documentation reference.
 - [ ] Run focused repository and dependency-resolution checks.
 - [ ] Run the complete template verification surface and npm audit.
@@ -70,5 +87,6 @@ range `^0.6.0`.
 
 ## Direct Rollout
 
-Merge the committed change. New template checkouts then install the published
-package through `npm ci`; no migration or external mutation is required.
+Publish the clean, verified release commit through `just publish-npm`. After the
+registry confirms `0.6.1`, commit the template and documentation migration. New
+template checkouts then install the published package through `npm ci`.
