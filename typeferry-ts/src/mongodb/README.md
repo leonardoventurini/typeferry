@@ -85,6 +85,47 @@ await Boards.insertOne(
 `@MongoCollection()`. Decorators attach runtime metadata; the typed token
 carries the compile-time document type.
 
+## Schema Enforcement
+
+`@MongoSchema()` is the single application-owned structural schema declaration
+for a TypeFerry-managed collection. When `ensureSchemas: true` is passed to
+`createTypeFerryMongo()`, TypeFerry compiles each declared Zod schema into
+MongoDB's BSON JSON Schema dialect and reconciles the collection before the
+runtime is returned:
+
+```ts
+const mongo = await createTypeFerryMongo({
+  uri: process.env.DATABASE,
+  dbName: 'example-app',
+  collections: [BoardsCollection],
+  ensureSchemas: true,
+})
+```
+
+Missing collections are created with `validationLevel: "strict"` and
+`validationAction: "error"`; existing collections receive the same validator
+through `collMod`. Reconciliation is idempotent and applies to native driver
+writes, including writes made outside TypeFerry. Call `mongo.ensureSchemas()`
+again when reconciliation is needed after a migration. Startup fails before
+the returned runtime can accept traffic if a schema cannot be compiled or the
+database rejects reconciliation; a client opened by TypeFerry is closed during
+that failure path.
+
+The compiler supports objects, required and optional fields, nullable fields,
+arrays, unions, literals and enums, strings, representable numeric constraints,
+TypeFerry `objectId()`, and `z.date()`. A generated `_id` field is permitted
+when the payload schema omits `_id`; an explicit `_id` schema always takes
+precedence. Unsupported structural schemas fail closed with their schema path
+rather than producing an unconstrained validator. Cross-field refinements are
+still enforced by Zod and domain services because MongoDB validators cannot
+faithfully represent arbitrary application predicates.
+
+Schema reconciliation does not wrap or replace `Collection<TDocument>` and
+does not hide sessions, transactions, aggregations, bulk writes, or other
+native MongoDB APIs. Applications should continue to parse domain inputs with
+Zod before writes; database validation is the final structural boundary for
+all writers.
+
 ## Native Driver First
 
 Use native driver calls for reads and writes:

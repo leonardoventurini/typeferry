@@ -1,11 +1,15 @@
 import { ObjectId, type Document } from 'mongodb'
 import { z } from 'zod'
 
+import { markObjectIdSchema } from './bson-schema'
+
 /** Zod schema that accepts only native MongoDB `ObjectId` values. */
 export function objectId(): z.ZodType<ObjectId> {
-  return z.custom<ObjectId>(
-    (value): value is ObjectId => value instanceof ObjectId,
-    'Expected MongoDB ObjectId',
+  return markObjectIdSchema(
+    z.custom<ObjectId>(
+      (value): value is ObjectId => value instanceof ObjectId,
+      'Expected MongoDB ObjectId',
+    ),
   )
 }
 

@@ -1,4 +1,10 @@
-import type { Collection, Db, Document, MongoClient } from 'mongodb'
+import {
+  MongoServerError,
+  type Collection,
+  type Db,
+  type Document,
+  type MongoClient,
+} from 'mongodb'
 
 import { startMongoWatch, type MongoWatchHandle } from './change-streams'
 import { resolveMongoConnection } from './client'
@@ -13,6 +19,9 @@ import type {
   MongoCollectionToken,
   MongoDocumentOf,
 } from './types'
+import { mongoValidator } from './validator'
+
+const NAMESPACE_EXISTS_ERROR_CODE = 48
 
 /** Extracts a decorated collection class from a raw class or typed token. */
 export function mongoCollectionClass(
@@ -117,6 +126,44 @@ export class TypeFerryMongoRegistry implements TypeFerryMongo {
     }
   }
 
+  /** Creates missing collections and updates existing strict schema validators. */
+  async ensureSchemas(): Promise<void> {
+    for (const definition of this.definitions.values()) {
+      if (!definition.schema) {
+        throw new Error(
+          `MongoDB collection "${definition.name}" is missing @MongoSchema metadata.`,
+        )
+      }
+
+      const options = {
+        validator: mongoValidator(definition.schema),
+        validationLevel: 'strict' as const,
+        validationAction: 'error' as const,
+      }
+      const exists = await this.db
+        .listCollections({ name: definition.name }, { nameOnly: true })
+        .hasNext()
+
+      if (exists) {
+        await this.db.command({ collMod: definition.name, ...options })
+        continue
+      }
+
+      try {
+        await this.db.createCollection(definition.name, options)
+      } catch (error) {
+        if (
+          !(error instanceof MongoServerError) ||
+          error.code !== NAMESPACE_EXISTS_ERROR_CODE
+        ) {
+          throw error
+        }
+
+        await this.db.command({ collMod: definition.name, ...options })
+      }
+    }
+  }
+
   /** Closes change streams and the owned MongoDB client when applicable. */
   async close(): Promise<void> {
     await this.liveEngine?.close()
@@ -155,6 +202,9 @@ export async function createTypeFerryMongo(
   let registry: TypeFerryMongoRegistry | null = null
   try {
     registry = new TypeFerryMongoRegistry(options, connection)
+    if (options.ensureSchemas) {
+      await registry.ensureSchemas()
+    }
     if (options.ensureIndexes) {
       await registry.ensureIndexes()
     }

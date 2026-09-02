@@ -98,7 +98,7 @@ export interface MongoCollectionDefinition<
   readonly Class: MongoCollectionClass
   /** MongoDB collection name. */
   readonly name: string
-  /** Optional Zod schema used by explicit parse helpers. */
+  /** Optional Zod schema used by explicit parsing and schema reconciliation. */
   readonly schema?: z.ZodType<TDocument>
   /** Indexes declared for explicit or opt-in startup creation. */
   readonly indexes: readonly MongoIndexDefinition[]
@@ -124,6 +124,8 @@ export interface TypeFerryMongoOptions {
   readonly collections: readonly MongoCollectionTarget[]
   /** Whether to create declared indexes during startup. */
   readonly ensureIndexes?: boolean
+  /** Whether to reconcile declared schemas during startup. */
+  readonly ensureSchemas?: boolean
   /** Whether `close()` should close an externally supplied client. */
   readonly closeExternalClient?: boolean
   /** Optional named MongoDB live-view extension. */
@@ -148,6 +150,8 @@ export interface TypeFerryMongo {
   meta(target: MongoCollectionTarget): MongoCollectionDefinition
   /** Creates all declared indexes without dropping or reconciling existing indexes. */
   ensureIndexes(): Promise<void>
+  /** Creates or updates strict MongoDB validators for all declared schemas. */
+  ensureSchemas(): Promise<void>
   /** Closes change streams and the owned MongoDB client when applicable. */
   close(): Promise<void>
 }

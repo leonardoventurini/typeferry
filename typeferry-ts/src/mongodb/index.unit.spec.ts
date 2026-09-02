@@ -8,6 +8,8 @@ describe('mongodb package surface', () => {
     expect(mongodb.typedMongoCollection).toBeTypeOf('function')
     expect(mongodb.MongoCollection).toBeTypeOf('function')
     expect(mongodb.MongoSchema).toBeTypeOf('function')
+    expect(mongodb.toMongoJsonSchema).toBeTypeOf('function')
+    expect(mongodb.mongoValidator).toBeTypeOf('function')
     expect(mongodb.MongoIndex).toBeTypeOf('function')
     expect(mongodb.MongoWatch).toBeTypeOf('function')
     expect(mongodb.objectId).toBeTypeOf('function')

@@ -1,8 +1,10 @@
-import { ObjectId } from 'mongodb'
+import { ObjectId, type Document } from 'mongodb'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { z } from 'zod'
 
-import { MongoCollection, MongoIndex } from './decorators'
+import { MongoCollection, MongoIndex, MongoSchema } from './decorators'
 import { createTypeFerryMongo, typedMongoCollection } from './index'
+import { objectId } from './schema'
 import type { MongoIntegrationHarness } from './test/mongodb-test-utility'
 import { createMongoIntegrationHarness } from './test/mongodb-test-utility'
 
@@ -14,6 +16,13 @@ interface Board {
 
 function createCollections(boardName: string, nodeName: string) {
   @MongoCollection(boardName)
+  @MongoSchema(
+    z.strictObject({
+      _id: objectId(),
+      name: z.string(),
+      author: objectId(),
+    }),
+  )
   @MongoIndex({ author: 1 })
   class BoardsCollectionDefinition {}
 
@@ -122,6 +131,68 @@ describe('mongodb registry integration', () => {
       )
     } finally {
       await startup.close()
+    }
+  })
+
+  it('creates and reconciles strict schema validators', async () => {
+    const { BoardsCollection } = createCollections(
+      harness.collectionName('validated_boards'),
+      harness.collectionName('unused_nodes'),
+    )
+    const mongo = await createTypeFerryMongo({
+      db: harness.db,
+      collections: [BoardsCollection],
+      ensureSchemas: true,
+    })
+
+    try {
+      const Boards = mongo.collection(BoardsCollection)
+      const RawBoards = mongo.collectionByName<Document>(
+        mongo.meta(BoardsCollection).name,
+      )
+      await expect(
+        Boards.insertOne({
+          _id: new ObjectId(),
+          name: 'Roadmap',
+          author: new ObjectId(),
+        }),
+      ).resolves.toMatchObject({ acknowledged: true })
+
+      await expect(
+        RawBoards.insertOne({
+          _id: new ObjectId(),
+          name: 'Invalid',
+          author: 'not-an-object-id',
+        }),
+      ).rejects.toMatchObject({ code: 121 })
+
+      await harness.db.command({
+        collMod: mongo.meta(BoardsCollection).name,
+        validator: {},
+      })
+      await expect(mongo.ensureSchemas()).resolves.toBeUndefined()
+      await expect(mongo.ensureSchemas()).resolves.toBeUndefined()
+
+      await expect(
+        RawBoards.insertOne({
+          _id: new ObjectId(),
+          name: 'Invalid again',
+          author: 'not-an-object-id',
+        }),
+      ).rejects.toMatchObject({ code: 121 })
+
+      const [collection] = await harness.db
+        .listCollections(
+          { name: mongo.meta(BoardsCollection).name },
+          { nameOnly: false },
+        )
+        .toArray()
+      expect(collection?.options).toMatchObject({
+        validationLevel: 'strict',
+        validationAction: 'error',
+      })
+    } finally {
+      await mongo.close()
     }
   })
 })
