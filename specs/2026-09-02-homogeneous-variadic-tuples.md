@@ -40,7 +40,7 @@ VitaFlow and resume its full reconciliation tests.
 
 - [x] Add failing homogeneous, fixed, and heterogeneous tuple tests.
 - [x] Implement lossless homogeneous variadic tuple compilation.
-- [ ] Run all release gates and package verification.
+- [x] Run all release gates and package verification.
 - [ ] Publish npm package and push annotated `v0.7.2`.
 - [ ] Upgrade and verify VitaFlow.
 
