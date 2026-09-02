@@ -6,13 +6,14 @@ The TypeScript implementation is configured for operator-controlled publication 
 
 | Implementation | Registry identity | Version | Status |
 |---|---|---:|---|
-| TypeScript | `typeferry` | `0.7.0` | Published npm release; public publication enabled |
+| TypeScript | `typeferry` | `0.7.0` (published); `0.7.1` (candidate) | Public npm release enabled; compatibility candidate prepared |
 | Python | `typeferry-py` | `0.2.0` | Temporary identity; publication disabled |
 | Rust | `typeferry` and `typeferry-*` | `0.2.0` | Workspace publication disabled |
 
-TypeFerry is published publicly on npm at `0.7.0`, including MongoDB
-schema enforcement. The release recipe rechecks that the exact candidate
-version is absent immediately before every future upload.
+TypeFerry is published publicly on npm at `0.7.0`, including MongoDB schema
+enforcement. The `0.7.1` candidate corrects BSON boolean and readonly-schema
+compatibility. The release recipe rechecks that the exact candidate version is
+absent immediately before every upload.
 
 ## npm Release Gate
 
@@ -42,14 +43,14 @@ The recipe requires:
 - automatic installation and selection of the exact Node/npm versions through Mise;
 - a clean tracked and untracked worktree on `main`;
 - successful `npm whoami` against the public registry;
-- package identity `typeferry@0.7.0` and an absent registry version (after the
+- package identity `typeferry@0.7.1` and an absent registry version (after the
   release commit bumps the package manifest and lockfile);
 - the complete non-uploading release gate.
 
 Only after those checks does it execute `npm publish --access public`. The
 recipe does not bump versions, create Git tags, push commits, or store
 credentials. After npm confirms the upload, create the annotated Git tag
-`v0.7.0` and push the release commit and tag. No GitHub release is created.
+`v0.7.1` and push the release commit and tag. No GitHub release is created.
 
 An npm version cannot be reused after publication. If a release is incorrect, deprecate it as appropriate, fix the repository, choose a higher semantic version, and rerun the gate.
 

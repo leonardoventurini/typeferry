@@ -36,16 +36,16 @@ VitaFlow and resume reconciliation.
 
 ## Executable checklist and verification
 
-- [ ] Add failing boolean/readOnly unit and integration tests.
-- [ ] Implement the bounded compiler correction.
-- [ ] Run lint, strict types, all tests, build, audit, and package verification.
+- [x] Add failing boolean/readOnly unit and integration tests.
+- [x] Implement the bounded compiler correction.
+- [x] Run lint, strict types, all tests, build, audit, and package verification.
 - [ ] Prepare and push `0.7.1`.
 - [ ] Verify npm publication and push annotated `v0.7.1`.
 - [ ] Upgrade and verify VitaFlow.
 
 ## Acceptance criteria
 
-- [ ] Zod booleans enforce MongoDB BSON booleans.
-- [ ] Readonly Zod fields retain their structural validation.
-- [ ] Unsupported keywords still fail closed.
+- [x] Zod booleans enforce MongoDB BSON booleans.
+- [x] Readonly Zod fields retain their structural validation.
+- [x] Unsupported keywords still fail closed.
 - [ ] `typeferry@0.7.1` and its Git tag identify the verified patch.

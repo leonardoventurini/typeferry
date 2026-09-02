@@ -165,12 +165,12 @@ def test_package_validator_is_fail_closed_and_checks_exports() -> None:
     assert "process.exitCode = 1" in validator
 
 
-def test_release_docs_define_the_0_7_0_release_and_tag_boundary() -> None:
+def test_release_docs_define_the_0_7_1_candidate_and_tag_boundary() -> None:
     release_docs = (ROOT / "RELEASING.md").read_text(encoding="utf-8")
 
     assert "Published npm release" in release_docs
-    assert "typeferry@0.7.0" in release_docs
-    assert "create the annotated Git tag\n`v0.7.0`" in release_docs
+    assert "typeferry@0.7.1" in release_docs
+    assert "create the annotated Git tag\n`v0.7.1`" in release_docs
     assert "No GitHub release is created" in release_docs
     assert "does not bump versions, create Git tags, push commits" in release_docs
 
@@ -184,7 +184,7 @@ def test_package_and_template_locks_use_final_identity() -> None:
     )
 
     assert package_lock["name"] == "typeferry"
-    assert package_lock["version"] == "0.7.0"
+    assert package_lock["version"] == "0.7.1"
     assert package_lock["packages"][""]["name"] == "typeferry"
     assert package_lock["packages"][""]["engines"]["node"] == ">=24.19.0 <27"
     assert "node_modules/typeferry" in template_lock["packages"]
