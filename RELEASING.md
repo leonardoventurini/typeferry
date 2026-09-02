@@ -6,7 +6,7 @@ The TypeScript implementation is configured for operator-controlled publication 
 
 | Implementation | Registry identity | Version | Status |
 |---|---|---:|---|
-| TypeScript | `typeferry` | `0.6.1` (published); `0.7.0` (candidate) | Public npm release enabled; candidate pending package bump |
+| TypeScript | `typeferry` | `0.6.1` (published); `0.7.0` (candidate) | Public npm release enabled; candidate prepared |
 | Python | `typeferry-py` | `0.2.0` | Temporary identity; publication disabled |
 | Rust | `typeferry` and `typeferry-*` | `0.2.0` | Workspace publication disabled |
 

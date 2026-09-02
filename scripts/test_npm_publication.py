@@ -184,7 +184,7 @@ def test_package_and_template_locks_use_final_identity() -> None:
     )
 
     assert package_lock["name"] == "typeferry"
-    assert package_lock["version"] == "0.6.1"
+    assert package_lock["version"] == "0.7.0"
     assert package_lock["packages"][""]["name"] == "typeferry"
     assert package_lock["packages"][""]["engines"]["node"] == ">=24.19.0 <27"
     assert "node_modules/typeferry" in template_lock["packages"]
