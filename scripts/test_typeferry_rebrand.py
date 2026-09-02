@@ -84,6 +84,13 @@ class TypeFerryRebrandTest(unittest.TestCase):
             package_json["dependencies"][PUBLIC_TYPESCRIPT_NAME],
         )
 
+    def test_release_docs_keep_non_typescript_publication_disabled(self) -> None:
+        release_docs = (REPO_ROOT / "RELEASING.md").read_text(encoding="utf-8")
+
+        self.assertIn("`0.7.0` (candidate)", release_docs)
+        self.assertIn("Python and Rust publication remains disabled", release_docs)
+        self.assertIn("No GitHub release is created", release_docs)
+
 
 def _git(*arguments: str) -> str:
     result = subprocess.run(
