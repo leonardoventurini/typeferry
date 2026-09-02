@@ -6,17 +6,17 @@ The TypeScript implementation is configured for operator-controlled publication 
 
 | Implementation | Registry identity | Version | Status |
 |---|---|---:|---|
-| TypeScript | `typeferry` | `0.7.2` (published); `0.7.3` (candidate) | Public npm release enabled; root-union compatibility candidate prepared |
+| TypeScript | `typeferry` | `0.7.3` (published) | Public npm release enabled; root-union compatibility published |
 | Python | `typeferry-py` | `0.2.0` | Temporary identity; publication disabled |
 | Rust | `typeferry` and `typeferry-*` | `0.2.0` | Workspace publication disabled |
 
-TypeFerry is published publicly on npm at `0.7.2`, including MongoDB schema
+TypeFerry is published publicly on npm at `0.7.3`, including MongoDB schema
 enforcement, BSON boolean/readonly-schema compatibility, and lossless
-homogeneous variadic-tuple compilation. The `0.7.3` candidate permits generated
-ObjectIds across strict root union alternatives. The release recipe rechecks
-that the exact candidate version is absent immediately before every upload.
+homogeneous variadic-tuple compilation. It also permits generated ObjectIds
+across strict root union alternatives. The release recipe rechecks that the
+exact candidate version is absent immediately before every upload.
 
-Published npm release: `typeferry@0.7.2`.
+Published npm release: `typeferry@0.7.3`.
 
 ## npm Release Gate
 

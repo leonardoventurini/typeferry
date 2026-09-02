@@ -35,13 +35,13 @@ publish and tag 0.7.3.
 
 - [x] Add failing root-union and nested-object regression tests.
 - [x] Implement bounded root-combinator identifier allowance.
-- [ ] Run all release gates and package verification.
-- [ ] Publish npm package and push annotated `v0.7.3`.
-- [ ] Complete downstream candidate validation.
+- [x] Run all release gates and package verification.
+- [x] Publish npm package and push annotated `v0.7.3`.
+- [x] Complete downstream candidate validation.
 
 ## Acceptance criteria
 
 - [x] Generated ObjectIds pass every strict root object alternative.
 - [x] Nested strict objects remain closed to `_id`.
 - [x] Explicit root identifiers remain unchanged.
-- [ ] The npm artifact and Git tag identify the verified patch.
+- [x] The npm artifact and Git tag identify the verified patch.
