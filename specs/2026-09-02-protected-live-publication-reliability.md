@@ -95,7 +95,9 @@ requires no migration.
 - [x] Recognize the stable BSON ObjectId discriminator instead of constructor
       identity.
 - [x] Validate a packed `0.7.5` candidate through VitaFlow's full gate.
-- [ ] Commit, tag `v0.7.5`, and push the corrected release candidate.
+- [x] Commit, tag `v0.7.5`, and push the corrected release candidate.
+- [x] Confirm the operator-published `typeferry@0.7.5` artifact matches the
+      verified candidate.
 
 ## Direct rollout and verification
 

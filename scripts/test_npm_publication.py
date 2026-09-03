@@ -165,7 +165,7 @@ def test_package_validator_is_fail_closed_and_checks_exports() -> None:
     assert "process.exitCode = 1" in validator
 
 
-def test_release_docs_define_the_0_7_4_candidate_and_tag_boundary() -> None:
+def test_release_docs_define_the_0_7_5_release_and_tag_boundary() -> None:
     release_docs = (ROOT / "RELEASING.md").read_text(encoding="utf-8")
 
     assert "Published npm release" in release_docs
