@@ -77,7 +77,7 @@ requires no migration.
 - [x] Bump TypeFerry to `0.7.4` without publishing.
 - [x] Run lint, typecheck, all tests, build, audit, and package verification.
 - [x] Pack the candidate and validate it from VitaFlow.
-- [ ] Commit, create annotated tag `v0.7.4`, and push commit plus tag.
+- [x] Commit, create annotated tag `v0.7.4`, and push commit plus tag.
 
 ## Direct rollout and verification
 
