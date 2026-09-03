@@ -239,7 +239,10 @@ export async function loadApplicationConfig(
     return resolveApplicationConfig(root, withEnvironmentFile({}));
   }
 
-  const jiti = createJiti(import.meta.url, { interopDefault: true });
+  const jiti = createJiti(import.meta.url, {
+    alias: { "@": root },
+    interopDefault: true,
+  });
   const loaded: unknown = await jiti.import(configPath, { default: true });
   const parsed = configSchema.parse(loaded) as TypeFerryConfig;
   return resolveApplicationConfig(root, withEnvironmentFile(parsed));

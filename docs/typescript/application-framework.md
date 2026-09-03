@@ -190,6 +190,10 @@ export default defineConfig({
 })
 ```
 
+The application-root `@/` alias is available while loading this file, so
+extensions can import application-owned helpers through the same stable paths
+used by client and server code.
+
 Supported browser values are `chromium`, `firefox`, and `webkit`. Configuration
 validation rejects unknown fields, invalid ports, empty strings, and
 non-positive timeouts. Application proxy prefixes must be non-root paths
