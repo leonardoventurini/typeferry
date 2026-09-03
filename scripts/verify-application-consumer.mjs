@@ -1,4 +1,4 @@
-import { access, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { access, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import assert from 'node:assert/strict'
 import os from 'node:os'
 import path from 'node:path'
@@ -10,6 +10,7 @@ const REPOSITORY_ROOT = path.resolve(
   '..',
 )
 const PACKAGE_ROOT = path.join(REPOSITORY_ROOT, 'typeferry-ts')
+const EXTERNAL_PACKAGE = 'fast-deep-equal'
 
 async function main() {
   const temporaryRoot = await mkdtemp(
@@ -40,6 +41,11 @@ async function main() {
     await assert.rejects(
       access(path.join(applicationRoot, 'dist/server/index.cjs.map')),
     )
+    const serverBundle = await readFile(
+      path.join(applicationRoot, 'dist/server/index.cjs'),
+      'utf8',
+    )
+    assert.match(serverBundle, /require\("fast-deep-equal"\)/u)
 
     console.log('Verified packed TypeFerry application consumer.')
   } finally {
@@ -63,6 +69,7 @@ async function writeFixture(applicationRoot, packageFile) {
               'node -e "Promise.all([import(\'typeferry/client\'), import(\'typeferry/server\'), import(\'typeferry/ejson\')])"',
           },
           dependencies: {
+            [EXTERNAL_PACKAGE]: '^3.1.3',
             typeferry: `file:${packageFile}`,
           },
         },
@@ -75,10 +82,13 @@ async function writeFixture(applicationRoot, packageFile) {
       '<!doctype html><html><body><script type="module" src="/main.ts"></script></body></html>\n',
     ],
     ['client/main.ts', "document.body.textContent = 'TypeFerry'\n"],
-    ['server/index.ts', "console.log('TypeFerry server')\n"],
+    [
+      'server/index.ts',
+      "import equal from 'fast-deep-equal'\n\nconsole.log(equal('TypeFerry', 'TypeFerry'))\n",
+    ],
     [
       'typeferry.config.ts',
-      "import { defineConfig } from 'typeferry/config'\n\nexport default defineConfig({ build: { sourceMaps: false } })\n",
+      `import { defineConfig } from 'typeferry/config'\n\nexport default defineConfig({ build: { sourceMaps: false, server: { external: ['${EXTERNAL_PACKAGE}'] } } })\n`,
     ],
     [
       'test/application.unit.spec.ts',

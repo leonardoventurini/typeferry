@@ -31,6 +31,22 @@ describe('application tool configuration', () => {
       platform: 'node',
       sourcemap: true,
     })
+    expect(createServerBuildOptions(config).external).toEqual([])
+  })
+
+  it('externalizes configured server runtime packages', () => {
+    const configured = resolveApplicationConfig(ROOT, {
+      build: {
+        server: {
+          external: ['sharp', '@scope/runtime/subpath'],
+        },
+      },
+    })
+
+    expect(createServerBuildOptions(configured).external).toEqual([
+      'sharp',
+      '@scope/runtime/subpath',
+    ])
   })
 
   it('creates named unit, integration, and browser projects', () => {

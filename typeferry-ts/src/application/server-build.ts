@@ -9,6 +9,7 @@ export function createServerBuildOptions(
 ): BuildOptions {
   return {
     bundle: true,
+    external: [...config.build.server.external],
     entryPoints: [
       path.join(config.root, config.paths.server, 'index.ts'),
     ],
