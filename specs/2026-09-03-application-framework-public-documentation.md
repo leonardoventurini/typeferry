@@ -49,15 +49,15 @@ and migrate from application-owned Vite/Vitest boilerplate.
 
 ## Contracts and acceptance criteria
 
-- [ ] The guide matches CLI parsing, `TypeFerryConfig`, test discovery, and
+- [x] The guide matches CLI parsing, `TypeFerryConfig`, test discovery, and
       generated build paths.
-- [ ] The root README presents the three package-owned commands prominently.
-- [ ] Public documentation routes framework questions to one canonical guide.
-- [ ] Migration guidance removes obsolete Vite/Vitest/development-script files
+- [x] The root README presents the three package-owned commands prominently.
+- [x] Public documentation routes framework questions to one canonical guide.
+- [x] Migration guidance removes obsolete Vite/Vitest/development-script files
       without implying that TypeFerry owns unrelated application tooling.
-- [ ] Examples use only public package exports and current syntax.
-- [ ] All introduced local links resolve and Markdown formatting passes.
-- [ ] The diff contains documentation only.
+- [x] Examples use only public package exports and current syntax.
+- [x] All introduced local links resolve and Markdown formatting passes.
+- [x] The diff contains documentation only.
 
 ## Risks and recovery
 
@@ -74,8 +74,8 @@ no documentation-only package release is required.
 
 ## Executable checklist
 
-- [ ] Add the canonical application-framework guide.
-- [ ] Update all public entry points and cross-links.
-- [ ] Verify documentation against source and template contracts.
-- [ ] Update the existing end-user documentation architecture decision.
-- [ ] Commit the documentation unit semantically.
+- [x] Add the canonical application-framework guide.
+- [x] Update all public entry points and cross-links.
+- [x] Verify documentation against source and template contracts.
+- [x] Update the existing end-user documentation architecture decision.
+- [x] Commit the documentation unit semantically.

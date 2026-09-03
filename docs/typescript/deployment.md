@@ -18,6 +18,11 @@ Applications install TypeFerry from npm. The [template](../../template/README.md
 builds and tests against the published package rather than the repository source
 tree.
 
+For conventional applications, `typeferry build` owns the client and server
+compilation and produces `dist/client/` plus `dist/server/index.cjs`. See the
+[application framework guide](application-framework.md) for the build contract;
+production startup and infrastructure remain application-owned.
+
 ## Production checklist
 
 - Terminate TLS at the application or a proxy that supports WebSocket upgrades.

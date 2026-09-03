@@ -24,3 +24,16 @@ This structure provides a short discovery path while keeping each guide independ
 ## Consequences
 
 New public surfaces should update the appropriate focused guide and documentation index. Publication must replace the local-only installation language across all three implementation entry points. Protocol changes continue to update `PROTOCOL.md` and conformance fixtures, not merely tutorials.
+
+## 2026-09-03 amendment
+
+The TypeScript package is now published, and `0.8.0` adds the package-owned
+application framework. `docs/typescript/application-framework.md` is the
+canonical end-user guide for its develop, build, test, configuration,
+migration, and upgrade workflows. The root README and documentation index must
+present that workflow directly instead of routing it only through the template
+or an architecture document.
+
+The original unpublished-package statements above record the context in which
+this decision was made; current publication status is maintained in
+`RELEASING.md`.

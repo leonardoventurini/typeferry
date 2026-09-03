@@ -40,6 +40,10 @@ listed here. Internal file paths are not public contracts.
 
 ## Conventional application contract
 
+The canonical [application framework guide](../typescript/application-framework.md)
+documents the complete CLI, configuration, migration, and troubleshooting
+contract. The essentials for agent execution follow.
+
 The package-owned commands understand this root-level structure:
 
 ```text

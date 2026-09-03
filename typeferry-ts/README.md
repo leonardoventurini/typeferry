@@ -76,6 +76,11 @@ export default defineConfig({
 })
 ```
 
+See the full
+[application framework guide](https://github.com/leonardoventurini/typeferry/blob/main/docs/typescript/application-framework.md)
+for command behavior, test discovery, every configuration field, migration,
+ownership boundaries, upgrades, and troubleshooting.
+
 ## Define and serve a typed method
 
 ```ts
@@ -132,4 +137,4 @@ npm pack --dry-run
 
 ## Guides
 
-Start at the [documentation home](../docs/README.md) or jump to [server and RPC](../docs/typescript/server-rpc.md), [client](../docs/typescript/client.md), [React](../docs/typescript/react.md), [authentication](../docs/typescript/authentication.md), [events and channels](../docs/typescript/events-and-channels.md), [MongoDB](../docs/typescript/mongodb.md), [EJSON](../docs/typescript/ejson.md), or [deployment](../docs/typescript/deployment.md).
+Start at the [documentation home](../docs/README.md) or jump to the [application framework](../docs/typescript/application-framework.md), [server and RPC](../docs/typescript/server-rpc.md), [client](../docs/typescript/client.md), [React](../docs/typescript/react.md), [authentication](../docs/typescript/authentication.md), [events and channels](../docs/typescript/events-and-channels.md), [MongoDB](../docs/typescript/mongodb.md), [EJSON](../docs/typescript/ejson.md), or [deployment](../docs/typescript/deployment.md).

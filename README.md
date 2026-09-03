@@ -25,6 +25,28 @@ npm install typeferry
 
 Applications import focused exports such as `typeferry/client`, `typeferry/server`, and `typeferry/react`.
 
+## Develop, build, and test applications
+
+TypeFerry includes a batteries-included application workflow for the
+conventional root-level `client/`, `common/`, `server/`, and `test/`
+directories. No `typeferry.config.ts`, Vite configuration, or Vitest
+configuration is required for the defaults:
+
+```json
+{
+  "scripts": {
+    "develop": "typeferry develop",
+    "build": "typeferry build",
+    "test": "typeferry test"
+  }
+}
+```
+
+Use `typeferry test unit`, `integration`, or `browser` for a single test
+project. Add an optional typed `typeferry.config.ts` only for supported
+high-level overrides. Read the [application framework guide](docs/typescript/application-framework.md)
+for commands, conventions, configuration, migration, and troubleshooting.
+
 ## Define RPC methods with decorators
 
 Define a namespace as a class, expose its methods with decorators, and derive the client API type directly from the implementation:
@@ -105,6 +127,7 @@ The template includes a Node.js server, WebSocket client, React UI, MongoDB repl
 - [LLM documentation index](llms.txt)
 - [Documentation home](docs/README.md)
 - [Quickstart](docs/getting-started.md)
+- [TypeScript application framework](docs/typescript/application-framework.md)
 - [TypeScript server and RPC](docs/typescript/server-rpc.md)
 - [TypeScript client](docs/typescript/client.md)
 - [React integration](docs/typescript/react.md)

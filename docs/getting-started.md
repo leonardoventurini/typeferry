@@ -54,6 +54,8 @@ The development process starts the Node.js server and client development server.
 
 Use the ports printed by the development process. The zero-config defaults are
 owned by the installed TypeFerry package.
+See the [application framework guide](typescript/application-framework.md) for
+the complete command contract and optional configuration.
 
 ## 5. Trace one RPC call
 
@@ -81,6 +83,7 @@ Browser tests require Playwright's Chromium dependencies. MongoDB integration te
 
 ## Next steps
 
+- [Understand the application framework](typescript/application-framework.md)
 - [Configure the TypeScript client](typescript/client.md)
 - [Define RPC methods](typescript/server-rpc.md)
 - [Replace sample authentication](typescript/authentication.md)

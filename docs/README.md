@@ -17,6 +17,7 @@ Use this page to choose the smallest guide that matches what you are building. [
 | Goal | Guide |
 |---|---|
 | Understand the package and local setup | [`typeferry-ts/README.md`](../typeferry-ts/README.md) |
+| Develop, build, test, configure, or migrate an application | [Application framework](typescript/application-framework.md) |
 | Create a server and RPC methods | [Server and RPC](typescript/server-rpc.md) |
 | Use the browser or Node client | [Client](typescript/client.md) |
 | Bind TypeFerry to React | [React](typescript/react.md) |

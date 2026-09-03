@@ -1,17 +1,18 @@
-# TypeFerry application framework proposal
+# TypeFerry application framework architecture
 
-Status: accepted by the
+Status: implemented in `typeferry@0.8.0` under the
 [package-owned application commands decision](../../decisions/2026-09-03-package-owned-application-commands.md).
 This document is informative and does not supersede package contracts or the
-wire protocol.
+wire protocol. Application developers should use the
+[public framework guide](../typescript/application-framework.md).
 
 ## Summary
 
-TypeFerry should simplify application setup by moving its established
+TypeFerry simplifies application setup by keeping its established
 development, production-build, and test conventions into the existing
 `typeferry` npm package.
 
-A conventional application should not need a TypeFerry configuration file.
+A conventional application does not need a TypeFerry configuration file.
 The framework understands the root-level `client/`, `common/`, `server/`,
 and `test/` directories automatically. Applications create an optional
 `typeferry.config.ts` only when they need supported customization.
@@ -30,11 +31,11 @@ The normal application scripts become:
 
 ## Desired outcome
 
-Application authors should be able to install TypeFerry, create the standard
+Application authors can install TypeFerry, create the standard
 source directories, and run development, builds, and tests without copying
 TypeFerry-specific Vite, Vitest, proxy, or process-orchestration files.
 
-An upgrade to `typeferry` should carry compatible Vite, Vitest, build, and
+An upgrade to `typeferry` carries compatible Vite, Vitest, build, and
 development behavior without requiring applications to synchronize copied
 configuration.
 
@@ -141,7 +142,7 @@ should be added only for demonstrated application needs.
 
 ## Package architecture
 
-The TypeScript package gains internally isolated application and CLI modules:
+The TypeScript package contains internally isolated application and CLI modules:
 
 ```text
 typeferry
@@ -271,11 +272,10 @@ Vitest installation. TypeFerry exports the supported authoring API:
 import { describe, expect, it } from 'typeferry/test'
 ```
 
-The export should be narrower than an undocumented wildcard re-export. Its
-first implementation must inventory the Vitest APIs used by the template and
-define a supported surface. Broader APIs can be added when applications need
-them. Browser and component-testing libraries outside that surface remain
-explicit application dependencies.
+The export mirrors the installed Vitest API so tests do not depend on npm
+hoisting. Individual mirrored exports follow Vitest and do not carry an
+independent TypeFerry compatibility guarantee. Browser and component-testing
+libraries outside Vitest remain explicit application dependencies.
 
 ## Development Docker removal
 
