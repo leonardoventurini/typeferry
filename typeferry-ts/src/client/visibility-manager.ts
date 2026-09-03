@@ -67,12 +67,7 @@ export class VisibilityManager {
     this.client.initialized = false
     this.client.initializing = false
 
-    const existingSocket = this.client.clientSocket.socket
-    if (existingSocket) {
-      existingSocket.close()
-      this.client.clientSocket.socket = undefined
-    }
-
+    this.client.clientSocket.retireConnection()
     this.client.clientSocket.connect()
     this.lastHeartbeat = Date.now()
     this.reconnecting = false

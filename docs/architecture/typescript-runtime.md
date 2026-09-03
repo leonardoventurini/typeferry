@@ -22,6 +22,11 @@ Status: informative. Follow [`typeferry-ts/AGENTS.md`](../../typeferry-ts/AGENTS
 
 Client-side `Client`, `ClientHttp`, and `ClientSocket` coordinate calls and connection state. The React surface observes or invokes that core; it must not reimplement transport, caching, or auth behavior. Other UI frameworks integrate through the framework-agnostic client instead of package-owned adapters.
 
+Immediate connection replacement retires the active socket through
+`ClientSocket` before opening its successor. Retirement rejects pending RPCs
+and emits `WEBSOCKET_CLOSED` exactly once so connection-owned consumers can
+discard stale work before the next authenticated `INITIALIZED` boundary.
+
 ## Contract surfaces
 
 - `src/` may use internal organization suited to implementation.

@@ -182,6 +182,32 @@ export class ClientSocket extends EventEmitter2 {
   }
 
   /**
+   * Retires the active connection before an immediate replacement.
+   *
+   * Replacement must settle pending RPCs and publish the closed lifecycle
+   * boundary synchronously. Clearing `socket` without this boundary strands
+   * consumers that use it to invalidate connection-owned work.
+   */
+  retireConnection(): void {
+    this.stopped = true
+    this.connecting = false
+    this.clearReconnectTimer()
+    this.rejectAllPending('Connection lost')
+
+    const socketToClose = this.socket
+    if (socketToClose) {
+      socketToClose.onopen = null
+      socketToClose.onmessage = null
+      socketToClose.onclose = null
+      socketToClose.onerror = null
+      this.socket = undefined
+      socketToClose.close()
+    }
+
+    this.client.emit(ClientEvents.WEBSOCKET_CLOSED)
+  }
+
+  /**
    * Sends a fire-and-forget RPC message (void call).
    * @param data - Object containing `method` and optional `params`
    */

@@ -95,6 +95,21 @@ describe('ClientSocket', () => {
         socket.emitWithAck('rpc', { method: 'test.method' }),
       ).rejects.toThrow('Socket not ready')
     })
+
+    it('rejects pending calls when the connection is retired for replacement', async () => {
+      socket.connect()
+      const activeSocket = socket.socket as unknown as MockWebSocket
+      activeSocket.onopen?.()
+      const pending = socket.emitWithAck('rpc', { method: 'test.method' })
+
+      socket.retireConnection()
+
+      await expect(pending).rejects.toThrow('Connection lost')
+      expect(socket.socket).toBeUndefined()
+      expect(mockClient.emit).toHaveBeenCalledWith(
+        ClientEvents.WEBSOCKET_CLOSED,
+      )
+    })
   })
 
   // -------------------------------------------------------------------------

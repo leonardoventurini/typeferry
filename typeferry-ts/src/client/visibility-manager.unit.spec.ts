@@ -17,6 +17,7 @@ function createMockClient() {
         close: vi.fn(),
       } as Record<string, unknown>,
       connect: vi.fn(),
+      retireConnection: vi.fn(),
     },
     close: vi.fn(),
     emit: vi.fn(),
@@ -186,13 +187,11 @@ describe('VisibilityManager', () => {
   })
 
   it('should clean up existing socket before reconnecting', () => {
-    const originalSocket = mockClient.clientSocket.socket
-
     const manager = new VisibilityManager(mockClient as never, null)
 
     manager.reconnect()
 
-    expect(originalSocket.close).toHaveBeenCalled()
+    expect(mockClient.clientSocket.retireConnection).toHaveBeenCalled()
     expect(mockClient.clientSocket.connect).toHaveBeenCalled()
 
     manager.destroy()

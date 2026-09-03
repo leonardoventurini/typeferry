@@ -259,18 +259,7 @@ export class Client<
       this.setContext(context)
     }
 
-    // Stop any ongoing reconnection attempts before starting fresh.
-    this.clientSocket.stopped = true
-    this.clientSocket.clearReconnectTimer()
-
-    const oldSocket = this.clientSocket.socket
-    if (oldSocket) {
-      oldSocket.onclose = null
-      oldSocket.onerror = null
-      oldSocket.onmessage = null
-      oldSocket.close()
-      this.clientSocket.socket = undefined
-    }
+    this.clientSocket.retireConnection()
 
     this.logger.auth(LogLevel.DEBUG, 'setContextAndReInit: connecting')
     this.clientSocket.connect()

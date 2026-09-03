@@ -178,6 +178,108 @@ describe('MongoDB live views integration', () => {
     }
   })
 
+  it('restarts a protected subscription interrupted by client reconnection', async () => {
+    if (!(await harness.supportsChangeStreams())) {
+      if (process.env.CI) {
+        throw new Error(
+          'MongoDB protected live-view integration requires a replica set in CI.',
+        )
+      }
+      console.warn(
+        '[TypeFerry MongoDB] Skipping protected live-view integration: local MongoDB is not a replica set.',
+      )
+      return
+    }
+
+    globalThis.WebSocket = NodeWebSocket as unknown as typeof WebSocket
+    const collectionName = harness.collectionName('protected_boards')
+
+    @MongoCollection(collectionName)
+    class ProtectedBoardsCollectionDefinition {}
+
+    const BoardsToken = typedMongoCollection<Board>(
+      ProtectedBoardsCollectionDefinition,
+    )
+    let authorizationCalls = 0
+    let releaseFirstAuthorization: (() => void) | null = null
+    let signalFirstAuthorization: (() => void) | null = null
+    const firstAuthorizationGate = new Promise<void>(resolve => {
+      releaseFirstAuthorization = resolve
+    })
+    const firstAuthorizationStarted = new Promise<void>(resolve => {
+      signalFirstAuthorization = resolve
+    })
+    const publication = defineMongoLivePublication(boardsDescriptor, {
+      collection: BoardsToken,
+      args: z.object({ owner: z.string() }),
+      authorize: async (_context, args): Promise<{ readonly owner: string }> => {
+        authorizationCalls += 1
+        if (authorizationCalls === 1) {
+          signalFirstAuthorization?.()
+          await firstAuthorizationGate
+        }
+        return { owner: args.owner }
+      },
+      filter: (scope: { readonly owner: string }) => ({ owner: scope.owner }),
+      project: document => ({ name: document.name }),
+    })
+
+    const server = await createServer()
+    server.setAuth({
+      auth: async context =>
+        context.token === 'test-token'
+          ? { user: { _id: 'administrator' } }
+          : false,
+      logIn: async () => false,
+    })
+    const mongo = await createTypeFerryMongo({
+      db: harness.db,
+      server,
+      collections: [BoardsToken],
+      live: { publications: [publication] },
+    })
+    const Boards = mongo.collection(BoardsToken)
+    const client = await createClient(server.port, { token: 'test-token' })
+    const view = createMongoLiveView({
+      client,
+      publication: boardsDescriptor,
+      args: { owner: 'owner-1' },
+    })
+
+    try {
+      const starting = view.start()
+      await firstAuthorizationStarted
+      const reinitialized = new Promise<void>(resolve => {
+        client.once(ClientEvents.INITIALIZED, () => resolve())
+      })
+
+      client.reconnect()
+      await reinitialized
+      await waitFor(() => authorizationCalls === 2)
+      releaseFirstAuthorization?.()
+      await starting
+      await waitFor(() => view.getSnapshot().status === 'ready')
+
+      await Boards.insertOne({
+        _id: new ObjectId(),
+        owner: 'owner-1',
+        name: 'After reconnect',
+        secret: 'hidden',
+      })
+      await waitFor(() => view.getSnapshot().documents.length === 1)
+      expect(view.getSnapshot()).toMatchObject({
+        status: 'ready',
+        documents: [expect.objectContaining({ name: 'After reconnect' })],
+      })
+    } finally {
+      releaseFirstAuthorization?.()
+      await view.stop()
+      await client.close()
+      await mongo.close()
+      await server.close()
+    }
+  })
+
   it('replays a matching write that lands while the snapshot is projecting', async () => {
     if (!(await harness.supportsChangeStreams())) {
       if (process.env.CI) {
@@ -418,8 +520,11 @@ async function createServer(): Promise<Server> {
   return server
 }
 
-async function createClient(port: number): Promise<Client> {
-  const client = new Client({ host: '127.0.0.1', port })
+async function createClient(
+  port: number,
+  initialContext?: Record<string, unknown>,
+): Promise<Client> {
+  const client = new Client({ host: '127.0.0.1', initialContext, port })
   if (!client.initialized) {
     await new Promise<void>((resolve, reject) => {
       client.once(ClientEvents.INITIALIZED, () => resolve())

@@ -14,6 +14,7 @@ vi.mock('./client-socket', () => ({
     close = vi.fn().mockResolvedValue(undefined)
     send = vi.fn()
     clearReconnectTimer = vi.fn()
+    retireConnection = vi.fn()
   },
 }))
 
