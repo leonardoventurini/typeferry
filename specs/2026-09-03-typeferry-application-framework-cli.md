@@ -174,9 +174,10 @@ remove the new binary and exports while retaining all existing runtime exports.
 The template migration is a separate commit and can be reverted independently
 to restore its prior scripts and configurations.
 
-Do not publish a partially migrated release. If packed-consumer or complete
-template verification fails, retain version `0.7.5` as the latest published
-release and correct the candidate before publication.
+Before publication, a packed-consumer or complete-template verification
+failure required retaining version `0.7.5` and correcting the candidate. Now
+that `0.8.0` is published, any release defect must be corrected in a higher
+semantic version because npm versions cannot be reused.
 
 ## Direct rollout
 
@@ -187,12 +188,10 @@ serves as the canonical example.
 
 ## Implementation note
 
-The accepted rollout temporarily permits the template to use
-`file:../typeferry-ts` with npm packed-link installation. This deviates from
-the published-template-dependency decision until `0.8.0` is published. The
-local dependency enables pre-publication template verification but prevents a
-production Docker build because Docker cannot access the sibling package
-outside the template build context.
+The pre-publication rollout temporarily used `file:../typeferry-ts` with npm
+packed-link installation so the template could verify the candidate. After
+`0.8.0` was published, the template returned to `^0.8.0` with a registry-backed
+lock entry, removing the Docker build-context limitation.
 
 ## Executable checklist
 

@@ -78,10 +78,7 @@ imports from existing client, server, and EJSON entry points.
   global `vi` because of Vitest's browser transform constraint.
 - Production build paths remain `dist/client/` and
   `dist/server/index.cjs`, preserving the start script and production image.
-- The template temporarily uses `file:../typeferry-ts` with npm packed-link
-  installation until `0.8.0` is published. During that interval its
-  production Docker build cannot access the sibling package outside the
-  template build context.
-- Immediately after publication, restore the template dependency to `^0.8.0`,
-  regenerate its registry lock entry, rerun all template gates, and verify the
-  production image.
+- The template used `file:../typeferry-ts` with npm packed-link installation
+  during candidate verification. After publication it returned to `^0.8.0`
+  with a registry-backed lock entry, restoring standalone installs and
+  production Docker builds.

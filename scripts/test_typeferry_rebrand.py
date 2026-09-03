@@ -12,7 +12,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 LEGACY_BRAND = "bi" + "frost"
 PUBLIC_TYPESCRIPT_NAME = "typeferry"
-TEMPORARY_TYPESCRIPT_SOURCE = "file:../typeferry-ts"
+PUBLIC_TYPESCRIPT_RANGE = "^0.8.0"
 TEMPORARY_PYTHON_NAME = "typeferry-py"
 
 
@@ -74,21 +74,21 @@ class TypeFerryRebrandTest(unittest.TestCase):
         self.assertIn("`/typeferry-ws`", protocol)
         self.assertIn("`typeferry:servers`", protocol)
 
-    def test_template_uses_temporary_candidate_package(self) -> None:
+    def test_template_uses_published_package(self) -> None:
         package_json = json.loads(
             (REPO_ROOT / "template/package.json").read_text(encoding="utf-8")
         )
 
         self.assertEqual(
-            TEMPORARY_TYPESCRIPT_SOURCE,
+            PUBLIC_TYPESCRIPT_RANGE,
             package_json["dependencies"][PUBLIC_TYPESCRIPT_NAME],
         )
 
     def test_release_docs_keep_non_typescript_publication_disabled(self) -> None:
         release_docs = (REPO_ROOT / "RELEASING.md").read_text(encoding="utf-8")
 
-        self.assertIn("Published npm release: `typeferry@0.7.5`", release_docs)
-        self.assertIn("`0.8.0` (candidate)", release_docs)
+        self.assertIn("Published npm release: `typeferry@0.8.0`", release_docs)
+        self.assertIn("| `0.8.0` | Published |", release_docs)
         self.assertIn("Python and Rust publication remains disabled", release_docs)
         self.assertIn("No GitHub release is created", release_docs)
 

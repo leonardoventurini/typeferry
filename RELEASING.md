@@ -6,25 +6,20 @@ The TypeScript implementation is configured for operator-controlled publication 
 
 | Implementation | Registry identity | Version | Status |
 |---|---|---:|---|
-| TypeScript | `typeferry` | `0.8.0` (candidate) | Application framework CLI ready for verification; `0.7.5` remains published |
+| TypeScript | `typeferry` | `0.8.0` | Published |
 | Python | `typeferry-py` | `0.2.0` | Temporary identity; publication disabled |
 | Rust | `typeferry` and `typeferry-*` | `0.2.0` | Workspace publication disabled |
 
-TypeFerry is published publicly on npm at `0.7.5`, including MongoDB schema
-enforcement, BSON boolean/readonly-schema compatibility, and lossless
-homogeneous variadic-tuple compilation. It also permits generated ObjectIds
-across strict root union alternatives. It recognizes BSON
-ObjectIds across independently bundled driver copies so live publications can
-materialize snapshots reliably. The release recipe rechecks that the exact
-candidate version is absent immediately before every upload.
+TypeFerry is published publicly on npm at `0.8.0`. This release adds the
+package-owned application framework commands, optional typed configuration,
+and the `typeferry/test` entry point while retaining the existing runtime
+exports. The release recipe rechecks that the exact candidate version is
+absent immediately before every upload.
 
-Published npm release: `typeferry@0.7.5`.
+Published npm release: `typeferry@0.8.0`.
 
-Candidate npm release: `typeferry@0.8.0`. Until this candidate is published,
-the repository template temporarily uses `file:../typeferry-ts` with npm
-packed-link installation. This intentionally makes the template dependent on
-the sibling checkout. Restore `^0.8.0` and its registry lock entry immediately
-after publication.
+The repository template consumes the public release through `^0.8.0`; its
+lockfile resolves the package tarball from the npm registry.
 
 ## npm Release Gate
 
@@ -54,8 +49,8 @@ The recipe requires:
 - automatic installation and selection of the exact Node/npm versions through Mise;
 - a clean tracked and untracked worktree on `main`;
 - successful `npm whoami` against the public registry;
-- package identity `typeferry@0.8.0` and an absent registry version (after the
-  release commit bumps the package manifest and lockfile);
+- a newly selected package version in the manifest and lockfile, with that
+  exact version absent from the registry;
 - the complete non-uploading release gate.
 
 Only after those checks does it execute `npm publish --access public`. The

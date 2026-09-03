@@ -20,9 +20,9 @@ mise install
 mise exec -- npm ci
 ```
 
-Until the `0.8.0` candidate is published, this repository temporarily installs
-the sibling `typeferry-ts/` package using npm's packed-link mode. Restore the
-registry range after publication.
+The template installs the published `typeferry` package from npm. Its lockfile
+pins the verified `0.8.0` artifact while the manifest accepts compatible
+`0.8.x` updates.
 
 ## 2. Start MongoDB
 
