@@ -16,10 +16,10 @@ install-npm-toolchain:
 verify-npm-release: install-npm-toolchain
     test "$(mise exec -- node --version)" = "v24.19.0"
     test "$(mise exec -- npm --version)" = "11.17.0"
-    cd {{ package_dir }} && mise exec -- npm ci
+    cd {{ package_dir }} && mise exec -- npm ci --no-audit --no-fund
     cd {{ package_dir }} && mise exec -- npm run lint
     cd {{ package_dir }} && mise exec -- npm run typecheck
-    cd {{ package_dir }} && ../scripts/run-with-redis.sh mise exec -- npm test
+    cd {{ package_dir }} && ../scripts/run-with-mongodb.sh ../scripts/run-with-redis.sh mise exec -- npm test
     cd {{ package_dir }} && mise exec -- npm run build
     cd {{ package_dir }} && mise exec -- npm run verify:consumer
     mise exec -- node scripts/verify-npm-package.mjs

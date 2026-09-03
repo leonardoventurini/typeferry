@@ -8,10 +8,13 @@ export async function runTests(
   config: ResolvedApplicationConfig,
   project: TestProjectName | undefined,
   watch: boolean,
+  testArguments: readonly string[],
 ): Promise<void> {
+  prepareTestEnvironment()
+
   const vitest = await startVitest(
     'test',
-    [],
+    [...testArguments],
     {
       project: project === undefined ? undefined : [project],
       root: config.root,
@@ -22,4 +25,8 @@ export async function runTests(
   )
 
   if (!watch) await vitest.close()
+}
+
+export function prepareTestEnvironment(): void {
+  if (!process.env['NODE_ENV']) process.env['NODE_ENV'] = 'test'
 }

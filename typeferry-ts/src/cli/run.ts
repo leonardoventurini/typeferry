@@ -20,5 +20,5 @@ export async function runCli(arguments_: readonly string[]): Promise<void> {
     return
   }
 
-  await runTests(config, parsed.project, parsed.watch)
+  await runTests(config, parsed.project, parsed.watch, parsed.testArguments)
 }

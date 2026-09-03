@@ -10,6 +10,7 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 REDIS_HELPER = ROOT / "scripts" / "run-with-redis.sh"
+MONGODB_HELPER = ROOT / "scripts" / "run-with-mongodb.sh"
 
 
 def test_root_justfile_has_safe_npm_release_recipes() -> None:
@@ -23,6 +24,7 @@ def test_root_justfile_has_safe_npm_release_recipes() -> None:
     assert "verify-npm-release:" in justfile
     assert "publish-npm:" in justfile
     assert "verify-npm-release: install-npm-toolchain" in justfile
+    assert "npm ci --no-audit --no-fund" in justfile
     assert "assert-npm-publish-state: install-npm-toolchain" in justfile
     assert "mise exec -- npm whoami" in justfile
     assert "mise exec -- node scripts/verify-npm-package.mjs" in justfile
@@ -32,7 +34,54 @@ def test_root_justfile_has_safe_npm_release_recipes() -> None:
     assert "\n    node " not in justfile
     assert "git diff --quiet" in justfile
     assert "refs/heads/main" in justfile
-    assert "scripts/run-with-redis.sh mise exec -- npm test" in justfile
+    assert (
+        "scripts/run-with-mongodb.sh ../scripts/run-with-redis.sh "
+        "mise exec -- npm test"
+    ) in justfile
+
+    package_validator = (ROOT / "scripts" / "verify-npm-package.mjs").read_text(
+        encoding="utf-8"
+    )
+    assert "must be newer than the latest published version" in package_validator
+
+
+def test_application_consumer_install_skips_implicit_network_checks() -> None:
+    consumer_verifier = (
+        ROOT / "scripts" / "verify-application-consumer.mjs"
+    ).read_text(encoding="utf-8")
+
+    assert "['install', '--no-audit', '--no-fund']" in consumer_verifier
+
+
+def test_mongodb_helper_preserves_an_external_uri(tmp_path: Path) -> None:
+    docker_log = tmp_path / "docker.log"
+    fake_docker = tmp_path / "docker"
+    fake_docker.write_text(
+        f'#!/usr/bin/env bash\necho "$*" >> "{docker_log}"\nexit 99\n',
+        encoding="utf-8",
+    )
+    fake_docker.chmod(0o755)
+    expected_uri = "mongodb://mongo.example.test:27017"
+    environment = {
+        **os.environ,
+        "PATH": f"{tmp_path}:{os.environ['PATH']}",
+        "TYPEFERRY_MONGODB_TEST_URI": expected_uri,
+    }
+
+    result = subprocess.run(
+        [
+            MONGODB_HELPER,
+            "bash",
+            "-c",
+            f'test "$TYPEFERRY_MONGODB_TEST_URI" = "{expected_uri}"',
+        ],
+        cwd=ROOT,
+        env=environment,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert not docker_log.exists()
 
 
 def test_redis_helper_preserves_an_external_redis_url(tmp_path: Path) -> None:
@@ -163,6 +212,8 @@ def test_package_validator_is_fail_closed_and_checks_exports() -> None:
     assert "publishConfig" in validator
     assert "exports" in validator
     assert "dist/lit" in validator
+    assert "EXPECTED_VERSION" not in validator
+    assert "report.version === manifestVersion" in validator
     assert "process.exitCode = 1" in validator
 
 

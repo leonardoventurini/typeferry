@@ -74,6 +74,12 @@ typeferry develop -- --seed
 
 Arguments placed before `--` are rejected.
 
+The development server proxies TypeFerry's `/__h`, `/oauth`, `/mcp`, and
+`/.well-known` routes automatically. Matching uses complete path segments, so
+`/mcp` and `/mcp/...` reach the backend while `/mcp-tools` remains a client
+route. The browser-visible host is preserved for protocol and authorization
+metadata, and `/__h` cookies are normalized for the localhost origin.
+
 ## Build
 
 ```sh
@@ -114,15 +120,15 @@ external when it cannot be bundled safely—for example, because it contains a
 native Node.js addon or loads assets relative to its installed package:
 
 ```ts
-import { defineConfig } from 'typeferry/config'
+import { defineConfig } from "typeferry/config";
 
 export default defineConfig({
   build: {
     server: {
-      external: ['sharp', 'mongodb', '@scope/runtime/subpath'],
+      external: ["sharp", "mongodb", "@scope/runtime/subpath"],
     },
   },
-})
+});
 ```
 
 Every external must be a bare npm package specifier. Scoped packages and
@@ -149,13 +155,18 @@ typeferry test unit
 typeferry test integration
 typeferry test browser
 typeferry test unit --watch
+typeferry test unit -- server/example.unit.spec.ts
 ```
 
-| Project     | Discovery pattern          | Runtime behavior                                               |
-| ----------- | -------------------------- | -------------------------------------------------------------- |
-| Unit        | `*.unit.spec.ts(x)`        | Pure and non-DOM tests                                         |
-| Integration | `*.integration.spec.ts(x)` | Serial execution, decorator transform, configurable timeout    |
-| Browser     | `*.browser.spec.ts(x)`     | Headless Playwright browser with React and Tailwind transforms |
+| Project     | Discovery pattern          | Runtime behavior                                            |
+| ----------- | -------------------------- | ----------------------------------------------------------- |
+| Unit        | `*.unit.spec.ts(x)`        | Serial pure and non-DOM tests                               |
+| Integration | `*.integration.spec.ts(x)` | Serial execution, decorator transform, configurable timeout |
+| Browser     | `*.browser.spec.ts(x)`     | Serial Playwright browser tests with React and Tailwind     |
+
+The launcher sets `NODE_ENV=test` when the application has not supplied an
+explicit value, matching Vitest's CLI convention without replacing a custom
+test environment.
 
 Discovery covers `client/`, `common/`, `server/`, and `test/`. Add optional
 application setup in:
@@ -168,13 +179,17 @@ Import the test API through TypeFerry instead of depending on a hoisted
 transitive Vitest installation:
 
 ```ts
-import { describe, expect, it, vi } from 'typeferry/test'
+import { describe, expect, it, vi } from "typeferry/test";
 ```
 
 `typeferry/test` mirrors the Vitest version installed by TypeFerry. Those
 individual exports follow Vitest and do not receive an independent TypeFerry
 compatibility guarantee. Browser tests also expose Vitest globals; use the
 global `vi` when browser transformation cannot mock through the re-export.
+
+Arguments after `--` are forwarded to Vitest. Use this boundary for focused
+file filters and runner options; TypeFerry command options such as `--watch`
+must remain before it.
 
 Testing Library and other libraries imported directly by application tests
 remain application dependencies.
@@ -184,16 +199,20 @@ remain application dependencies.
 Create `typeferry.config.ts` only when a supported default must change:
 
 ```ts
-import { defineConfig } from 'typeferry/config'
+import { defineConfig } from "typeferry/config";
 
 export default defineConfig({
   development: {
     clientPort: 8000,
     serverPort: 8002,
-    serverEnvironmentFile: '.env.server',
+    serverEnvironmentFile: ".env.server",
+    proxyRoutes: [
+      { pathPrefix: "/api" },
+      { pathPrefix: "/assets", preserveHostHeader: true },
+    ],
   },
   build: {
-    target: 'es2023',
+    target: "es2023",
     sourceMaps: true,
     server: {
       external: [],
@@ -204,23 +223,60 @@ export default defineConfig({
       timeout: 30_000,
     },
     browser: {
-      browser: 'chromium',
+      browser: "chromium",
     },
   },
-})
+});
 ```
+
+The application-root `@/` alias is available while loading this file, so
+extensions can import application-owned helpers through the same stable paths
+used by client and server code.
 
 Supported browser values are `chromium`, `firefox`, and `webkit`. Configuration
 validation rejects unknown fields, invalid ports, empty strings, and
-non-positive timeouts. Server external lists additionally reject duplicates and
-non-package specifiers. The `DEVELOP_ENV_FILE` environment variable overrides
+non-positive timeouts. Application proxy prefixes must be non-root paths
+without queries, fragments, or trailing slashes. They default to the backend
+host header and no cookie rewriting; `preserveHostHeader` and
+`rewriteLocalhostCookies` opt into the corresponding behavior. Server external
+lists additionally reject duplicates and non-package specifiers. The
+`DEVELOP_ENV_FILE` environment variable overrides
 the default development environment file only when the configuration does not
 set `serverEnvironmentFile`.
 
 The configuration intentionally exposes high-level TypeFerry concepts rather
-than raw Vite, Vitest, or esbuild objects. If a required customization is not
-represented by the public type, it is not currently supported by the
-package-owned commands.
+than raw Vite, Vitest, or esbuild objects for conventional behavior. Complex
+applications can use the typed `extensions` callbacks as a deliberate escape
+hatch:
+
+```ts
+export default defineConfig({
+  extensions: {
+    vite: (config, { command }) => ({
+      ...config,
+      define: { __DEVELOPMENT__: JSON.stringify(command === "develop") },
+    }),
+    serverBuild: (options) => ({ ...options, external: ["mongodb"] }),
+    test: (config) => ({
+      ...config,
+      test: { ...config.test, reporters: ["default"] },
+    }),
+    afterBuild: async () => {
+      await writeApplicationOwnedArtifacts();
+    },
+  },
+});
+```
+
+Callbacks receive the complete framework configuration after defaults are
+applied and must return the complete replacement configuration. They may add
+plugins or tune application-specific behavior, but the application then owns
+the compatibility of every overridden field. `afterBuild` runs only after both
+client and server builds succeed. Prefer the high-level fields whenever they
+represent the requirement. The `test` callback receives all three named Vitest
+projects, so it can extend their reporters, timeouts, setup, transforms, and
+dependency optimization. TypeFerry disables file parallelism for every project
+by default; an application may explicitly override that policy in this callback.
 
 ## Migrate an existing application
 
@@ -268,9 +324,9 @@ they import directly.
 - **Browser test dependency is missing:** install every library imported by the
   test directly; TypeFerry supplies the runner and browser provider, not the
   complete application test stack.
-- **Raw Vite or Vitest options are needed:** the high-level configuration does
-  not accept them. Preserve the existing application-owned workflow and raise
-  the missing use case rather than relying on internals.
+- **Raw Vite, Vitest, or esbuild options are needed:** use the corresponding
+  typed `extensions` callback and retain the framework defaults that the
+  application still requires.
 
 The [application template](../../template/README.md) is the canonical runnable
 example. The [toolchain architecture](../architecture/application-framework-toolchain.md)

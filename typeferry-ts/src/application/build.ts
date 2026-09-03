@@ -25,4 +25,6 @@ export async function runBuild(
     buildClient(createViteConfig(config, 'build')),
     buildServer(createServerBuildOptions(config)),
   ])
+
+  await config.extensions.afterBuild?.()
 }

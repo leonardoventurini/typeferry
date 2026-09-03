@@ -6,6 +6,7 @@ export type CliArguments =
   | {
       readonly command: 'test'
       readonly project?: TestProjectName
+      readonly testArguments: readonly string[]
       readonly watch: boolean
     }
 
@@ -16,7 +17,7 @@ const TEST_PROJECTS = new Set<TestProjectName>([
 ])
 
 export const CLI_USAGE =
-  'Usage: typeferry <develop [-- server-args...]|build|test [unit|integration|browser] [--watch]>'
+  'Usage: typeferry <develop [-- server-args...]|build|test [unit|integration|browser] [--watch] [-- vitest-args...]>'
 
 export function parseCliArguments(arguments_: readonly string[]): CliArguments {
   const [command, ...rest] = arguments_
@@ -42,8 +43,13 @@ export function parseCliArguments(arguments_: readonly string[]): CliArguments {
 function parseTestArguments(arguments_: readonly string[]): CliArguments {
   let project: TestProjectName | undefined
   let watch = false
+  const separatorIndex = arguments_.indexOf('--')
+  const typeFerryArguments =
+    separatorIndex === -1 ? arguments_ : arguments_.slice(0, separatorIndex)
+  const testArguments =
+    separatorIndex === -1 ? [] : arguments_.slice(separatorIndex + 1)
 
-  for (const argument of arguments_) {
+  for (const argument of typeFerryArguments) {
     if (argument === '--watch') {
       watch = true
       continue
@@ -59,6 +65,6 @@ function parseTestArguments(arguments_: readonly string[]): CliArguments {
   }
 
   return project === undefined
-    ? { command: 'test', watch }
-    : { command: 'test', project, watch }
+    ? { command: 'test', testArguments, watch }
+    : { command: 'test', project, testArguments, watch }
 }

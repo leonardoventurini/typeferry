@@ -8,7 +8,25 @@ describe('application CLI arguments', () => {
     expect(parseCliArguments(['test', 'browser', '--watch'])).toEqual({
       command: 'test',
       project: 'browser',
+      testArguments: [],
       watch: true,
+    })
+    expect(
+      parseCliArguments([
+        'test',
+        'unit',
+        '--',
+        'server/example.unit.spec.ts',
+        '--testNamePattern=example',
+      ]),
+    ).toEqual({
+      command: 'test',
+      project: 'unit',
+      testArguments: [
+        'server/example.unit.spec.ts',
+        '--testNamePattern=example',
+      ],
+      watch: false,
     })
     expect(parseCliArguments(['develop', '--', '--seed'])).toEqual({
       command: 'develop',
@@ -21,5 +39,6 @@ describe('application CLI arguments', () => {
     expect(() => parseCliArguments(['test', 'e2e'])).toThrow(
       /Unknown test project/u,
     )
+    expect(() => parseCliArguments(['test', '--', '--watch'])).not.toThrow()
   })
 })
