@@ -20,6 +20,9 @@ TypeFerry implements one RPC, event, authentication, and serialization protocol 
 
 The TypeScript package is the only browser/client implementation. Python and Rust target server-side feature parity. Shared fixtures make behavior observable without requiring identical internal APIs.
 
+The proposed batteries-included TypeScript application workflow is described
+in the [application framework and toolchain proposal](application-framework-toolchain.md).
+
 ## Authority boundaries
 
 - Protocol envelopes, defaults, serialization tags, error codes, and transport semantics belong in [`PROTOCOL.md`](../../PROTOCOL.md).
