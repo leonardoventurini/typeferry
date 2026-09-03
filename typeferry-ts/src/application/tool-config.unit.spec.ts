@@ -40,14 +40,44 @@ describe('application tool configuration', () => {
     expect(projects).toHaveLength(3)
     expect(projects).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ test: expect.objectContaining({ name: 'unit' }) }),
         expect.objectContaining({
-          test: expect.objectContaining({ name: 'integration' }),
+          test: expect.objectContaining({ name: 'unit', fileParallelism: false }),
         }),
         expect.objectContaining({
-          test: expect.objectContaining({ name: 'browser' }),
+          test: expect.objectContaining({
+            name: 'integration',
+            fileParallelism: false,
+          }),
+        }),
+        expect.objectContaining({
+          test: expect.objectContaining({ name: 'browser', fileParallelism: false }),
         }),
       ]),
     )
+  })
+
+  it('applies typed application extensions after framework defaults', () => {
+    const extended = resolveApplicationConfig(ROOT, {
+      extensions: {
+        vite: viteConfig => ({
+          ...viteConfig,
+          define: { __APPLICATION__: JSON.stringify(true) },
+        }),
+        serverBuild: buildOptions => ({
+          ...buildOptions,
+          external: ['mongodb'],
+        }),
+        test: testConfig => ({
+          ...testConfig,
+          test: { ...testConfig.test, testTimeout: 12_000 },
+        }),
+      },
+    })
+
+    expect(createViteConfig(extended, 'build').define).toEqual({
+      __APPLICATION__: 'true',
+    })
+    expect(createServerBuildOptions(extended).external).toEqual(['mongodb'])
+    expect(createTestConfig(extended).test?.testTimeout).toBe(12_000)
   })
 })

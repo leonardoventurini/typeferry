@@ -21,7 +21,7 @@ export function createViteConfig(
     );
   }
 
-  return {
+  const viteConfig: InlineConfig = {
     configFile: false,
     root: path.join(config.root, config.paths.client),
     plugins,
@@ -56,4 +56,6 @@ export function createViteConfig(
       },
     },
   };
+
+  return config.extensions.vite?.(viteConfig, { command }) ?? viteConfig;
 }

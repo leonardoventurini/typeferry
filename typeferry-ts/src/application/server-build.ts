@@ -7,7 +7,7 @@ import type { ResolvedApplicationConfig } from './config'
 export function createServerBuildOptions(
   config: ResolvedApplicationConfig,
 ): BuildOptions {
-  return {
+  const buildOptions: BuildOptions = {
     bundle: true,
     entryPoints: [
       path.join(config.root, config.paths.server, 'index.ts'),
@@ -24,4 +24,6 @@ export function createServerBuildOptions(
     supported: { decorators: false },
     target: config.build.target,
   }
+
+  return config.extensions.serverBuild?.(buildOptions) ?? buildOptions
 }

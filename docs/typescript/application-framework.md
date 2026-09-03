@@ -127,9 +127,9 @@ typeferry test unit --watch
 
 | Project     | Discovery pattern          | Runtime behavior                                               |
 | ----------- | -------------------------- | -------------------------------------------------------------- |
-| Unit        | `*.unit.spec.ts(x)`        | Pure and non-DOM tests                                         |
+| Unit        | `*.unit.spec.ts(x)`        | Serial pure and non-DOM tests                                  |
 | Integration | `*.integration.spec.ts(x)` | Serial execution, decorator transform, configurable timeout    |
-| Browser     | `*.browser.spec.ts(x)`     | Headless Playwright browser with React and Tailwind transforms |
+| Browser     | `*.browser.spec.ts(x)`     | Serial Playwright browser tests with React and Tailwind         |
 
 Discovery covers `client/`, `common/`, `server/`, and `test/`. Add optional
 application setup in:
@@ -196,9 +196,35 @@ the default development environment file only when the configuration does not
 set `serverEnvironmentFile`.
 
 The configuration intentionally exposes high-level TypeFerry concepts rather
-than raw Vite, Vitest, or esbuild objects. If a required customization is not
-represented by the public type, it is not currently supported by the
-package-owned commands.
+than raw Vite, Vitest, or esbuild objects for conventional behavior. Complex
+applications can use the typed `extensions` callbacks as a deliberate escape
+hatch:
+
+```ts
+export default defineConfig({
+  extensions: {
+    vite: (config, { command }) => ({
+      ...config,
+      define: { __DEVELOPMENT__: JSON.stringify(command === 'develop') },
+    }),
+    serverBuild: options => ({ ...options, external: ['mongodb'] }),
+    test: config => ({ ...config, test: { ...config.test, reporters: ['default'] } }),
+    afterBuild: async () => {
+      await writeApplicationOwnedArtifacts()
+    },
+  },
+})
+```
+
+Callbacks receive the complete framework configuration after defaults are
+applied and must return the complete replacement configuration. They may add
+plugins or tune application-specific behavior, but the application then owns
+the compatibility of every overridden field. `afterBuild` runs only after both
+client and server builds succeed. Prefer the high-level fields whenever they
+represent the requirement. The `test` callback receives all three named Vitest
+projects, so it can extend their reporters, timeouts, setup, transforms, and
+dependency optimization. TypeFerry disables file parallelism for every project
+by default; an application may explicitly override that policy in this callback.
 
 ## Migrate an existing application
 
@@ -246,9 +272,9 @@ they import directly.
 - **Browser test dependency is missing:** install every library imported by the
   test directly; TypeFerry supplies the runner and browser provider, not the
   complete application test stack.
-- **Raw Vite or Vitest options are needed:** the high-level configuration does
-  not accept them. Preserve the existing application-owned workflow and raise
-  the missing use case rather than relying on internals.
+- **Raw Vite, Vitest, or esbuild options are needed:** use the corresponding
+  typed `extensions` callback and retain the framework defaults that the
+  application still requires.
 
 The [application template](../../template/README.md) is the canonical runnable
 example. The [toolchain architecture](../architecture/application-framework-toolchain.md)

@@ -76,4 +76,15 @@ describe("application configuration", () => {
       }),
     ).toThrow(/pathPrefix/u);
   });
+
+  it("preserves application tooling extension callbacks", () => {
+    const afterBuild = async (): Promise<void> => undefined;
+    const vite = (config: unknown): unknown => config;
+    const resolved = resolveApplicationConfig("/workspace/application", {
+      extensions: { afterBuild, vite },
+    });
+
+    expect(resolved.extensions.afterBuild).toBeTypeOf("function");
+    expect(resolved.extensions.vite?.({}, { command: "build" })).toEqual({});
+  });
 });

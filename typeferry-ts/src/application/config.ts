@@ -2,6 +2,8 @@ import { access } from "node:fs/promises";
 import path from "node:path";
 
 import { createJiti } from "jiti";
+import type { BuildOptions } from "esbuild";
+import type { InlineConfig } from "vite";
 import { z } from "zod";
 
 export type BrowserName = "chromium" | "firefox" | "webkit";
@@ -18,7 +20,18 @@ export interface ResolvedDevelopmentProxyRoute {
   readonly rewriteLocalhostCookies: boolean;
 }
 
+export interface ApplicationToolingExtensions {
+  readonly vite?: (
+    config: InlineConfig,
+    context: { readonly command: "develop" | "build" },
+  ) => InlineConfig;
+  readonly serverBuild?: (options: BuildOptions) => BuildOptions;
+  readonly test?: (config: InlineConfig) => InlineConfig;
+  readonly afterBuild?: () => void | Promise<void>;
+}
+
 export interface TypeFerryConfig {
+  readonly extensions?: ApplicationToolingExtensions;
   readonly development?: {
     readonly clientPort?: number;
     readonly serverPort?: number;
@@ -66,6 +79,7 @@ export interface ResolvedApplicationConfig {
       readonly browser: BrowserName;
     };
   };
+  readonly extensions: ApplicationToolingExtensions;
 }
 
 const browserNameSchema = z.enum(["chromium", "firefox", "webkit"]);
@@ -81,8 +95,17 @@ const proxyRouteSchema = z
     rewriteLocalhostCookies: z.boolean().optional(),
   })
   .strict();
+const extensionsSchema = z
+  .object({
+    vite: z.function().optional(),
+    serverBuild: z.function().optional(),
+    test: z.function().optional(),
+    afterBuild: z.function().optional(),
+  })
+  .strict();
 const configSchema = z
   .object({
+    extensions: extensionsSchema.optional(),
     development: z
       .object({
         clientPort: positivePortSchema.optional(),
@@ -158,6 +181,7 @@ export const DEFAULT_APPLICATION_CONFIG = {
     integration: { timeout: 30_000 },
     browser: { browser: "chromium" as BrowserName },
   },
+  extensions: {},
 } as const;
 
 /** Provides contextual typing without transforming application configuration. */
@@ -169,7 +193,7 @@ export function resolveApplicationConfig(
   root: string,
   input: unknown = {},
 ): ResolvedApplicationConfig {
-  const config = configSchema.parse(input);
+  const config = configSchema.parse(input) as TypeFerryConfig;
 
   return {
     root: path.resolve(root),
@@ -200,6 +224,7 @@ export function resolveApplicationConfig(
         ...config.test?.browser,
       },
     },
+    extensions: config.extensions ?? {},
   };
 }
 
@@ -216,7 +241,7 @@ export async function loadApplicationConfig(
 
   const jiti = createJiti(import.meta.url, { interopDefault: true });
   const loaded: unknown = await jiti.import(configPath, { default: true });
-  const parsed = configSchema.parse(loaded);
+  const parsed = configSchema.parse(loaded) as TypeFerryConfig;
   return resolveApplicationConfig(root, withEnvironmentFile(parsed));
 }
 

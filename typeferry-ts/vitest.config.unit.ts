@@ -8,7 +8,7 @@ export default defineConfig({
   test: {
     include: ['src/**/*.unit.spec.ts', 'src/**/*.unit.spec.tsx'],
     testTimeout: 10000,
-    fileParallelism: true,
+    fileParallelism: false,
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts', 'src/**/*.tsx'],
