@@ -1,6 +1,6 @@
 {
   "name": "typeferry",
-  "version": "0.7.4",
+  "version": "0.7.5",
   "description": "Type-safe real-time RPC framework for TypeScript",
   "type": "module",
   "sideEffects": false,

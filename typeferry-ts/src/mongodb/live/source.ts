@@ -215,7 +215,7 @@ export function readLiveId(value: unknown): MongoLiveSourceId | null {
   if (
     value &&
     typeof value === 'object' &&
-    value.constructor.name === 'ObjectId' &&
+    (value as { readonly _bsontype?: unknown })._bsontype === 'ObjectId' &&
     typeof (value as { toHexString?: unknown }).toHexString === 'function'
   ) {
     return value as MongoLiveSourceId

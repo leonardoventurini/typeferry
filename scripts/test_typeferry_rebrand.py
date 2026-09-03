@@ -12,7 +12,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 LEGACY_BRAND = "bi" + "frost"
 PUBLIC_TYPESCRIPT_NAME = "typeferry"
-PUBLIC_TYPESCRIPT_RANGE = "^0.7.3"
+PUBLIC_TYPESCRIPT_RANGE = "^0.7.4"
 TEMPORARY_PYTHON_NAME = "typeferry-py"
 
 
@@ -38,7 +38,7 @@ class TypeFerryRebrandTest(unittest.TestCase):
             (REPO_ROOT / "typeferry-ts/package.json").read_text(encoding="utf-8")
         )
         self.assertEqual(PUBLIC_TYPESCRIPT_NAME, package_json["name"])
-        self.assertEqual("0.7.4", package_json["version"])
+        self.assertEqual("0.7.5", package_json["version"])
         self.assertEqual(">=24.19.0 <27", package_json["engines"]["node"])
         self.assertNotIn("private", package_json)
         self.assertEqual(
@@ -87,7 +87,7 @@ class TypeFerryRebrandTest(unittest.TestCase):
     def test_release_docs_keep_non_typescript_publication_disabled(self) -> None:
         release_docs = (REPO_ROOT / "RELEASING.md").read_text(encoding="utf-8")
 
-        self.assertIn("`0.7.3` (published); `0.7.4` (candidate)", release_docs)
+        self.assertIn("`0.7.4` (published); `0.7.5` (candidate)", release_docs)
         self.assertIn("Python and Rust publication remains disabled", release_docs)
         self.assertIn("No GitHub release is created", release_docs)
 

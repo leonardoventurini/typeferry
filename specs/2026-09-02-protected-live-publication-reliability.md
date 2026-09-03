@@ -15,12 +15,21 @@ directly against a replica-set test database, which narrows the uncovered
 boundary to real transport authentication/lifecycle behavior rather than its
 filter, projection, or ordered-window definition.
 
+Post-release reproduction with `0.7.4` reached the initial snapshot and failed
+while validating a native BSON ObjectId. The production bundle contained
+independently bundled BSON constructors, and the constructor-name heuristic did
+not survive bundler symbol rewriting even though `_bsontype` and `toHexString`
+retained the BSON ObjectId contract.
+
 ## Desired outcome and scope
 
 TypeFerry `0.7.4` must reliably establish protected MongoDB live publications
 through an authenticated WebSocket connection and recover them across the
 supported connection lifecycle. The fix remains inside the TypeScript client,
 server, or MongoDB live extension and preserves the current wire protocol.
+
+Because `0.7.4` was published before the bundled-runtime failure was observed,
+the BSON compatibility follow-up ships as `0.7.5`.
 
 Out of scope:
 
@@ -78,11 +87,21 @@ requires no migration.
 - [x] Run lint, typecheck, all tests, build, audit, and package verification.
 - [x] Pack the candidate and validate it from VitaFlow.
 - [x] Commit, create annotated tag `v0.7.4`, and push commit plus tag.
+- [x] Confirm the operator-published `typeferry@0.7.4` artifact and update the
+      application template to consume it.
+- [x] Reproduce the remaining VitaFlow failure and capture its internal stack
+      without weakening sensitive-method telemetry.
+- [x] Add a failing unit regression for an ObjectId from another bundle.
+- [x] Recognize the stable BSON ObjectId discriminator instead of constructor
+      identity.
+- [x] Validate a packed `0.7.5` candidate through VitaFlow's full gate.
+- [ ] Commit, tag `v0.7.5`, and push the corrected release candidate.
 
 ## Direct rollout and verification
 
 The fix ships directly in `0.7.4`; no flag or migration is needed. Acceptance
 requires an authenticated real-server snapshot, post-write delta delivery,
 connection lifecycle recovery, all TypeFerry gates, package inspection, and a
-successful VitaFlow-owned candidate verification. The npm upload remains a
-manual follow-up outside this task.
+successful VitaFlow-owned candidate verification. The operator published
+`0.7.4` manually, and its registry integrity matches that candidate; the
+bundled BSON correction requires the subsequent `0.7.5` release.

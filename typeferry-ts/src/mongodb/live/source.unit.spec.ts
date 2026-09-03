@@ -6,7 +6,7 @@ import type {
 } from 'mongodb'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { MongoLiveCollectionSource } from './source'
+import { MongoLiveCollectionSource, readLiveId } from './source'
 
 interface Deferred<T> {
   readonly promise: Promise<T>
@@ -46,6 +46,21 @@ afterEach(() => {
 })
 
 describe('MongoLiveCollectionSource', () => {
+  it('recognizes ObjectIds produced by another bundled BSON constructor', () => {
+    const hex = 'a'.repeat(24)
+    const bundledObjectId = {
+      _bsontype: 'ObjectId',
+      toHexString: () => hex,
+    }
+
+    const id = readLiveId(bundledObjectId)
+    if (!id || typeof id !== 'object') {
+      throw new Error('Expected a BSON ObjectId source identifier.')
+    }
+
+    expect(id.toHexString()).toBe(hex)
+  })
+
   it('allows a clean retry after initial stream establishment fails', async () => {
     const streams = [
       new FakeStream(new Error('replica unavailable')),
