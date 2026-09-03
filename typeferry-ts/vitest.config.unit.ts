@@ -1,7 +1,20 @@
 import path from 'path'
+
+import { babel } from '@rollup/plugin-babel'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
+  plugins: [
+    babel({
+      babelHelpers: 'bundled',
+      babelrc: false,
+      configFile: false,
+      extensions: ['.ts', '.tsx'],
+      plugins: [
+        ['@babel/plugin-proposal-decorators', { version: '2023-11' }],
+      ],
+    }),
+  ],
   test: {
     include: ['src/**/*.unit.spec.ts', 'src/**/*.unit.spec.tsx'],
     testTimeout: 10000,
