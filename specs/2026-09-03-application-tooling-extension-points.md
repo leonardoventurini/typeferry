@@ -55,7 +55,7 @@ linked artifact. Publication and pushing remain manual operator actions.
 
 - [ ] Add failing unit tests for every required extension and invariant.
 - [ ] Implement typed configuration and composition.
-- [ ] Add proxy route coverage including path-segment boundaries and cookies.
+- [x] Add proxy route coverage including path-segment boundaries and cookies.
 - [ ] Update the application framework guide and template-facing guidance.
 - [ ] Run affected unit tests, lint, typecheck, all split tests, build, pack
       dry-run, and audit.

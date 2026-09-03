@@ -1,61 +1,86 @@
-import { access } from 'node:fs/promises'
-import path from 'node:path'
+import { access } from "node:fs/promises";
+import path from "node:path";
 
-import { createJiti } from 'jiti'
-import { z } from 'zod'
+import { createJiti } from "jiti";
+import { z } from "zod";
 
-export type BrowserName = 'chromium' | 'firefox' | 'webkit'
+export type BrowserName = "chromium" | "firefox" | "webkit";
+
+export interface DevelopmentProxyRoute {
+  readonly pathPrefix: string;
+  readonly preserveHostHeader?: boolean;
+  readonly rewriteLocalhostCookies?: boolean;
+}
+
+export interface ResolvedDevelopmentProxyRoute {
+  readonly pathPrefix: string;
+  readonly preserveHostHeader: boolean;
+  readonly rewriteLocalhostCookies: boolean;
+}
 
 export interface TypeFerryConfig {
   readonly development?: {
-    readonly clientPort?: number
-    readonly serverPort?: number
-    readonly serverEnvironmentFile?: string
-  }
+    readonly clientPort?: number;
+    readonly serverPort?: number;
+    readonly serverEnvironmentFile?: string;
+    readonly proxyRoutes?: readonly DevelopmentProxyRoute[];
+  };
   readonly build?: {
-    readonly target?: string
-    readonly sourceMaps?: boolean
-  }
+    readonly target?: string;
+    readonly sourceMaps?: boolean;
+  };
   readonly test?: {
     readonly integration?: {
-      readonly timeout?: number
-    }
+      readonly timeout?: number;
+    };
     readonly browser?: {
-      readonly browser?: BrowserName
-    }
-  }
+      readonly browser?: BrowserName;
+    };
+  };
 }
 
 export interface ResolvedApplicationConfig {
-  readonly root: string
+  readonly root: string;
   readonly paths: {
-    readonly client: string
-    readonly common: string
-    readonly server: string
-    readonly tests: string
-    readonly output: string
-  }
+    readonly client: string;
+    readonly common: string;
+    readonly server: string;
+    readonly tests: string;
+    readonly output: string;
+  };
   readonly development: {
-    readonly clientPort: number
-    readonly serverPort: number
-    readonly serverEnvironmentFile: string
-  }
+    readonly clientPort: number;
+    readonly serverPort: number;
+    readonly serverEnvironmentFile: string;
+    readonly proxyRoutes: readonly ResolvedDevelopmentProxyRoute[];
+  };
   readonly build: {
-    readonly target: string
-    readonly sourceMaps: boolean
-  }
+    readonly target: string;
+    readonly sourceMaps: boolean;
+  };
   readonly test: {
     readonly integration: {
-      readonly timeout: number
-    }
+      readonly timeout: number;
+    };
     readonly browser: {
-      readonly browser: BrowserName
-    }
-  }
+      readonly browser: BrowserName;
+    };
+  };
 }
 
-const browserNameSchema = z.enum(['chromium', 'firefox', 'webkit'])
-const positivePortSchema = z.number().int().min(1).max(65_535)
+const browserNameSchema = z.enum(["chromium", "firefox", "webkit"]);
+const positivePortSchema = z.number().int().min(1).max(65_535);
+const proxyPathPrefixSchema = z.string().regex(/^\/(?!$)[^?#]*[^/]$/u, {
+  error:
+    "pathPrefix must be a non-root path without a query, fragment, or trailing slash",
+});
+const proxyRouteSchema = z
+  .object({
+    pathPrefix: proxyPathPrefixSchema,
+    preserveHostHeader: z.boolean().optional(),
+    rewriteLocalhostCookies: z.boolean().optional(),
+  })
+  .strict();
 const configSchema = z
   .object({
     development: z
@@ -63,6 +88,7 @@ const configSchema = z
         clientPort: positivePortSchema.optional(),
         serverPort: positivePortSchema.optional(),
         serverEnvironmentFile: z.string().min(1).optional(),
+        proxyRoutes: z.array(proxyRouteSchema).optional(),
       })
       .strict()
       .optional(),
@@ -87,41 +113,63 @@ const configSchema = z
       .strict()
       .optional(),
   })
-  .strict()
+  .strict();
 
 export const DEFAULT_APPLICATION_CONFIG = {
   paths: {
-    client: 'client',
-    common: 'common',
-    server: 'server',
-    tests: 'test',
-    output: 'dist',
+    client: "client",
+    common: "common",
+    server: "server",
+    tests: "test",
+    output: "dist",
   },
   development: {
     clientPort: 8000,
     serverPort: 8002,
-    serverEnvironmentFile: '.env.server',
+    serverEnvironmentFile: ".env.server",
+    proxyRoutes: [
+      {
+        pathPrefix: "/.well-known",
+        preserveHostHeader: true,
+        rewriteLocalhostCookies: false,
+      },
+      {
+        pathPrefix: "/mcp",
+        preserveHostHeader: true,
+        rewriteLocalhostCookies: false,
+      },
+      {
+        pathPrefix: "/oauth",
+        preserveHostHeader: true,
+        rewriteLocalhostCookies: false,
+      },
+      {
+        pathPrefix: "/__h",
+        preserveHostHeader: true,
+        rewriteLocalhostCookies: true,
+      },
+    ],
   },
   build: {
-    target: 'es2023',
+    target: "es2023",
     sourceMaps: true,
   },
   test: {
     integration: { timeout: 30_000 },
-    browser: { browser: 'chromium' as BrowserName },
+    browser: { browser: "chromium" as BrowserName },
   },
-} as const
+} as const;
 
 /** Provides contextual typing without transforming application configuration. */
 export function defineConfig(config: TypeFerryConfig): TypeFerryConfig {
-  return config
+  return config;
 }
 
 export function resolveApplicationConfig(
   root: string,
   input: unknown = {},
 ): ResolvedApplicationConfig {
-  const config = configSchema.parse(input)
+  const config = configSchema.parse(input);
 
   return {
     root: path.resolve(root),
@@ -129,6 +177,14 @@ export function resolveApplicationConfig(
     development: {
       ...DEFAULT_APPLICATION_CONFIG.development,
       ...config.development,
+      proxyRoutes: [
+        ...DEFAULT_APPLICATION_CONFIG.development.proxyRoutes,
+        ...(config.development?.proxyRoutes ?? []).map((route) => ({
+          preserveHostHeader: false,
+          rewriteLocalhostCookies: false,
+          ...route,
+        })),
+      ],
     },
     build: {
       ...DEFAULT_APPLICATION_CONFIG.build,
@@ -144,39 +200,39 @@ export function resolveApplicationConfig(
         ...config.test?.browser,
       },
     },
-  }
+  };
 }
 
 export async function loadApplicationConfig(
   root: string,
 ): Promise<ResolvedApplicationConfig> {
-  const configPath = path.join(root, 'typeferry.config.ts')
+  const configPath = path.join(root, "typeferry.config.ts");
 
   try {
-    await access(configPath)
+    await access(configPath);
   } catch {
-    return resolveApplicationConfig(root, withEnvironmentFile({}))
+    return resolveApplicationConfig(root, withEnvironmentFile({}));
   }
 
-  const jiti = createJiti(import.meta.url, { interopDefault: true })
-  const loaded: unknown = await jiti.import(configPath, { default: true })
-  const parsed = configSchema.parse(loaded)
-  return resolveApplicationConfig(root, withEnvironmentFile(parsed))
+  const jiti = createJiti(import.meta.url, { interopDefault: true });
+  const loaded: unknown = await jiti.import(configPath, { default: true });
+  const parsed = configSchema.parse(loaded);
+  return resolveApplicationConfig(root, withEnvironmentFile(parsed));
 }
 
 function withEnvironmentFile(config: TypeFerryConfig): TypeFerryConfig {
   if (
     config.development?.serverEnvironmentFile !== undefined ||
-    process.env['DEVELOP_ENV_FILE'] === undefined
+    process.env["DEVELOP_ENV_FILE"] === undefined
   ) {
-    return config
+    return config;
   }
 
   return {
     ...config,
     development: {
       ...config.development,
-      serverEnvironmentFile: process.env['DEVELOP_ENV_FILE'],
+      serverEnvironmentFile: process.env["DEVELOP_ENV_FILE"],
     },
-  }
+  };
 }

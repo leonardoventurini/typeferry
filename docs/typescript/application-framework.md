@@ -74,6 +74,12 @@ typeferry develop -- --seed
 
 Arguments placed before `--` are rejected.
 
+The development server proxies TypeFerry's `/__h`, `/oauth`, `/mcp`, and
+`/.well-known` routes automatically. Matching uses complete path segments, so
+`/mcp` and `/mcp/...` reach the backend while `/mcp-tools` remains a client
+route. The browser-visible host is preserved for protocol and authorization
+metadata, and `/__h` cookies are normalized for the localhost origin.
+
 ## Build
 
 ```sh
@@ -159,6 +165,10 @@ export default defineConfig({
     clientPort: 8000,
     serverPort: 8002,
     serverEnvironmentFile: '.env.server',
+    proxyRoutes: [
+      { pathPrefix: '/api' },
+      { pathPrefix: '/assets', preserveHostHeader: true },
+    ],
   },
   build: {
     target: 'es2023',
@@ -177,7 +187,11 @@ export default defineConfig({
 
 Supported browser values are `chromium`, `firefox`, and `webkit`. Configuration
 validation rejects unknown fields, invalid ports, empty strings, and
-non-positive timeouts. The `DEVELOP_ENV_FILE` environment variable overrides
+non-positive timeouts. Application proxy prefixes must be non-root paths
+without queries, fragments, or trailing slashes. They default to the backend
+host header and no cookie rewriting; `preserveHostHeader` and
+`rewriteLocalhostCookies` opt into the corresponding behavior. The
+`DEVELOP_ENV_FILE` environment variable overrides
 the default development environment file only when the configuration does not
 set `serverEnvironmentFile`.
 
