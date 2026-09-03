@@ -105,7 +105,7 @@ export default defineConfig({
       and Docker/pruned-install behavior.
 - [x] Package version, lockfile, changelog, and release status identify the
       unpublished `0.9.0` candidate.
-- [ ] Unit, integration, browser, lint, typecheck, build, pack inspection, and
+- [x] Unit, integration, browser, lint, typecheck, build, pack inspection, and
       the repository npm release gate pass.
 
 ## Risks
@@ -144,4 +144,4 @@ passes, hand the clean `0.9.0` candidate to the package owner for
 - [x] Update framework and deployment documentation.
 - [x] Record the architectural decision.
 - [x] Bump the package candidate to `0.9.0` and update release documentation.
-- [ ] Run focused and complete release verification.
+- [x] Run focused and complete release verification.
