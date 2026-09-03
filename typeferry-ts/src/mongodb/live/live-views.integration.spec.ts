@@ -1,103 +1,91 @@
-import { ObjectId } from 'mongodb'
-import NodeWebSocket from 'ws'
-import { z } from 'zod'
-import {
-  afterAll,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-} from 'vitest'
+import { ObjectId } from "mongodb";
+import NodeWebSocket from "ws";
+import { z } from "zod";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { Client } from '../../client'
-import { Server } from '../../server'
-import { ClientEvents, ServerEvents } from '../../utils'
-import { MongoCollection } from '../decorators'
-import {
-  createTypeFerryMongo,
-  typedMongoCollection,
-} from '../index'
-import type { MongoIntegrationHarness } from '../test/mongodb-test-utility'
-import { createMongoIntegrationHarness } from '../test/mongodb-test-utility'
-import { createMongoLiveView } from './client'
-import { defineMongoLivePublication } from './publication'
-import {
-  mongoLivePublication,
-  type MongoLiveClientDocument,
-} from './types'
+import { Client } from "../../client";
+import { Server } from "../../server";
+import { ClientEvents, ServerEvents } from "../../utils";
+import { MongoCollection } from "../decorators";
+import { createTypeFerryMongo, typedMongoCollection } from "../index";
+import type { MongoIntegrationHarness } from "../test/mongodb-test-utility";
+import { createMongoIntegrationHarness } from "../test/mongodb-test-utility";
+import { createMongoLiveView } from "./client";
+import { defineMongoLivePublication } from "./publication";
+import { mongoLivePublication, type MongoLiveClientDocument } from "./types";
 
 interface Board {
-  _id: ObjectId
-  owner: string
-  name: string
-  secret: string
+  _id: ObjectId;
+  owner: string;
+  name: string;
+  secret: string;
 }
 
 interface BoardFields {
-  readonly name: string
+  readonly name: string;
 }
 
-type ClientBoard = MongoLiveClientDocument<BoardFields>
+type ClientBoard = MongoLiveClientDocument<BoardFields>;
 
 interface OrderedBoard extends Board {
-  score: number
+  score: number;
 }
 
 interface OrderedBoardFields {
-  readonly name: string
-  readonly score: number
+  readonly name: string;
+  readonly score: number;
 }
 
-type ClientOrderedBoard = MongoLiveClientDocument<OrderedBoardFields>
+type ClientOrderedBoard = MongoLiveClientDocument<OrderedBoardFields>;
 
 const boardsDescriptor = mongoLivePublication<
   { readonly owner: string },
   ClientBoard
->()('boards.mine')
+>()("boards.mine");
 
 const orderedBoardsDescriptor = mongoLivePublication<
   { readonly owner: string },
   ClientOrderedBoard
->()('boards.ordered')
+>()("boards.ordered");
 
-describe('MongoDB live views integration', () => {
-  let harness: MongoIntegrationHarness
+describe("MongoDB live views integration", () => {
+  let harness: MongoIntegrationHarness | undefined;
 
   beforeAll(async () => {
-    harness = await createMongoIntegrationHarness('live-views.integration.spec')
-  })
+    harness = await createMongoIntegrationHarness(
+      "live-views.integration.spec",
+    );
+  });
 
   beforeEach(async () => {
-    await harness.reset()
-  })
+    if (!harness) throw new Error("MongoDB integration harness is unavailable");
+    await harness.reset();
+  });
 
   afterAll(async () => {
-    await harness.close()
-  })
+    await harness?.close();
+  });
 
-  it('materializes snapshot and membership transitions over TypeFerry', async () => {
+  it("materializes snapshot and membership transitions over TypeFerry", async () => {
     if (!(await harness.supportsChangeStreams())) {
       if (process.env.CI) {
         throw new Error(
-          'MongoDB live-view integration requires a replica set in CI.',
-        )
+          "MongoDB live-view integration requires a replica set in CI.",
+        );
       }
       console.warn(
-        '[TypeFerry MongoDB] Skipping live-view integration: local MongoDB is not a replica set.',
-      )
-      return
+        "[TypeFerry MongoDB] Skipping live-view integration: local MongoDB is not a replica set.",
+      );
+      return;
     }
 
-    globalThis.WebSocket = NodeWebSocket as unknown as typeof WebSocket
-    const collectionName = harness.collectionName('boards')
+    globalThis.WebSocket = NodeWebSocket as unknown as typeof WebSocket;
+    const collectionName = harness.collectionName("boards");
 
     @MongoCollection(collectionName)
     class BoardsCollectionDefinition {}
 
-    const BoardsToken = typedMongoCollection<Board>(
-      BoardsCollectionDefinition,
-    )
+    const BoardsToken = typedMongoCollection<Board>(BoardsCollectionDefinition);
     const publication = defineMongoLivePublication(boardsDescriptor, {
       collection: BoardsToken,
       args: z.object({ owner: z.string() }),
@@ -106,210 +94,212 @@ describe('MongoDB live views integration', () => {
         owner: args.owner,
       }),
       filter: (scope: { readonly owner: string }) => ({ owner: scope.owner }),
-      project: document => ({ name: document.name }),
-    })
+      project: (document) => ({ name: document.name }),
+    });
 
-    const server = await createServer()
+    const server = await createServer();
     const mongo = await createTypeFerryMongo({
       db: harness.db,
       server,
       collections: [BoardsToken],
       live: { publications: [publication] },
-    })
-    const Boards = mongo.collection(BoardsToken)
+    });
+    const Boards = mongo.collection(BoardsToken);
     const initial = {
       _id: new ObjectId(),
-      owner: 'owner-1',
-      name: 'Initial',
-      secret: 'never publish',
-    }
-    await Boards.insertOne(initial)
+      owner: "owner-1",
+      name: "Initial",
+      secret: "never publish",
+    };
+    await Boards.insertOne(initial);
 
-    const client = await createClient(server.port)
+    const client = await createClient(server.port);
     const view = createMongoLiveView({
       client,
       publication: boardsDescriptor,
-      args: { owner: 'owner-1' },
-    })
+      args: { owner: "owner-1" },
+    });
 
     try {
-      await view.start()
+      await view.start();
       expect(view.getSnapshot()).toMatchObject({
-        status: 'ready',
+        status: "ready",
         documents: [
-          { _id: { $objectId: initial._id.toHexString() }, name: 'Initial' },
+          { _id: { $objectId: initial._id.toHexString() }, name: "Initial" },
         ],
-      })
-      expect(view.getSnapshot().documents[0]).not.toHaveProperty('secret')
+      });
+      expect(view.getSnapshot().documents[0]).not.toHaveProperty("secret");
 
       const inserted = {
         _id: new ObjectId(),
-        owner: 'owner-1',
-        name: 'Added',
-        secret: 'hidden',
-      }
-      await Boards.insertOne(inserted)
-      await waitFor(() => view.getSnapshot().documents.length === 2)
+        owner: "owner-1",
+        name: "Added",
+        secret: "hidden",
+      };
+      await Boards.insertOne(inserted);
+      await waitFor(() => view.getSnapshot().documents.length === 2);
 
       await Boards.updateOne(
         { _id: inserted._id },
-        { $set: { name: 'Changed' } },
-      )
-      await waitFor(
-        () =>
-          view
-            .getSnapshot()
-            .documents.some(document => document.name === 'Changed'),
-      )
+        { $set: { name: "Changed" } },
+      );
+      await waitFor(() =>
+        view
+          .getSnapshot()
+          .documents.some((document) => document.name === "Changed"),
+      );
 
       await Boards.updateOne(
         { _id: inserted._id },
-        { $set: { owner: 'owner-2' } },
-      )
-      await waitFor(() => view.getSnapshot().documents.length === 1)
+        { $set: { owner: "owner-2" } },
+      );
+      await waitFor(() => view.getSnapshot().documents.length === 1);
 
-      await Boards.deleteOne({ _id: initial._id })
-      await waitFor(() => view.getSnapshot().documents.length === 0)
+      await Boards.deleteOne({ _id: initial._id });
+      await waitFor(() => view.getSnapshot().documents.length === 0);
     } finally {
-      await view.stop()
-      await client.close()
-      await mongo.close()
-      await server.close()
+      await view.stop();
+      await client.close();
+      await mongo.close();
+      await server.close();
     }
-  })
+  });
 
-  it('restarts a protected subscription interrupted by client reconnection', async () => {
+  it("restarts a protected subscription interrupted by client reconnection", async () => {
     if (!(await harness.supportsChangeStreams())) {
       if (process.env.CI) {
         throw new Error(
-          'MongoDB protected live-view integration requires a replica set in CI.',
-        )
+          "MongoDB protected live-view integration requires a replica set in CI.",
+        );
       }
       console.warn(
-        '[TypeFerry MongoDB] Skipping protected live-view integration: local MongoDB is not a replica set.',
-      )
-      return
+        "[TypeFerry MongoDB] Skipping protected live-view integration: local MongoDB is not a replica set.",
+      );
+      return;
     }
 
-    globalThis.WebSocket = NodeWebSocket as unknown as typeof WebSocket
-    const collectionName = harness.collectionName('protected_boards')
+    globalThis.WebSocket = NodeWebSocket as unknown as typeof WebSocket;
+    const collectionName = harness.collectionName("protected_boards");
 
     @MongoCollection(collectionName)
     class ProtectedBoardsCollectionDefinition {}
 
     const BoardsToken = typedMongoCollection<Board>(
       ProtectedBoardsCollectionDefinition,
-    )
-    let authorizationCalls = 0
-    let releaseFirstAuthorization: (() => void) | null = null
-    let signalFirstAuthorization: (() => void) | null = null
-    const firstAuthorizationGate = new Promise<void>(resolve => {
-      releaseFirstAuthorization = resolve
-    })
-    const firstAuthorizationStarted = new Promise<void>(resolve => {
-      signalFirstAuthorization = resolve
-    })
+    );
+    let authorizationCalls = 0;
+    let releaseFirstAuthorization: (() => void) | null = null;
+    let signalFirstAuthorization: (() => void) | null = null;
+    const firstAuthorizationGate = new Promise<void>((resolve) => {
+      releaseFirstAuthorization = resolve;
+    });
+    const firstAuthorizationStarted = new Promise<void>((resolve) => {
+      signalFirstAuthorization = resolve;
+    });
     const publication = defineMongoLivePublication(boardsDescriptor, {
       collection: BoardsToken,
       args: z.object({ owner: z.string() }),
-      authorize: async (_context, args): Promise<{ readonly owner: string }> => {
-        authorizationCalls += 1
+      authorize: async (
+        _context,
+        args,
+      ): Promise<{ readonly owner: string }> => {
+        authorizationCalls += 1;
         if (authorizationCalls === 1) {
-          signalFirstAuthorization?.()
-          await firstAuthorizationGate
+          signalFirstAuthorization?.();
+          await firstAuthorizationGate;
         }
-        return { owner: args.owner }
+        return { owner: args.owner };
       },
       filter: (scope: { readonly owner: string }) => ({ owner: scope.owner }),
-      project: document => ({ name: document.name }),
-    })
+      project: (document) => ({ name: document.name }),
+    });
 
-    const server = await createServer()
+    const server = await createServer();
     server.setAuth({
-      auth: async context =>
-        context.token === 'test-token'
-          ? { user: { _id: 'administrator' } }
+      auth: async (context) =>
+        context.token === "test-token"
+          ? { user: { _id: "administrator" } }
           : false,
       logIn: async () => false,
-    })
+    });
     const mongo = await createTypeFerryMongo({
       db: harness.db,
       server,
       collections: [BoardsToken],
       live: { publications: [publication] },
-    })
-    const Boards = mongo.collection(BoardsToken)
-    const client = await createClient(server.port, { token: 'test-token' })
+    });
+    const Boards = mongo.collection(BoardsToken);
+    const client = await createClient(server.port, { token: "test-token" });
     const view = createMongoLiveView({
       client,
       publication: boardsDescriptor,
-      args: { owner: 'owner-1' },
-    })
+      args: { owner: "owner-1" },
+    });
 
     try {
-      const starting = view.start()
-      await firstAuthorizationStarted
-      const reinitialized = new Promise<void>(resolve => {
-        client.once(ClientEvents.INITIALIZED, () => resolve())
-      })
+      const starting = view.start();
+      await firstAuthorizationStarted;
+      const reinitialized = new Promise<void>((resolve) => {
+        client.once(ClientEvents.INITIALIZED, () => resolve());
+      });
 
-      client.reconnect()
-      await reinitialized
-      await waitFor(() => authorizationCalls === 2)
-      releaseFirstAuthorization?.()
-      await starting
-      await waitFor(() => view.getSnapshot().status === 'ready')
+      client.reconnect();
+      await reinitialized;
+      await waitFor(() => authorizationCalls === 2);
+      releaseFirstAuthorization?.();
+      await starting;
+      await waitFor(() => view.getSnapshot().status === "ready");
 
       await Boards.insertOne({
         _id: new ObjectId(),
-        owner: 'owner-1',
-        name: 'After reconnect',
-        secret: 'hidden',
-      })
-      await waitFor(() => view.getSnapshot().documents.length === 1)
+        owner: "owner-1",
+        name: "After reconnect",
+        secret: "hidden",
+      });
+      await waitFor(() => view.getSnapshot().documents.length === 1);
       expect(view.getSnapshot()).toMatchObject({
-        status: 'ready',
-        documents: [expect.objectContaining({ name: 'After reconnect' })],
-      })
+        status: "ready",
+        documents: [expect.objectContaining({ name: "After reconnect" })],
+      });
     } finally {
-      releaseFirstAuthorization?.()
-      await view.stop()
-      await client.close()
-      await mongo.close()
-      await server.close()
+      releaseFirstAuthorization?.();
+      await view.stop();
+      await client.close();
+      await mongo.close();
+      await server.close();
     }
-  })
+  });
 
-  it('replays a matching write that lands while the snapshot is projecting', async () => {
+  it("replays a matching write that lands while the snapshot is projecting", async () => {
     if (!(await harness.supportsChangeStreams())) {
       if (process.env.CI) {
         throw new Error(
-          'MongoDB live-view handoff integration requires a replica set in CI.',
-        )
+          "MongoDB live-view handoff integration requires a replica set in CI.",
+        );
       }
       console.warn(
-        '[TypeFerry MongoDB] Skipping live-view handoff integration: local MongoDB is not a replica set.',
-      )
-      return
+        "[TypeFerry MongoDB] Skipping live-view handoff integration: local MongoDB is not a replica set.",
+      );
+      return;
     }
 
-    globalThis.WebSocket = NodeWebSocket as unknown as typeof WebSocket
-    const collectionName = harness.collectionName('handoff_boards')
+    globalThis.WebSocket = NodeWebSocket as unknown as typeof WebSocket;
+    const collectionName = harness.collectionName("handoff_boards");
 
     @MongoCollection(collectionName)
     class HandoffBoardsCollectionDefinition {}
 
     const BoardsToken = typedMongoCollection<Board>(
       HandoffBoardsCollectionDefinition,
-    )
-    let releaseProjection: (() => void) | null = null
-    let signalProjectionStarted: (() => void) | null = null
-    const projectionGate = new Promise<void>(resolve => {
-      releaseProjection = resolve
-    })
-    const projectionStarted = new Promise<void>(resolve => {
-      signalProjectionStarted = resolve
-    })
+    );
+    let releaseProjection: (() => void) | null = null;
+    let signalProjectionStarted: (() => void) | null = null;
+    const projectionGate = new Promise<void>((resolve) => {
+      releaseProjection = resolve;
+    });
+    const projectionStarted = new Promise<void>((resolve) => {
+      signalProjectionStarted = resolve;
+    });
     const publication = defineMongoLivePublication(boardsDescriptor, {
       collection: BoardsToken,
       args: z.object({ owner: z.string() }),
@@ -322,85 +312,83 @@ describe('MongoDB live views integration', () => {
         sort: { name: 1 as const },
         limit: 10,
       }),
-      project: async document => {
-        if (document.name === 'Initial') {
-          signalProjectionStarted?.()
-          await projectionGate
+      project: async (document) => {
+        if (document.name === "Initial") {
+          signalProjectionStarted?.();
+          await projectionGate;
         }
-        return { name: document.name }
+        return { name: document.name };
       },
-    })
+    });
 
-    const server = await createServer()
+    const server = await createServer();
     const mongo = await createTypeFerryMongo({
       db: harness.db,
       server,
       collections: [BoardsToken],
       live: { publications: [publication] },
-    })
-    const Boards = mongo.collection(BoardsToken)
+    });
+    const Boards = mongo.collection(BoardsToken);
     await Boards.insertOne({
       _id: new ObjectId(),
-      owner: 'owner-1',
-      name: 'Initial',
-      secret: 'hidden',
-    })
-    const client = await createClient(server.port)
+      owner: "owner-1",
+      name: "Initial",
+      secret: "hidden",
+    });
+    const client = await createClient(server.port);
     const view = createMongoLiveView({
       client,
       publication: boardsDescriptor,
-      args: { owner: 'owner-1' },
-    })
+      args: { owner: "owner-1" },
+    });
 
     try {
-      const starting = view.start()
-      await projectionStarted
+      const starting = view.start();
+      await projectionStarted;
       await Boards.insertOne({
         _id: new ObjectId(),
-        owner: 'owner-1',
-        name: 'During snapshot',
-        secret: 'hidden',
-      })
-      releaseProjection?.()
-      await starting
-      await waitFor(() => view.getSnapshot().documents.length === 2)
+        owner: "owner-1",
+        name: "During snapshot",
+        secret: "hidden",
+      });
+      releaseProjection?.();
+      await starting;
+      await waitFor(() => view.getSnapshot().documents.length === 2);
 
       expect(
-        view
-          .getSnapshot()
-          .documents.map(document => document.name),
-      ).toEqual(['During snapshot', 'Initial'])
+        view.getSnapshot().documents.map((document) => document.name),
+      ).toEqual(["During snapshot", "Initial"]);
     } finally {
-      releaseProjection?.()
-      await view.stop()
-      await client.close()
-      await mongo.close()
-      await server.close()
+      releaseProjection?.();
+      await view.stop();
+      await client.close();
+      await mongo.close();
+      await server.close();
     }
-  })
+  });
 
-  it('maintains exact sorted, skipped, and limited boundaries', async () => {
+  it("maintains exact sorted, skipped, and limited boundaries", async () => {
     if (!(await harness.supportsChangeStreams())) {
       if (process.env.CI) {
         throw new Error(
-          'MongoDB ordered live-window integration requires a replica set in CI.',
-        )
+          "MongoDB ordered live-window integration requires a replica set in CI.",
+        );
       }
       console.warn(
-        '[TypeFerry MongoDB] Skipping ordered live-window integration: local MongoDB is not a replica set.',
-      )
-      return
+        "[TypeFerry MongoDB] Skipping ordered live-window integration: local MongoDB is not a replica set.",
+      );
+      return;
     }
 
-    globalThis.WebSocket = NodeWebSocket as unknown as typeof WebSocket
-    const collectionName = harness.collectionName('ordered_boards')
+    globalThis.WebSocket = NodeWebSocket as unknown as typeof WebSocket;
+    const collectionName = harness.collectionName("ordered_boards");
 
     @MongoCollection(collectionName)
     class OrderedBoardsCollectionDefinition {}
 
     const BoardsToken = typedMongoCollection<OrderedBoard>(
       OrderedBoardsCollectionDefinition,
-    )
+    );
     const publication = defineMongoLivePublication(orderedBoardsDescriptor, {
       collection: BoardsToken,
       args: z.object({ owner: z.string() }),
@@ -414,135 +402,131 @@ describe('MongoDB live views integration', () => {
         skip: 1,
         limit: 3,
       }),
-      project: document => ({
+      project: (document) => ({
         name: document.name,
         score: document.score,
       }),
-    })
+    });
 
-    const server = await createServer()
+    const server = await createServer();
     const mongo = await createTypeFerryMongo({
       db: harness.db,
       server,
       collections: [BoardsToken],
       live: { publications: [publication] },
-    })
-    const Boards = mongo.collection(BoardsToken)
-    const ids = Array.from({ length: 6 }, (_, index) =>
-      new ObjectId((index + 1).toString(16).padStart(24, '0')),
-    )
+    });
+    const Boards = mongo.collection(BoardsToken);
+    const ids = Array.from(
+      { length: 6 },
+      (_, index) => new ObjectId((index + 1).toString(16).padStart(24, "0")),
+    );
     await Boards.insertMany(
       ids.slice(0, 5).map((id, index) => ({
         _id: id,
-        owner: 'owner-1',
+        owner: "owner-1",
         name: String.fromCharCode(65 + index),
         score: (index + 1) * 10,
-        secret: 'hidden',
+        secret: "hidden",
       })),
-    )
+    );
 
-    const client = await createClient(server.port)
+    const client = await createClient(server.port);
     const view = createMongoLiveView({
       client,
       publication: orderedBoardsDescriptor,
-      args: { owner: 'owner-1' },
-    })
+      args: { owner: "owner-1" },
+    });
 
     try {
-      await view.start()
-      expect(readOrderedNames(view)).toEqual(['B', 'C', 'D'])
+      await view.start();
+      expect(readOrderedNames(view)).toEqual(["B", "C", "D"]);
 
       await Boards.insertOne({
         _id: ids[5],
-        owner: 'owner-1',
-        name: 'X',
+        owner: "owner-1",
+        name: "X",
         score: 5,
-        secret: 'hidden',
-      })
-      await waitFor(() => readOrderedNames(view).join() === 'A,B,C')
+        secret: "hidden",
+      });
+      await waitFor(() => readOrderedNames(view).join() === "A,B,C");
 
-      await Boards.updateOne({ _id: ids[4] }, { $set: { score: 20 } })
-      await waitFor(() => readOrderedNames(view).join() === 'A,B,E')
+      await Boards.updateOne({ _id: ids[4] }, { $set: { score: 20 } });
+      await waitFor(() => readOrderedNames(view).join() === "A,B,E");
 
-      await Boards.deleteOne({ _id: ids[0] })
-      await waitFor(() => readOrderedNames(view).join() === 'B,E,C')
+      await Boards.deleteOne({ _id: ids[0] });
+      await waitFor(() => readOrderedNames(view).join() === "B,E,C");
 
-      await Boards.updateOne(
-        { _id: ids[1] },
-        { $set: { name: 'B updated' } },
-      )
-      await waitFor(
-        () => readOrderedNames(view).join() === 'B updated,E,C',
-      )
+      await Boards.updateOne({ _id: ids[1] }, { $set: { name: "B updated" } });
+      await waitFor(() => readOrderedNames(view).join() === "B updated,E,C");
 
       const authoritative = await Boards.find(
-        { owner: 'owner-1' },
-        { readConcern: { level: 'majority' } },
+        { owner: "owner-1" },
+        { readConcern: { level: "majority" } },
       )
         .sort([
-          ['score', 1],
-          ['_id', 1],
+          ["score", 1],
+          ["_id", 1],
         ])
         .skip(1)
         .limit(3)
-        .toArray()
+        .toArray();
       expect(readOrderedNames(view)).toEqual(
-        authoritative.map(document => document.name),
-      )
-      expect(view.getSnapshot().documents[0]).not.toHaveProperty('secret')
+        authoritative.map((document) => document.name),
+      );
+      expect(view.getSnapshot().documents[0]).not.toHaveProperty("secret");
     } finally {
-      await view.stop()
-      await client.close()
-      await mongo.close()
-      await server.close()
+      await view.stop();
+      await client.close();
+      await mongo.close();
+      await server.close();
     }
-  })
-})
+  });
+});
 
 function readOrderedNames(
   view: ReturnType<typeof createMongoLiveView<typeof orderedBoardsDescriptor>>,
 ): string[] {
-  return view.getSnapshot().documents.map(document => document.name)
+  return view.getSnapshot().documents.map((document) => document.name);
 }
 
 async function createServer(): Promise<Server> {
   const server = new Server({
-    host: '127.0.0.1',
+    host: "127.0.0.1",
     port: 0,
     globalInstance: false,
-  })
+  });
   if (!server.ready) {
     await new Promise<void>((resolve, reject) => {
-      server.once(ServerEvents.READY, () => resolve())
-      server.once(Server.ERROR_EVENT, reject)
-    })
+      server.once(ServerEvents.READY, () => resolve());
+      server.once(Server.ERROR_EVENT, reject);
+    });
   }
-  return server
+  return server;
 }
 
 async function createClient(
   port: number,
   initialContext?: Record<string, unknown>,
 ): Promise<Client> {
-  const client = new Client({ host: '127.0.0.1', initialContext, port })
+  const client = new Client({ host: "127.0.0.1", initialContext, port });
   if (!client.initialized) {
     await new Promise<void>((resolve, reject) => {
-      client.once(ClientEvents.INITIALIZED, () => resolve())
-      client.once(ClientEvents.ERROR, reject)
-    })
+      client.once(ClientEvents.INITIALIZED, () => resolve());
+      client.once(ClientEvents.ERROR, reject);
+    });
   }
-  return client
+  return client;
 }
 
 async function waitFor(
   predicate: () => boolean,
   timeoutMilliseconds = 5_000,
 ): Promise<void> {
-  const startedAt = Date.now()
+  const startedAt = Date.now();
   while (!predicate()) {
     if (Date.now() - startedAt > timeoutMilliseconds) {
-      throw new Error('timed out waiting for MongoDB live view')
+      throw new Error("timed out waiting for MongoDB live view");
     }
-    await new Promise(resolve => setTimeout(resolve, 25))
+    await new Promise((resolve) => setTimeout(resolve, 25));
   }
 }

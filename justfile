@@ -19,7 +19,7 @@ verify-npm-release: install-npm-toolchain
     cd {{ package_dir }} && mise exec -- npm ci
     cd {{ package_dir }} && mise exec -- npm run lint
     cd {{ package_dir }} && mise exec -- npm run typecheck
-    cd {{ package_dir }} && ../scripts/run-with-redis.sh mise exec -- npm test
+    cd {{ package_dir }} && ../scripts/run-with-mongodb.sh ../scripts/run-with-redis.sh mise exec -- npm test
     cd {{ package_dir }} && mise exec -- npm run build
     cd {{ package_dir }} && mise exec -- npm run verify:consumer
     mise exec -- node scripts/verify-npm-package.mjs
