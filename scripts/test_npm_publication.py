@@ -171,7 +171,8 @@ def test_release_docs_define_the_published_release() -> None:
 
     assert "Published npm release" in release_docs
     assert "typeferry@0.8.0" in release_docs
-    assert "create the annotated Git tag\n`v0.8.0`" in release_docs
+    assert "`0.9.0` as an unpublished candidate" in release_docs
+    assert "create the annotated Git tag\n`v0.9.0`" in release_docs
     assert "No GitHub release is created" in release_docs
     assert "does not bump versions, create Git tags, push commits" in release_docs
 
@@ -185,7 +186,7 @@ def test_package_and_template_locks_use_final_identity() -> None:
     )
 
     assert package_lock["name"] == "typeferry"
-    assert package_lock["version"] == "0.8.0"
+    assert package_lock["version"] == "0.9.0"
     assert package_lock["packages"][""]["name"] == "typeferry"
     assert package_lock["packages"][""]["engines"]["node"] == ">=24.19.0 <27"
     assert template_lock["packages"][""]["dependencies"]["typeferry"] == "^0.8.0"

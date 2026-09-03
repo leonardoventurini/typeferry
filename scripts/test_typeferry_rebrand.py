@@ -38,7 +38,7 @@ class TypeFerryRebrandTest(unittest.TestCase):
             (REPO_ROOT / "typeferry-ts/package.json").read_text(encoding="utf-8")
         )
         self.assertEqual(PUBLIC_TYPESCRIPT_NAME, package_json["name"])
-        self.assertEqual("0.8.0", package_json["version"])
+        self.assertEqual("0.9.0", package_json["version"])
         self.assertEqual(">=24.19.0 <27", package_json["engines"]["node"])
         self.assertNotIn("private", package_json)
         self.assertEqual(
@@ -88,7 +88,7 @@ class TypeFerryRebrandTest(unittest.TestCase):
         release_docs = (REPO_ROOT / "RELEASING.md").read_text(encoding="utf-8")
 
         self.assertIn("Published npm release: `typeferry@0.8.0`", release_docs)
-        self.assertIn("| `0.8.0` | Published |", release_docs)
+        self.assertIn("| TypeScript | `typeferry` | `0.9.0` | Unpublished candidate |", release_docs)
         self.assertIn("Python and Rust publication remains disabled", release_docs)
         self.assertIn("No GitHub release is created", release_docs)
 
