@@ -156,7 +156,8 @@ esac
 def test_package_validator_is_fail_closed_and_checks_exports() -> None:
     validator = (ROOT / "scripts/verify-npm-package.mjs").read_text(encoding="utf-8")
 
-    assert "'publish', '--dry-run', '--json', '--access', 'public'" in validator
+    assert "'pack', '--dry-run', '--json'" in validator
+    assert "'publish', '--dry-run'" not in validator
     assert "README.md" in validator
     assert "package.json" in validator
     assert "publishConfig" in validator

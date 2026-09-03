@@ -28,3 +28,13 @@ CI runs the same non-uploading artifact validator. It does not receive npm crede
 - Every release requires an explicit version change and clean committed state before the operator command can succeed.
 - Artifact policy permits only the package README, manifest, compiled JavaScript, declarations, and JavaScript source maps.
 - If `typeferry` becomes unavailable before the first upload, publication fails closed and a new identity decision is required.
+
+## 2026-09-03 amendment
+
+The shared artifact validator uses `npm pack --dry-run --json`, not
+`npm publish --dry-run`, so CI can validate the current package version both
+before and after publication. The operator-only publish-state gate separately
+checks that the exact candidate version is absent from the public registry,
+then the publish recipe performs the real upload after the complete repeatable
+gate. This preserves fail-closed publication without making ordinary CI depend
+on version availability.

@@ -44,10 +44,10 @@ path. No package release is required.
 
 ## Verification
 
-- [ ] Update and run the repository publication-contract test first.
-- [ ] Run the package verifier successfully for published `0.8.0`.
-- [ ] Run the relevant CI workflow contract test.
-- [ ] Confirm version availability remains in the publish-state gate.
-- [ ] Confirm the real publish command remains operator-controlled.
-- [ ] Update release documentation and the npm publication decision.
-- [ ] Commit the verified fix semantically.
+- [x] Update and run the repository publication-contract test first.
+- [x] Run the package verifier successfully for published `0.8.0`.
+- [x] Run the relevant CI workflow contract test.
+- [x] Confirm version availability remains in the publish-state gate.
+- [x] Confirm the real publish command remains operator-controlled.
+- [x] Update release documentation and the npm publication decision.
+- [x] Commit the verified fix semantically.

@@ -23,19 +23,19 @@ async function main() {
     return
   }
 
-  const publishResult = spawnSync(
+  const packageResult = spawnSync(
     'npm',
-    ['publish', '--dry-run', '--json', '--access', 'public'],
+    ['pack', '--dry-run', '--json'],
     { cwd: PACKAGE_DIR, encoding: 'utf8' },
   )
 
-  if (publishResult.status !== 0) {
+  if (packageResult.status !== 0) {
     throw new Error(
-      `npm publish dry-run failed:\n${publishResult.stderr || publishResult.stdout}`,
+      `npm pack dry-run failed:\n${packageResult.stderr || packageResult.stdout}`,
     )
   }
 
-  const report = parsePublishReport(publishResult.stdout)
+  const report = parsePackageReport(packageResult.stdout)
   await validatePackageFiles(manifest, report.files)
 
   console.log(
@@ -82,23 +82,23 @@ function validateManifest(manifest) {
   )
 }
 
-function parsePublishReport(stdout) {
+function parsePackageReport(stdout) {
   let parsed
 
   try {
     parsed = JSON.parse(stdout)
   } catch (error) {
-    throw new Error(`npm publish dry-run did not return JSON: ${error.message}`)
+    throw new Error(`npm pack dry-run did not return JSON: ${error.message}`)
   }
 
   const report = Array.isArray(parsed)
     ? parsed[0]
     : parsed[EXPECTED_NAME] ?? parsed
-  assert(report && Array.isArray(report.files), 'publish report has no file list')
-  assert(report.name === EXPECTED_NAME, 'publish report has the wrong package name')
+  assert(report && Array.isArray(report.files), 'package report has no file list')
+  assert(report.name === EXPECTED_NAME, 'package report has the wrong package name')
   assert(
     report.version === EXPECTED_VERSION,
-    'publish report has the wrong package version',
+    'package report has the wrong package version',
   )
 
   return report
