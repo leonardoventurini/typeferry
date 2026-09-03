@@ -1,7 +1,9 @@
 # TypeFerry application framework proposal
 
-Status: proposed architecture. This document is informative and does not
-supersede accepted decisions, package contracts, or the wire protocol.
+Status: accepted by the
+[package-owned application commands decision](../../decisions/2026-09-03-package-owned-application-commands.md).
+This document is informative and does not supersede package contracts or the
+wire protocol.
 
 ## Summary
 

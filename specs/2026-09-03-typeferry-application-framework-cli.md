@@ -138,23 +138,23 @@ container validation where available, and repository documentation links.
 
 ## Acceptance criteria
 
-- [ ] Conventional applications need no `typeferry.config.ts`.
-- [ ] Optional configuration is typed, validated, and limited to approved
+- [x] Conventional applications need no `typeferry.config.ts`.
+- [x] Optional configuration is typed, validated, and limited to approved
       high-level fields.
-- [ ] `typeferry develop` preserves proxy, compiler, subprocess, logging,
+- [x] `typeferry develop` preserves proxy, compiler, subprocess, logging,
       failure, and shutdown behavior.
-- [ ] `typeferry build` preserves client manifest and bundled server output.
-- [ ] `typeferry test` runs unit, integration, and browser projects together
+- [x] `typeferry build` preserves client manifest and bundled server output.
+- [x] `typeferry test` runs unit, integration, and browser projects together
       or individually, with watch support.
-- [ ] `typeferry/test` mirrors Vitest and is documented as unstable.
-- [ ] Existing exports remain available and isolated from tooling modules.
-- [ ] The packed package works in a procedurally generated consumer.
-- [ ] The template contains no development script, Vite config, split Vitest
+- [x] `typeferry/test` mirrors Vitest and is documented as unstable.
+- [x] Existing exports remain available and isolated from tooling modules.
+- [x] The packed package works in a procedurally generated consumer.
+- [x] The template contains no development script, Vite config, split Vitest
       configs, development proxy, development Dockerfile, or Compose
       development service.
-- [ ] TypeScript, ESLint, Prettier, Mise, production Docker, and MongoDB Compose
+- [x] TypeScript, ESLint, Prettier, Mise, production Docker, and MongoDB Compose
       remain application-owned.
-- [ ] Package and template quality, test, build, pack, and audit gates pass.
+- [x] Package and template quality, test, build, pack, and audit gates pass.
 
 ## Risks
 
@@ -185,13 +185,22 @@ runtime API migration. Framework applications opt in by changing scripts and,
 for tests, imports. The repository template migrates in the same release and
 serves as the canonical example.
 
+## Implementation note
+
+The accepted rollout temporarily permits the template to use
+`file:../typeferry-ts` with npm packed-link installation. This deviates from
+the published-template-dependency decision until `0.8.0` is published. The
+local dependency enables pre-publication template verification but prevents a
+production Docker build because Docker cannot access the sibling package
+outside the template build context.
+
 ## Executable checklist
 
-- [ ] Implement and verify configuration and CLI unit contracts.
-- [ ] Implement and verify development and build commands.
-- [ ] Implement and verify test projects and `typeferry/test`.
-- [ ] Extend build, pack, publication, and compatibility contracts.
-- [ ] Migrate the template and remove development-container artifacts.
-- [ ] Update current documentation and package changelog.
-- [ ] Run complete package and template verification.
-- [ ] Record the accepted architecture in a decision.
+- [x] Implement and verify configuration and CLI unit contracts.
+- [x] Implement and verify development and build commands.
+- [x] Implement and verify test projects and `typeferry/test`.
+- [x] Extend build, pack, publication, and compatibility contracts.
+- [x] Migrate the template and remove development-container artifacts.
+- [x] Update current documentation and package changelog.
+- [x] Run complete package and template verification.
+- [x] Record the accepted architecture in a decision.
