@@ -1,0 +1,35 @@
+# TypeFerry
+
+> TypeFerry is a type-safe, real-time RPC framework. This index routes AI agents building consumer applications to concise, authoritative Markdown documentation.
+
+Use the TypeScript application guide first for consumer work. The wire protocol
+is normative only for protocol-visible behavior. Repository-maintainer agent
+instructions are separate from application guidance.
+
+## Application development
+
+- [AI agent application guide](https://github.com/leonardoventurini/typeferry/blob/main/docs/agents/application-development.md): Supported structure, public imports, commands, configuration, implementation workflow, safety boundaries, and completion checks.
+- [Getting started](https://github.com/leonardoventurini/typeferry/blob/main/docs/getting-started.md): Run the canonical React and MongoDB template.
+- [Application template](https://github.com/leonardoventurini/typeferry/blob/main/template/README.md): Executable consumer application and production workflow.
+- [TypeScript package](https://github.com/leonardoventurini/typeferry/blob/main/typeferry-ts/README.md): Published package entry points and API overview.
+
+## TypeScript features
+
+- [Server and RPC](https://github.com/leonardoventurini/typeferry/blob/main/docs/typescript/server-rpc.md): Server lifecycle, namespaces, methods, validation, protection, and caching.
+- [Client](https://github.com/leonardoventurini/typeferry/blob/main/docs/typescript/client.md): Framework-agnostic HTTP and WebSocket client.
+- [React](https://github.com/leonardoventurini/typeferry/blob/main/docs/typescript/react.md): Provider, hooks, RPC state, and subscriptions.
+- [Authentication](https://github.com/leonardoventurini/typeferry/blob/main/docs/typescript/authentication.md): Context, sessions, cookies, OAuth, and security boundaries.
+- [Events and channels](https://github.com/leonardoventurini/typeferry/blob/main/docs/typescript/events-and-channels.md): Real-time publication and invalidation patterns.
+- [MongoDB](https://github.com/leonardoventurini/typeferry/blob/main/docs/typescript/mongodb.md): Typed collections, schemas, and live invalidation.
+- [EJSON](https://github.com/leonardoventurini/typeferry/blob/main/docs/typescript/ejson.md): Extended wire-safe value serialization.
+- [Deployment](https://github.com/leonardoventurini/typeferry/blob/main/docs/typescript/deployment.md): Production build and operational checklist.
+
+## Contracts
+
+- [Application framework conventions](https://github.com/leonardoventurini/typeferry/blob/main/docs/architecture/application-framework-toolchain.md): Framework-owned commands, defaults, configuration, and boundaries.
+- [Wire protocol](https://github.com/leonardoventurini/typeferry/blob/main/PROTOCOL.md): Normative cross-language protocol.
+- [Documentation home](https://github.com/leonardoventurini/typeferry/blob/main/docs/README.md): Complete documentation map, including Python and Rust servers.
+
+## Optional maintainer context
+
+- [Repository agent router](https://github.com/leonardoventurini/typeferry/blob/main/docs/agents/README.md): Use only when changing TypeFerry itself, not a consumer application.

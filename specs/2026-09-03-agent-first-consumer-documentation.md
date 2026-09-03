@@ -91,9 +91,10 @@ rollback is required.
 
 ## Direct rollout
 
-Land the guide and discovery links on `main`. The existing documentation host
-or repository renderer can expose `llms.txt`; no package publication is needed
-because the npm README links to the canonical repository guide.
+Land the guide and discovery links on `main`. The repository renderer can
+expose `llms.txt` immediately. The updated package README will become visible
+on the npm registry with the next normal package release; this documentation
+change does not require a dedicated release.
 
 ## Verification
 
@@ -106,9 +107,9 @@ because the npm README links to the canonical repository guide.
 
 ## Executable checklist
 
-- [ ] Add the canonical consumer-agent guide.
-- [ ] Add the `llms.txt` discovery index.
-- [ ] Link the guide from all relevant documentation entry points.
-- [ ] Align the template's scoped agent instructions with the canonical guide.
-- [ ] Verify formatting, links, commands, imports, and configuration fields.
-- [ ] Record the durable documentation architecture decision.
+- [x] Add the canonical consumer-agent guide.
+- [x] Add the `llms.txt` discovery index.
+- [x] Link the guide from all relevant documentation entry points.
+- [x] Align the template's scoped agent instructions with the canonical guide.
+- [x] Verify formatting, links, commands, imports, and configuration fields.
+- [x] Record the durable documentation architecture decision.

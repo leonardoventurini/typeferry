@@ -1,6 +1,10 @@
 # Agent Documentation
 
-This index routes coding tasks to the smallest sufficient context. Read the repository root `AGENTS.md` first, then the nearest scoped `AGENTS.md`. Do not load every linked document unless the task crosses those boundaries.
+This index routes TypeFerry repository maintenance to the smallest sufficient
+context. AI agents building consumer applications should use the separate
+[application development guide](application-development.md). Repository agents
+read the root `AGENTS.md` first, then the nearest scoped `AGENTS.md`. Do not
+load every linked document unless the task crosses those boundaries.
 
 ## Authority order
 

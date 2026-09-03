@@ -2,6 +2,10 @@
 
 This directory is a standalone TypeScript application template. Run commands
 from `template/`; it is not an npm workspace member of the parent repository.
+Use the canonical
+[consumer-agent guide](https://github.com/leonardoventurini/typeferry/blob/main/docs/agents/application-development.md)
+for TypeFerry
+application workflows and this file for template-specific constraints.
 
 ## Toolchain
 

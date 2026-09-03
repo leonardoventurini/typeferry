@@ -4,6 +4,11 @@ The TypeScript implementation of TypeFerry provides the reference Node.js server
 
 Install the public TypeScript package with `npm install typeferry`. Repository contributors can use the local [`template/`](../template/) workflow described in the [quickstart](../docs/getting-started.md).
 
+AI coding agents building consumer applications should begin with the
+[agent application guide](https://github.com/leonardoventurini/typeferry/blob/main/docs/agents/application-development.md).
+It defines the supported project structure, public imports, package-owned
+commands, optional configuration, safety boundaries, and completion checks.
+
 ## Runtime requirements
 
 - Node.js `24.19.0`

@@ -101,6 +101,8 @@ The template includes a Node.js server, WebSocket client, React UI, MongoDB repl
 
 ## Documentation
 
+- [AI agent application guide](docs/agents/application-development.md)
+- [LLM documentation index](llms.txt)
 - [Documentation home](docs/README.md)
 - [Quickstart](docs/getting-started.md)
 - [TypeScript server and RPC](docs/typescript/server-rpc.md)

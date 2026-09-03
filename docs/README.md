@@ -8,6 +8,7 @@ Use this page to choose the smallest guide that matches what you are building. [
 ## Start here
 
 - [Run the full TypeScript application template](getting-started.md)
+- [Build an application with an AI coding agent](agents/application-development.md)
 - [Understand the protocol](../PROTOCOL.md)
 - [Compare implementation architecture](architecture/overview.md)
 
@@ -55,3 +56,7 @@ The Rust implementation is a modular server workspace with optional HTTP, WebSoc
 - [Current release status](../RELEASING.md)
 
 Documents under `plans/` are historical and non-normative. Accepted decisions live under [`decisions/`](../decisions/), and task specifications live under [`specs/`](../specs/).
+
+AI tools may use the repository-root [`llms.txt`](../llms.txt) as a compact
+navigation index. It does not replace the linked documentation or define
+crawler access policy.
