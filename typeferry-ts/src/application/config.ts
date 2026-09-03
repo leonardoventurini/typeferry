@@ -155,10 +155,28 @@ export async function loadApplicationConfig(
   try {
     await access(configPath)
   } catch {
-    return resolveApplicationConfig(root)
+    return resolveApplicationConfig(root, withEnvironmentFile({}))
   }
 
   const jiti = createJiti(import.meta.url, { interopDefault: true })
   const loaded: unknown = await jiti.import(configPath, { default: true })
-  return resolveApplicationConfig(root, loaded)
+  const parsed = configSchema.parse(loaded)
+  return resolveApplicationConfig(root, withEnvironmentFile(parsed))
+}
+
+function withEnvironmentFile(config: TypeFerryConfig): TypeFerryConfig {
+  if (
+    config.development?.serverEnvironmentFile !== undefined ||
+    process.env['DEVELOP_ENV_FILE'] === undefined
+  ) {
+    return config
+  }
+
+  return {
+    ...config,
+    development: {
+      ...config.development,
+      serverEnvironmentFile: process.env['DEVELOP_ENV_FILE'],
+    },
+  }
 }

@@ -74,6 +74,9 @@ export function createTestConfig(
           },
           test: {
             name: 'browser',
+            // Vitest's browser mock API requires globals when it is mirrored
+            // through the public typeferry/test entry point.
+            globals: true,
             browser: {
               enabled: true,
               headless: true,

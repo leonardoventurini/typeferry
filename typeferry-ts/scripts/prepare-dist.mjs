@@ -1,4 +1,11 @@
-import { access, readdir, readFile, stat, writeFile } from 'node:fs/promises'
+import {
+  access,
+  chmod,
+  readdir,
+  readFile,
+  stat,
+  writeFile,
+} from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -12,6 +19,7 @@ const DYNAMIC_IMPORT_PATTERN = /(import\s*\(\s*['"])(\.\.?\/[^'"]+)(['"]\s*\))/g
  */
 async function main() {
   await rewriteDirectory(DIST_DIR)
+  await chmod(new URL('cli/index.js', DIST_DIR), 0o755)
 }
 
 async function rewriteDirectory(directoryUrl) {
