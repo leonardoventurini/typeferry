@@ -1,5 +1,5 @@
 import type { ClientNode } from 'typeferry/server'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'typeferry/test'
 
 import { MESSAGES_CHANGED_EVENT } from '@/common/messages'
 import { getMessagesCollection } from '@/server/data/collections/messages'

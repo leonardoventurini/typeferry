@@ -1,5 +1,5 @@
 import { MongoMemoryReplSet } from 'mongodb-memory-server'
-import { afterAll, beforeEach } from 'vitest'
+import { afterAll, beforeEach } from 'typeferry/test'
 
 const mongoServer = await MongoMemoryReplSet.create({
   replSet: { count: 1, name: 'rs0' },

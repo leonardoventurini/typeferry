@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'typeferry/test'
 
 import { assertMigrationList } from '@/server/migrations/runner'
 import type { Migration } from '@/server/migrations/types'

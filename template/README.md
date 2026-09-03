@@ -1,7 +1,7 @@
 # TypeFerry React + MongoDB template
 
 A production-minded starter for a typed TypeFerry application. It includes a
-React and Tailwind client, Vite development server, Node/TypeFerry backend,
+React and Tailwind client, package-managed development server, Node/TypeFerry backend,
 official MongoDB driver, protected RPC methods, owner-scoped real-time events,
 ordered migrations, structured logs, and split Vitest coverage.
 
@@ -26,7 +26,7 @@ docker compose up -d mongodb
 npm run develop
 ```
 
-Open <http://localhost:8000>. Vite serves the React client and proxies TypeFerry
+Open <http://localhost:8000>. TypeFerry serves the React client and proxies TypeFerry
 HTTP traffic to the backend on port 8002. WebSocket traffic connects directly
 to port 8002 during development.
 
@@ -69,7 +69,6 @@ just typecheck
 just build
 just docker-build
 just docker-run
-just docker-develop
 ```
 
 The recipes delegate to the same npm and Docker commands shown below, so either
@@ -91,23 +90,9 @@ Integration tests use an isolated in-memory replica set and do not modify the
 Compose database. Browser tests run in a real headless Chromium environment,
 not jsdom.
 
-## Development container
-
-Run the Vite and TypeFerry hot-reload orchestrator with its MongoDB replica set:
-
-```sh
-just docker-develop
-```
-
-Compose bind-mounts the repository into `/app`, so client and server edits are
-visible immediately. A named volume overlays `/app/node_modules`; the container
-runs `npm ci` into that Linux-owned volume before starting, keeping native Linux
-packages separate from macOS dependencies. Vite HMR is available on port 8000
-and the TypeFerry backend on port 8002.
-
-Stop the stack with `docker compose down`. Use `docker compose down --volumes`
-only when you intentionally want to discard both MongoDB data and the cached
-container dependency tree.
+TypeFerry owns the Vite and Vitest configuration behind these commands. Add an
+optional `typeferry.config.ts` only when overriding supported framework
+defaults.
 
 ## Environment
 

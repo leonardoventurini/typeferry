@@ -28,21 +28,17 @@
     "skipLibCheck": true,
     "strict": true,
     "target": "ES2023",
-    "types": ["node", "vite/client"],
+    "types": ["node", "vite/client", "vitest/globals"],
     "useDefineForClassFields": true,
     "verbatimModuleSyntax": true
   },
   "include": [
-    "develop.ts",
     "eslint.config.ts",
     "client/**/*.ts",
     "client/**/*.tsx",
     "common/**/*.ts",
-    "scripts/**/*.ts",
     "server/**/*.ts",
-    "test/**/*.ts",
-    "vite.config.ts",
-    "vitest.config.*.ts"
+    "test/**/*.ts"
   ],
   "exclude": ["dist", "node_modules"]
 }
