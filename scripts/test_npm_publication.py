@@ -39,6 +39,11 @@ def test_root_justfile_has_safe_npm_release_recipes() -> None:
         "mise exec -- npm test"
     ) in justfile
 
+    package_validator = (ROOT / "scripts" / "verify-npm-package.mjs").read_text(
+        encoding="utf-8"
+    )
+    assert "must be newer than the latest published version" in package_validator
+
 
 def test_application_consumer_install_skips_implicit_network_checks() -> None:
     consumer_verifier = (

@@ -1,12 +1,12 @@
 {
   "name": "typeferry",
-  "version": "0.8.1",
+  "version": "0.9.1",
   "description": "Type-safe real-time RPC framework for TypeScript",
   "type": "module",
   "sideEffects": false,
   "license": "MIT",
   "bin": {
-    "typeferry": "./dist/cli/index.js"
+    "typeferry": "dist/cli/index.js"
   },
   "files": [
     "dist"

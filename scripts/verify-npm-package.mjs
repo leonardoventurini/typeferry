@@ -78,7 +78,7 @@ function validateManifest(manifest) {
     "manifest files allowlist must contain only dist",
   );
   assert(
-    manifest.bin?.typeferry === "./dist/cli/index.js",
+    manifest.bin?.typeferry === "dist/cli/index.js",
     "typeferry CLI binary target is required",
   );
 }
@@ -246,9 +246,34 @@ async function assertVersionAvailable(manifest) {
     !Object.hasOwn(registryDocument.versions ?? {}, manifest.version),
     `${manifest.name}@${manifest.version} is already published`,
   );
+  const latestVersion = registryDocument["dist-tags"]?.latest;
+  if (typeof latestVersion === "string") {
+    assert(
+      compareReleaseVersions(manifest.version, latestVersion) > 0,
+      `${manifest.name}@${manifest.version} must be newer than the latest published version ${latestVersion}`,
+    );
+  }
   console.log(
     `${manifest.name}@${manifest.version} is available as a new version.`,
   );
+}
+
+function compareReleaseVersions(left, right) {
+  const parse = (version) => {
+    const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
+    assert(match, `release version must use major.minor.patch: ${version}`);
+    return match.slice(1).map(Number);
+  };
+  const leftParts = parse(left);
+  const rightParts = parse(right);
+
+  for (let index = 0; index < leftParts.length; index += 1) {
+    if (leftParts[index] !== rightParts[index]) {
+      return leftParts[index] - rightParts[index];
+    }
+  }
+
+  return 0;
 }
 
 function assert(condition, message) {
