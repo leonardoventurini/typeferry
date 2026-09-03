@@ -4,6 +4,7 @@ import path from "node:path";
 import { createJiti } from "jiti";
 import type { BuildOptions } from "esbuild";
 import type { InlineConfig } from "vite";
+import type { ViteUserConfig as VitestConfig } from "vitest/config";
 import { z } from "zod";
 
 export type BrowserName = "chromium" | "firefox" | "webkit";
@@ -26,7 +27,7 @@ export interface ApplicationToolingExtensions {
     context: { readonly command: "develop" | "build" },
   ) => InlineConfig;
   readonly serverBuild?: (options: BuildOptions) => BuildOptions;
-  readonly test?: (config: InlineConfig) => InlineConfig;
+  readonly test?: (config: VitestConfig) => VitestConfig;
   readonly afterBuild?: () => void | Promise<void>;
 }
 
