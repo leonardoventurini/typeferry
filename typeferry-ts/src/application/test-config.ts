@@ -29,6 +29,7 @@ export function createTestConfig(
           test: {
             name: 'unit',
             fileParallelism: false,
+            env: { NODE_ENV: process.env['NODE_ENV'] ?? 'test' },
             include: [
               `${projectRoots}/**/*.unit.spec.ts`,
               `${projectRoots}/**/*.unit.spec.tsx`,
@@ -55,6 +56,7 @@ export function createTestConfig(
           test: {
             name: 'integration',
             fileParallelism: false,
+            env: { NODE_ENV: process.env['NODE_ENV'] ?? 'test' },
             hookTimeout: config.test.integration.timeout,
             include: [
               `${projectRoots}/**/*.integration.spec.ts`,
@@ -76,6 +78,7 @@ export function createTestConfig(
           test: {
             name: 'browser',
             fileParallelism: false,
+            env: { NODE_ENV: process.env['NODE_ENV'] ?? 'test' },
             // Vitest's browser mock API requires globals when it is mirrored
             // through the public typeferry/test entry point.
             globals: true,

@@ -41,7 +41,11 @@ describe('application tool configuration', () => {
     expect(projects).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          test: expect.objectContaining({ name: 'unit', fileParallelism: false }),
+          test: expect.objectContaining({
+            name: 'unit',
+            fileParallelism: false,
+            env: { NODE_ENV: 'test' },
+          }),
         }),
         expect.objectContaining({
           test: expect.objectContaining({
