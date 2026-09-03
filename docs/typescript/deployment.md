@@ -23,11 +23,22 @@ compilation and produces `dist/client/` plus `dist/server/index.cjs`. See the
 [application framework guide](application-framework.md) for the build contract;
 production startup and infrastructure remain application-owned.
 
+Server dependencies are bundled by default. Applications may configure
+`build.server.external` for packages that must resolve from `node_modules` at
+runtime. TypeFerry accepts only direct production dependencies and leaves their
+imports in `dist/server/index.cjs`; the application remains responsible for
+shipping the matching lockfile-derived production installation. In a
+multi-stage npm container, prune with `npm prune --omit=dev` only after the
+build, then copy the resulting `node_modules`, manifest, and lockfile into the
+runtime image. Do not curate or reinstall external packages separately because
+that can drift from the graph used to verify the build.
+
 ## Production checklist
 
 - Terminate TLS at the application or a proxy that supports WebSocket upgrades.
 - Forward the client IP/protocol headers only through trusted proxies and configure origins explicitly.
 - Inject database, Redis, OAuth, signing, and session secrets at runtime.
+- Ship every configured server external from the verified production dependency graph.
 - Replace sample authentication and enforce authorization on every protected resource.
 - Expose readiness that checks critical dependencies; use graceful shutdown for the HTTP server, clients, database, and observers.
 - Use Redis event propagation when clients connected to different replicas must share events.

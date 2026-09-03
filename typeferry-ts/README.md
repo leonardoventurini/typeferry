@@ -73,8 +73,17 @@ export default defineConfig({
     clientPort: 8000,
     serverPort: 8002,
   },
+  build: {
+    server: {
+      external: ['sharp'],
+    },
+  },
 })
 ```
+
+Server dependencies are bundled by default. Configured externals must be direct
+application `dependencies`, and the application must ship them in its
+production runtime installation.
 
 See the full
 [application framework guide](https://github.com/leonardoventurini/typeferry/blob/main/docs/typescript/application-framework.md)

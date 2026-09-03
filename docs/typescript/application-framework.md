@@ -107,6 +107,38 @@ The framework does not own the production environment, process supervisor,
 Dockerfile, Compose services, TLS proxy, database, or secret injection. See
 [deployment](deployment.md) for operational requirements.
 
+### External server packages
+
+The server bundle includes runtime dependencies by default. Keep a package
+external when it cannot be bundled safely—for example, because it contains a
+native Node.js addon or loads assets relative to its installed package:
+
+```ts
+import { defineConfig } from 'typeferry/config'
+
+export default defineConfig({
+  build: {
+    server: {
+      external: ['sharp', 'mongodb', '@scope/runtime/subpath'],
+    },
+  },
+})
+```
+
+Every external must be a bare npm package specifier. Scoped packages and
+package subpaths are supported; relative paths, absolute paths, Node built-ins,
+URLs, and wildcard patterns are not. TypeFerry verifies that the owning package
+is a direct entry in the application's `dependencies`. A package available only
+through `devDependencies` or transitive hoisting is rejected because it may not
+survive a production-only install.
+
+The configured list applies to the watched development server and the
+production server build. TypeFerry leaves each matching import in the generated
+server artifact; it does not install or copy the package. Production images and
+other deployment environments must ship the lockfile-derived runtime graph. A
+multi-stage npm image can run `npm prune --omit=dev` after building and copy the
+resulting `node_modules`, `package.json`, and lockfile into its runtime stage.
+
 ## Test
 
 Run every project or select one environment:
@@ -163,6 +195,9 @@ export default defineConfig({
   build: {
     target: 'es2023',
     sourceMaps: true,
+    server: {
+      external: [],
+    },
   },
   test: {
     integration: {
@@ -177,7 +212,8 @@ export default defineConfig({
 
 Supported browser values are `chromium`, `firefox`, and `webkit`. Configuration
 validation rejects unknown fields, invalid ports, empty strings, and
-non-positive timeouts. The `DEVELOP_ENV_FILE` environment variable overrides
+non-positive timeouts. Server external lists additionally reject duplicates and
+non-package specifiers. The `DEVELOP_ENV_FILE` environment variable overrides
 the default development environment file only when the configuration does not
 set `serverEnvironmentFile`.
 
