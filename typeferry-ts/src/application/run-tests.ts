@@ -8,10 +8,11 @@ export async function runTests(
   config: ResolvedApplicationConfig,
   project: TestProjectName | undefined,
   watch: boolean,
+  testArguments: readonly string[],
 ): Promise<void> {
   const vitest = await startVitest(
     'test',
-    [],
+    [...testArguments],
     {
       project: project === undefined ? undefined : [project],
       root: config.root,

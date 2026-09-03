@@ -123,6 +123,7 @@ typeferry test unit
 typeferry test integration
 typeferry test browser
 typeferry test unit --watch
+typeferry test unit -- server/example.unit.spec.ts
 ```
 
 | Project     | Discovery pattern          | Runtime behavior                                               |
@@ -149,6 +150,10 @@ import { describe, expect, it, vi } from 'typeferry/test'
 individual exports follow Vitest and do not receive an independent TypeFerry
 compatibility guarantee. Browser tests also expose Vitest globals; use the
 global `vi` when browser transformation cannot mock through the re-export.
+
+Arguments after `--` are forwarded to Vitest. Use this boundary for focused
+file filters and runner options; TypeFerry command options such as `--watch`
+must remain before it.
 
 Testing Library and other libraries imported directly by application tests
 remain application dependencies.
