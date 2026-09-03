@@ -24,9 +24,9 @@ export default defineConfig({
   resolve: {
     preserveSymlinks: true,
     alias: {
-      react: path.resolve(__dirname, 'node_modules/react'),
-      'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
-      'typeferry/': path.resolve(__dirname, 'src') + '/',
+      react: path.resolve(import.meta.dirname, 'node_modules/react'),
+      'react-dom': path.resolve(import.meta.dirname, 'node_modules/react-dom'),
+      'typeferry/': path.resolve(import.meta.dirname, 'src') + '/',
     },
   },
 })
