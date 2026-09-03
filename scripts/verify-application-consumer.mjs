@@ -28,7 +28,7 @@ async function main() {
     const packageFile = path.join(temporaryRoot, packReport[0].filename)
 
     await writeFixture(applicationRoot, packageFile)
-    run('npm', ['install'], applicationRoot)
+    run('npm', ['install', '--no-audit', '--no-fund'], applicationRoot)
     run('npm', ['run', 'build'], applicationRoot)
     run('npm', ['run', 'test'], applicationRoot)
     run('npm', ['run', 'runtime-smoke'], applicationRoot)

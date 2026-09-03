@@ -40,6 +40,14 @@ def test_root_justfile_has_safe_npm_release_recipes() -> None:
     ) in justfile
 
 
+def test_application_consumer_install_skips_implicit_network_checks() -> None:
+    consumer_verifier = (
+        ROOT / "scripts" / "verify-application-consumer.mjs"
+    ).read_text(encoding="utf-8")
+
+    assert "['install', '--no-audit', '--no-fund']" in consumer_verifier
+
+
 def test_mongodb_helper_preserves_an_external_uri(tmp_path: Path) -> None:
     docker_log = tmp_path / "docker.log"
     fake_docker = tmp_path / "docker"
