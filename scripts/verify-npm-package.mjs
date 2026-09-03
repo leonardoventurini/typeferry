@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
 const EXPECTED_NAME = 'typeferry'
-const EXPECTED_VERSION = '0.7.5'
+const EXPECTED_VERSION = '0.8.0'
 const NPM_REGISTRY = 'https://registry.npmjs.org/'
 const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const PACKAGE_DIR = path.join(ROOT_DIR, 'typeferry-ts')
@@ -75,6 +75,10 @@ function validateManifest(manifest) {
   assert(
     manifest.files.length === 1 && manifest.files[0] === 'dist',
     'manifest files allowlist must contain only dist',
+  )
+  assert(
+    manifest.bin?.typeferry === './dist/cli/index.js',
+    'typeferry CLI binary target is required',
   )
 }
 

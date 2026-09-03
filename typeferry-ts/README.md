@@ -26,8 +26,50 @@ Install the public TypeScript package with `npm install typeferry`. Repository c
 | `typeferry/ejson` | Extended JSON namespace |
 | `typeferry/mongodb` | Native-driver MongoDB extension |
 | `typeferry/mongodb/decorators` | MongoDB collection decorators |
+| `typeferry/config` | Optional typed application configuration |
+| `typeferry/test` | Unstable mirror of the installed Vitest API |
 
 Applications should import these compiled package exports. Do not alias or import TypeFerry source files from application code.
+
+## Application commands
+
+Applications using the conventional root-level `client/`, `common/`,
+`server/`, and `test/` directories need no TypeFerry configuration:
+
+```json
+{
+  "scripts": {
+    "develop": "typeferry develop",
+    "build": "typeferry build",
+    "test": "typeferry test"
+  }
+}
+```
+
+`typeferry test unit`, `typeferry test integration`, and
+`typeferry test browser` select one project. Add `--watch` for watch mode.
+Tests can import Vitest through `typeferry/test`:
+
+```ts
+import { describe, expect, it } from 'typeferry/test'
+```
+
+That entry point mirrors TypeFerry's installed Vitest release. Individual
+mirrored exports follow Vitest and do not carry independent TypeFerry
+compatibility guarantees.
+
+Add `typeferry.config.ts` only when overriding supported high-level defaults:
+
+```ts
+import { defineConfig } from 'typeferry/config'
+
+export default defineConfig({
+  development: {
+    clientPort: 8000,
+    serverPort: 8002,
+  },
+})
+```
 
 ## Define and serve a typed method
 

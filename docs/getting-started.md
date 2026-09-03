@@ -1,7 +1,7 @@
 # Getting Started
 
-This quickstart runs the TypeScript application template against the published
-`typeferry` package from npm.
+This quickstart runs the TypeScript application template against TypeFerry's
+current application framework.
 
 ## Prerequisites
 
@@ -20,8 +20,9 @@ mise install
 mise exec -- npm ci
 ```
 
-The template installs the compatible `typeferry` release declared in its npm
-manifest and locked dependency graph.
+Until the `0.8.0` candidate is published, this repository temporarily installs
+the sibling `typeferry-ts/` package using npm's packed-link mode. Restore the
+registry range after publication.
 
 ## 2. Start MongoDB
 
@@ -51,7 +52,8 @@ The development process starts the Node.js server and client development server.
 - TypeFerry WebSocket transport at `/typeferry-ws`.
 - Health status at `/healthz`.
 
-Use the ports printed by the development process; the checked-in defaults are defined by the template environment and development scripts.
+Use the ports printed by the development process. The zero-config defaults are
+owned by the installed TypeFerry package.
 
 ## 5. Trace one RPC call
 

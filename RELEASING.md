@@ -6,7 +6,7 @@ The TypeScript implementation is configured for operator-controlled publication 
 
 | Implementation | Registry identity | Version | Status |
 |---|---|---:|---|
-| TypeScript | `typeferry` | `0.7.5` (published) | Public npm release enabled; bundled BSON ObjectId compatibility published |
+| TypeScript | `typeferry` | `0.8.0` (candidate) | Application framework CLI ready for verification; `0.7.5` remains published |
 | Python | `typeferry-py` | `0.2.0` | Temporary identity; publication disabled |
 | Rust | `typeferry` and `typeferry-*` | `0.2.0` | Workspace publication disabled |
 
@@ -19,6 +19,12 @@ materialize snapshots reliably. The release recipe rechecks that the exact
 candidate version is absent immediately before every upload.
 
 Published npm release: `typeferry@0.7.5`.
+
+Candidate npm release: `typeferry@0.8.0`. Until this candidate is published,
+the repository template temporarily uses `file:../typeferry-ts` with npm
+packed-link installation. This intentionally makes the template dependent on
+the sibling checkout. Restore `^0.8.0` and its registry lock entry immediately
+after publication.
 
 ## npm Release Gate
 
@@ -48,14 +54,14 @@ The recipe requires:
 - automatic installation and selection of the exact Node/npm versions through Mise;
 - a clean tracked and untracked worktree on `main`;
 - successful `npm whoami` against the public registry;
-- package identity `typeferry@0.7.5` and an absent registry version (after the
+- package identity `typeferry@0.8.0` and an absent registry version (after the
   release commit bumps the package manifest and lockfile);
 - the complete non-uploading release gate.
 
 Only after those checks does it execute `npm publish --access public`. The
 recipe does not bump versions, create Git tags, push commits, or store
 credentials. After npm confirms the upload, create the annotated Git tag
-`v0.7.5` and push the release commit and tag. No GitHub release is created.
+`v0.8.0` and push the release commit and tag. No GitHub release is created.
 
 An npm version cannot be reused after publication. If a release is incorrect, deprecate it as appropriate, fix the repository, choose a higher semantic version, and rerun the gate.
 

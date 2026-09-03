@@ -75,6 +75,7 @@
   },
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json && node scripts/prepare-dist.mjs",
+    "verify:consumer": "node ../scripts/verify-application-consumer.mjs",
     "typecheck": "tsc --noEmit",
     "test": "npm run test:unit && npm run test:integration && npm run test:browser",
     "test:watch": "npm run test:unit:watch",
