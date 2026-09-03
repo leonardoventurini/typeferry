@@ -4,7 +4,6 @@ import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
 const EXPECTED_NAME = 'typeferry'
-const EXPECTED_VERSION = '0.8.0'
 const NPM_REGISTRY = 'https://registry.npmjs.org/'
 const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const PACKAGE_DIR = path.join(ROOT_DIR, 'typeferry-ts')
@@ -35,7 +34,7 @@ async function main() {
     )
   }
 
-  const report = parsePackageReport(packageResult.stdout)
+  const report = parsePackageReport(packageResult.stdout, manifest.version)
   await validatePackageFiles(manifest, report.files)
 
   console.log(
@@ -45,10 +44,7 @@ async function main() {
 
 function validateManifest(manifest) {
   assert(manifest.name === EXPECTED_NAME, `package name must be ${EXPECTED_NAME}`)
-  assert(
-    manifest.version === EXPECTED_VERSION,
-    `package version must be ${EXPECTED_VERSION}`,
-  )
+  assert(typeof manifest.version === 'string', 'package version is required')
   assert(manifest.private !== true, 'package must not be private')
   assert(manifest.license === 'MIT', 'package license must be MIT')
   assert(
@@ -82,7 +78,7 @@ function validateManifest(manifest) {
   )
 }
 
-function parsePackageReport(stdout) {
+function parsePackageReport(stdout, manifestVersion) {
   let parsed
 
   try {
@@ -97,8 +93,8 @@ function parsePackageReport(stdout) {
   assert(report && Array.isArray(report.files), 'package report has no file list')
   assert(report.name === EXPECTED_NAME, 'package report has the wrong package name')
   assert(
-    report.version === EXPECTED_VERSION,
-    'package report has the wrong package version',
+    report.version === manifestVersion,
+    'package report version must match the manifest',
   )
 
   return report

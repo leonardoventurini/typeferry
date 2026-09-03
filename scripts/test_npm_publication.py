@@ -163,6 +163,8 @@ def test_package_validator_is_fail_closed_and_checks_exports() -> None:
     assert "publishConfig" in validator
     assert "exports" in validator
     assert "dist/lit" in validator
+    assert "EXPECTED_VERSION" not in validator
+    assert "report.version === manifestVersion" in validator
     assert "process.exitCode = 1" in validator
 
 
