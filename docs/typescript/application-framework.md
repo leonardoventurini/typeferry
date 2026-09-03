@@ -132,6 +132,10 @@ typeferry test unit -- server/example.unit.spec.ts
 | Integration | `*.integration.spec.ts(x)` | Serial execution, decorator transform, configurable timeout    |
 | Browser     | `*.browser.spec.ts(x)`     | Serial Playwright browser tests with React and Tailwind         |
 
+The launcher sets `NODE_ENV=test` when the application has not supplied an
+explicit value, matching Vitest's CLI convention without replacing a custom
+test environment.
+
 Discovery covers `client/`, `common/`, `server/`, and `test/`. Add optional
 application setup in:
 

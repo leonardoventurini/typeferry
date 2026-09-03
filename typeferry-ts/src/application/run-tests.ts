@@ -10,6 +10,8 @@ export async function runTests(
   watch: boolean,
   testArguments: readonly string[],
 ): Promise<void> {
+  prepareTestEnvironment()
+
   const vitest = await startVitest(
     'test',
     [...testArguments],
@@ -23,4 +25,8 @@ export async function runTests(
   )
 
   if (!watch) await vitest.close()
+}
+
+export function prepareTestEnvironment(): void {
+  if (!process.env['NODE_ENV']) process.env['NODE_ENV'] = 'test'
 }
