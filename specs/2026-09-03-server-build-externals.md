@@ -90,20 +90,20 @@ export default defineConfig({
 
 ## Test strategy and acceptance criteria
 
-- [ ] Configuration typing and resolution accept `build.server.external` and
+- [x] Configuration typing and resolution accept `build.server.external` and
       default it to an empty list.
-- [ ] Runtime schema rejects empty entries, duplicates, and unknown fields.
-- [ ] Package-name extraction covers unscoped, scoped, and subpath specifiers
+- [x] Runtime schema rejects empty entries, duplicates, and unknown fields.
+- [x] Package-name extraction covers unscoped, scoped, and subpath specifiers
       and rejects relative, absolute, wildcard, and malformed values.
-- [ ] Loading configuration accepts direct production dependencies and rejects
+- [x] Loading configuration accepts direct production dependencies and rejects
       missing, dev-only, and transitive externals with actionable errors.
-- [ ] Server build options pass the configured external list to esbuild while
+- [x] Server build options pass the configured external list to esbuild while
       an unconfigured application remains fully bundled.
-- [ ] A procedurally generated packed consumer builds with an external runtime
+- [x] A procedurally generated packed consumer builds with an external runtime
       dependency and preserves its import in `dist/server/index.cjs`.
-- [ ] Documentation explains configuration, production dependency ownership,
+- [x] Documentation explains configuration, production dependency ownership,
       and Docker/pruned-install behavior.
-- [ ] Package version, lockfile, changelog, and release status identify the
+- [x] Package version, lockfile, changelog, and release status identify the
       unpublished `0.9.0` candidate.
 - [ ] Unit, integration, browser, lint, typecheck, build, pack inspection, and
       the repository npm release gate pass.
@@ -137,11 +137,11 @@ passes, hand the clean `0.9.0` candidate to the package owner for
 
 ## Executable checklist
 
-- [ ] Add failing configuration, dependency-validation, and build-option tests.
-- [ ] Implement the typed configuration and package dependency validation.
-- [ ] Propagate externals to server development and production builds.
-- [ ] Extend the procedural packed-consumer verification.
-- [ ] Update framework and deployment documentation.
-- [ ] Record the architectural decision.
-- [ ] Bump the package candidate to `0.9.0` and update release documentation.
+- [x] Add failing configuration, dependency-validation, and build-option tests.
+- [x] Implement the typed configuration and package dependency validation.
+- [x] Propagate externals to server development and production builds.
+- [x] Extend the procedural packed-consumer verification.
+- [x] Update framework and deployment documentation.
+- [x] Record the architectural decision.
+- [x] Bump the package candidate to `0.9.0` and update release documentation.
 - [ ] Run focused and complete release verification.

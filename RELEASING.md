@@ -6,15 +6,14 @@ The TypeScript implementation is configured for operator-controlled publication 
 
 | Implementation | Registry identity | Version | Status |
 |---|---|---:|---|
-| TypeScript | `typeferry` | `0.8.0` | Published |
+| TypeScript | `typeferry` | `0.9.0` | Unpublished candidate |
 | Python | `typeferry-py` | `0.2.0` | Temporary identity; publication disabled |
 | Rust | `typeferry` and `typeferry-*` | `0.2.0` | Workspace publication disabled |
 
-TypeFerry is published publicly on npm at `0.8.0`. This release adds the
-package-owned application framework commands, optional typed configuration,
-and the `typeferry/test` entry point while retaining the existing runtime
-exports. The release recipe rechecks that the exact candidate version is
-absent immediately before every upload.
+TypeFerry is published publicly on npm at `0.8.0`. The repository prepares
+`0.9.0` as an unpublished candidate adding validated server build externals.
+The release recipe rechecks that the exact candidate version is absent
+immediately before every upload.
 
 Published npm release: `typeferry@0.8.0`.
 
@@ -56,7 +55,7 @@ The recipe requires:
 Only after those checks does it execute `npm publish --access public`. The
 recipe does not bump versions, create Git tags, push commits, or store
 credentials. After npm confirms the upload, create the annotated Git tag
-`v0.8.0` and push the release commit and tag. No GitHub release is created.
+`v0.9.0` and push the release commit and tag. No GitHub release is created.
 
 An npm version cannot be reused after publication. If a release is incorrect, deprecate it as appropriate, fix the repository, choose a higher semantic version, and rerun the gate.
 
