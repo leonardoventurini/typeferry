@@ -4,10 +4,15 @@ import path from "node:path";
 import { createJiti } from "jiti";
 import type { BuildOptions } from "esbuild";
 import type { InlineConfig } from "vite";
-import type { ViteUserConfig as VitestConfig } from "vitest/config";
+import type {
+  TestProjectConfiguration,
+  ViteUserConfig as VitestConfig,
+} from "vitest/config";
 import { z } from "zod";
 
 export type BrowserName = "chromium" | "firefox" | "webkit";
+export type ApplicationTestConfig = VitestConfig;
+export type ApplicationTestProjectConfiguration = TestProjectConfiguration;
 
 export interface DevelopmentProxyRoute {
   readonly pathPrefix: string;
