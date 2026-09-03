@@ -1,146 +1,114 @@
-# TypeFerry application framework and toolchain proposal
+# TypeFerry application framework proposal
 
 Status: proposed architecture. This document is informative and does not
 supersede accepted decisions, package contracts, or the wire protocol.
 
 ## Summary
 
-TypeFerry should make its existing application conventions explicit and
-versioned inside the `typeferry` npm package. Applications should describe
-their intent in `typeferry.config.ts`; the package should translate that model
-into development, build, test, type-checking, linting, formatting, Docker, and
-Compose behavior.
+TypeFerry should simplify application setup by moving its established
+development, production-build, and test conventions into the existing
+`typeferry` npm package.
 
-The intended application surface is:
+A conventional application should not need a TypeFerry configuration file.
+The framework understands the root-level `client/`, `common/`, `server/`,
+and `test/` directories automatically. Applications create an optional
+`typeferry.config.ts` only when they need supported customization.
 
-```text
-my-app/
-├── client/
-├── common/
-├── server/
-├── test/
-├── package.json
-├── package-lock.json
-└── typeferry.config.ts
-```
-
-The existing `client/`, `common/`, `server/`, and `test/` boundaries remain the
-default. A typical application should not own `develop.ts`, `vite.config.ts`,
-three Vitest configurations, or copied tool configuration.
-
-## Goals
-
-- Provide one batteries-included TypeFerry application workflow.
-- Standardize the established application directory structure.
-- Make a TypeFerry upgrade update the compatible toolchain as a unit.
-- Keep common applications close to zero-configuration.
-- Provide typed, intentional extension points without making every underlying
-  tool option part of TypeFerry's stable API.
-- Preserve advanced escape hatches and an explicit ejection path.
-- Keep the wire protocol and cross-language implementations unchanged.
-
-## Non-goals
-
-- Hide the behavior or native APIs of application dependencies such as React
-  and MongoDB.
-- Make Vite, Vitest, ESLint, Prettier, Docker, or Compose public TypeFerry
-  compatibility contracts in their entirety.
-- Remove small project-root integration files when Git, npm, Mise, Docker, or
-  editors require them before TypeFerry can run.
-- Move application policy into the portable runtime or wire protocol.
-
-## User-facing workflow
-
-Applications use the package CLI for all framework-owned operations:
+The normal application scripts become:
 
 ```json
 {
-  "dependencies": {
-    "typeferry": "^0.8.0"
-  },
   "scripts": {
     "develop": "typeferry develop",
     "build": "typeferry build",
-    "start": "typeferry start",
-    "test": "typeferry test",
-    "typecheck": "typeferry typecheck",
-    "lint": "typeferry lint",
-    "format": "typeferry format",
-    "container:build": "typeferry container build",
-    "compose:up": "typeferry compose up"
+    "test": "typeferry test"
   }
 }
 ```
 
-The default configuration can be empty:
+## Desired outcome
 
-```ts
-import { defineConfig } from 'typeferry/config'
+Application authors should be able to install TypeFerry, create the standard
+source directories, and run development, builds, and tests without copying
+TypeFerry-specific Vite, Vitest, proxy, or process-orchestration files.
 
-export default defineConfig({})
-```
+An upgrade to `typeferry` should carry compatible Vite, Vitest, build, and
+development behavior without requiring applications to synchronize copied
+configuration.
 
-`typeferry.config.ts` describes application intent. It is not a renamed Vite
-configuration file.
+## Scope
 
-## Package architecture
+TypeFerry owns:
 
-The existing `typeferry` package gains five internally isolated layers:
+- `typeferry develop`.
+- `typeferry build`.
+- `typeferry test` and its unit, integration, and browser projects.
+- Vite development and client-build configuration.
+- Server bundling and development watch behavior.
+- The TypeFerry HTTP development proxy.
+- Development process lifecycle and signal handling.
+- Test discovery and required framework test setup.
+- An optional typed `typeferry.config.ts` contract.
+- A supported test API exported from `typeferry/test`.
 
-```text
-typeferry
-├── runtime
-│   ├── client
-│   ├── server
-│   ├── react
-│   └── mongodb
-├── config
-│   ├── schema and defineConfig()
-│   ├── defaults
-│   ├── validation
-│   └── resolved application model
-├── toolchain
-│   ├── Vite and server compiler
-│   ├── Vitest
-│   ├── TypeScript
-│   ├── ESLint
-│   └── Prettier
-├── container
-│   ├── production image recipe
-│   ├── development image recipe
-│   └── Compose model
-└── CLI
-    ├── develop, build, and start
-    ├── test, lint, format, and typecheck
-    ├── container and compose
-    └── doctor, sync, migrate, and eject
-```
+Applications continue to own:
 
-Runtime exports must never import toolchain modules. Toolchain dependencies
-must load lazily so browser and server consumers do not execute or bundle CLI
-code. Package inspection must verify that client bundles contain no toolchain
-implementation.
+- TypeScript configuration and type-checking commands.
+- ESLint and Prettier configuration and commands.
+- Runtime selection through Mise.
+- npm policy and the package lock.
+- Production Docker configuration.
+- The MongoDB Compose service and other application infrastructure.
+- Application environment files and secrets.
+- Application-specific test setup.
 
-## Configuration model
+## Explicitly deferred
 
-The CLI resolves the project root, loads and validates
-`typeferry.config.ts`, applies conventions, and produces one immutable
-`ResolvedTypeFerryConfig`. Every subsystem consumes that model rather than
-independently rediscovering paths and defaults.
+This proposal does not include:
 
-An illustrative configuration is:
+- A bundled Node.js runtime, native launcher, or installer.
+- TypeScript, ESLint, or Prettier presets.
+- Managed dotfiles, synchronization, or configuration migrations.
+- Dockerfile or Compose generation.
+- Container lifecycle commands.
+- A development Docker image or Compose development service.
+- Scaffolding or automatic dependency installation.
+
+These concerns may be evaluated independently after the smaller framework
+surface is stable. They must not shape the initial APIs speculatively.
+
+## Conventional project structure
+
+The framework recognizes these paths relative to the application root:
+
+| Concern | Default path |
+|---|---|
+| Browser application | `client/` |
+| Portable contracts | `common/` |
+| Node.js application | `server/` |
+| Shared test support | `test/` |
+| Client HTML entry | `client/index.html` |
+| Server entry | `server/index.ts` |
+| Build output | `dist/` |
+
+The root alias `@/` resolves to the application root so imports retain their
+explicit architectural layer names.
+
+The CLI must resolve the application root deliberately rather than assuming
+that every invocation starts in the current working directory. Missing or
+ambiguous roots must produce actionable diagnostics.
+
+## Optional configuration
+
+No `typeferry.config.ts` is required for the defaults. If the file exists, the
+CLI loads and validates it before starting any tool.
+
+An illustrative customized application is:
 
 ```ts
 import { defineConfig } from 'typeferry/config'
 
 export default defineConfig({
-  app: {
-    client: 'client',
-    common: 'common',
-    server: 'server',
-    tests: 'test',
-    output: 'dist',
-  },
   development: {
     clientPort: 8000,
     serverPort: 8002,
@@ -151,304 +119,49 @@ export default defineConfig({
     sourceMaps: true,
   },
   test: {
-    unit: true,
     integration: {
-      enabled: true,
       timeout: 30_000,
     },
     browser: {
-      enabled: true,
       browser: 'chromium',
     },
   },
-  container: {
-    nodeImage: 'node:26.5.1-bookworm-slim',
-    database: {
-      provider: 'mongodb',
-      version: '8',
-      replicaSet: true,
-      hostPort: 27018,
-    },
-  },
 })
 ```
 
-The initial public configuration should be narrow and strongly typed. Stable
-fields should express TypeFerry concepts, not pass through raw tool settings.
+The configuration contains typed, high-level TypeFerry concepts. It must not
+expose raw Vite or Vitest configuration objects. This boundary lets TypeFerry
+update its underlying tools without inheriting their complete public
+configuration surfaces.
 
-### Extension stability
+The initial public configuration should remain intentionally small. New fields
+should be added only for demonstrated application needs.
 
-Configuration extensions have two stability levels:
+## Package architecture
 
-- Normal fields are durable TypeFerry APIs with semantic-versioning
-  expectations.
-- Fields under `advanced` are explicit integration escape hatches coupled to
-  the underlying tool and may need adjustment when its major version changes.
-
-For example:
-
-```ts
-export default defineConfig({
-  build: {
-    aliases: {
-      '~shared': './common',
-    },
-  },
-  advanced: {
-    vite({ config }) {
-      return config
-    },
-  },
-})
-```
-
-An unrestricted Vite object must not appear at the top level. Doing so would
-make Vite's complete configuration surface an accidental TypeFerry public
-contract and impede coordinated upgrades.
-
-## Development and production builds
-
-`typeferry develop` replaces the template's development script and owns:
-
-- Vite startup with automatic Vite configuration discovery disabled.
-- React and Tailwind integration.
-- The TypeFerry HTTP development proxy.
-- Backend compilation and watch mode.
-- Backend process restarts and process-tree cleanup.
-- Tagged output and development logging.
-- Signal handling and graceful shutdown.
-- Default ports and server environment loading.
-- Client, common, server, and root-alias resolution.
-
-`typeferry build` performs explicit internal stages:
+The TypeScript package gains internally isolated application and CLI modules:
 
 ```text
-validate structure and configuration
-    ↓
-clean framework-managed output
-    ↓
-build client into dist/client
-    ↓
-bundle server into dist/server/index.cjs
-    ↓
-validate the client manifest
-    ↓
-write dist/typeferry-build.json
+typeferry
+├── runtime
+│   ├── client
+│   ├── server
+│   ├── react
+│   └── mongodb
+├── application
+│   ├── config
+│   ├── paths
+│   ├── develop
+│   ├── build
+│   └── test
+└── cli
 ```
 
-The build metadata records the TypeFerry version, configuration schema,
-entries, target, and generated artifacts. `typeferry start` validates this
-metadata and reports incompatible or incomplete output before starting the
-server.
+Runtime exports must never import application-tooling modules. Command modules
+load Vite, Vitest, esbuild, and plugins only when invoked. Browser and server
+consumers must not execute or bundle CLI implementation.
 
-## Tests
-
-The package should replace the three template-owned Vitest files with named
-inline projects:
-
-```sh
-typeferry test
-typeferry test unit
-typeferry test integration
-typeferry test browser
-typeferry test --watch
-```
-
-The existing conventions remain observable contracts:
-
-- `*.unit.spec.ts(x)` runs in the Node unit project.
-- `*.integration.spec.ts(x)` runs serially with MongoDB setup and decorator
-  transformation.
-- `*.browser.spec.tsx` runs with Playwright Chromium, React, and Tailwind.
-- Application setup files augment rather than accidentally replace mandatory
-  framework setup.
-- Every project has an explicit stable name.
-
-Applications must not rely on npm hoisting to import a transitive Vitest
-installation. To retain the single-dependency workflow, TypeFerry should
-export the supported test API:
-
-```ts
-import { describe, expect, it } from 'typeferry/test'
-```
-
-Testing Library or other broad testing APIs may remain application
-dependencies when singleton behavior or their complete public API is needed.
-
-## TypeScript, ESLint, and Prettier
-
-The CLI can run all three tools with package-owned configuration. Editor and
-third-party-tool discovery still benefits from small project-root adapters.
-
-TypeFerry should export:
-
-- `typeferry/tsconfig`
-- `typeferry/tsconfig/client`
-- `typeferry/tsconfig/server`
-- `typeferry/tsconfig/test`
-- `typeferry/eslint`
-- `typeferry/prettier`
-
-A root TypeScript adapter can remain as small as:
-
-```json
-{
-  "extends": "typeferry/tsconfig"
-}
-```
-
-An optional ESLint editor adapter can re-export `typeferry/eslint`. The
-application manifest can point Prettier-compatible editors at
-`typeferry/prettier`.
-
-Formatting and linting should be separate operations rather than running
-Prettier as an ESLint rule:
-
-```sh
-typeferry lint
-typeferry format
-typeferry check
-```
-
-This reduces plugin coupling and produces clearer diagnostics.
-
-## Managed integration files
-
-Some files affect tools before the TypeFerry package can execute. They cannot
-all disappear:
-
-| File | Policy | Reason |
-|---|---|---|
-| `.prettierrc` | Remove | Package configuration can own it. |
-| `.prettierignore` | Remove | Derive exclusions from resolved config. |
-| `.npmrc` | Keep minimal | npm reads it before installing TypeFerry. |
-| `.mise.toml` | Keep | Mise selects Node before TypeFerry runs. |
-| `.gitignore` | Keep or generate | Git does not consult npm package config. |
-| `.dockerignore` | Keep or generate | Docker reads it from the context root. |
-| `eslint.config.*` | Optional adapter | Editors may require discovery. |
-| `tsconfig.json` | Keep tiny adapter | Editors require project discovery. |
-
-In this model, TypeFerry owns canonical content, validation, and updates even
-when a physical adapter must remain in the project.
-
-`typeferry sync` creates or refreshes managed integration sections, while
-`typeferry sync --check` verifies them without changing files. Managed files
-must carry boundaries such as:
-
-```text
-# typeferry:start
-...framework-managed content...
-# typeferry:end
-```
-
-The command must preserve application-owned content and refuse ambiguous
-rewrites.
-
-## Docker and Compose
-
-Container operations should be package CLI commands:
-
-```sh
-typeferry container build
-typeferry container run
-typeferry compose up
-typeferry compose down
-typeferry compose logs
-```
-
-Docker still requires the application directory as its build context. The CLI
-therefore renders versioned artifacts into `.typeferry/generated/` and invokes
-Docker using the application root as the context. It must not execute a
-Compose file directly from `node_modules/typeferry`, where relative paths
-would resolve incorrectly and upgrades could replace local customization.
-
-Generated container assets are disposable and not committed. They record the
-TypeFerry and schema versions that created them.
-
-Framework defaults preserve the current template behavior:
-
-- A multi-stage production build.
-- A non-root production process containing built output only.
-- A health check against `/healthz`.
-- A separate development image.
-- A Linux-owned development `node_modules` volume.
-- A MongoDB single-node replica set with persistent storage.
-- Development dependencies ordered on database health.
-- The current client, server, and MongoDB host ports.
-
-Common variation belongs in `typeferry.config.ts`. Infrastructure outside the
-supported model uses `typeferry eject docker`, which copies editable assets to
-the application and ends framework management of those files.
-
-## Upgrades and migrations
-
-The target upgrade workflow is:
-
-```sh
-npm install typeferry@latest
-typeferry migrate
-typeferry sync
-typeferry check
-```
-
-TypeFerry exposes three version concepts:
-
-- Runtime version for public runtime behavior.
-- Configuration schema version.
-- Generated-artifact version.
-
-`typeferry migrate` reads the installed version and configuration schema,
-reports breaking changes, applies safe transformations, refreshes managed
-adapters, re-renders disposable container assets, and optionally runs the
-complete verification surface.
-
-Package-lock updates must not silently change security, ports, build output,
-container behavior, or test semantics. Material default changes remain
-compatible or require an explicit migration.
-
-Applications commit their configuration, minimal adapters, manifest, and
-lockfile. They do not commit `.typeferry/generated/`.
-
-## Dependency consequences
-
-Keeping the runtime and complete toolchain in one npm package gives users one
-dependency to upgrade, but it increases install weight for consumers that use
-only the client or server runtime. The package may install Vite, Vitest,
-Playwright support, TypeScript, ESLint, Prettier, Tailwind, React tooling,
-esbuild, and supporting plugins.
-
-The first implementation should accept that tradeoff while enforcing these
-boundaries:
-
-- Runtime exports never import toolchain modules.
-- CLI and tool modules load lazily.
-- Browser package inspection rejects toolchain code.
-- Tool versions remain internal TypeFerry implementation details.
-- React, React DOM, MongoDB, and other singleton-sensitive application
-  runtimes remain peer or direct application dependencies.
-- The package remains tree-shakeable where its runtime exports permit it.
-
-A future physical package split may preserve the same public imports if
-install weight becomes unacceptable, but it is not part of this proposal.
-
-## Runtime policy
-
-The current TypeScript package develops on Node `24.19.0`, while the
-application template pins Node `26.5.1`. Framework ownership requires one
-deliberate policy:
-
-- Support application runtimes `>=24.19.0 <27`.
-- Generate or recommend one exact version, initially `26.5.1`.
-- Verify the minimum and recommended versions in CI.
-- Use the recommended exact Node image for generated containers.
-- Keep npm pinned where reproducible package operations require it.
-
-This separates the supported runtime range from the exact reproducible default
-given to a new application.
-
-## Public contracts
-
-Likely additions to the package surface are:
+The package adds a binary and explicit public exports:
 
 ```json
 {
@@ -457,89 +170,228 @@ Likely additions to the package surface are:
   },
   "exports": {
     "./config": "...",
-    "./test": "...",
-    "./eslint": "...",
-    "./prettier": "...",
-    "./tsconfig": "./dist/presets/tsconfig.json",
-    "./tsconfig/client": "./dist/presets/tsconfig.client.json",
-    "./tsconfig/server": "./dist/presets/tsconfig.server.json"
+    "./test": "..."
   }
 }
 ```
 
-The following become public compatibility boundaries and require deliberate
-versioning:
+`defineConfig`, its configuration types, the test export, CLI commands,
+default paths, test naming conventions, and build output become public package
+contracts. Implementation requires the normal approval and compatibility care
+for public API changes.
 
-- `defineConfig`, `TypeFerryConfig`, and `ResolvedTypeFerryConfig`.
-- CLI command names, arguments, and exit behavior.
-- Application directory and test naming conventions.
-- Preset exports.
-- Build output and metadata structure.
-- Container configuration.
-- Managed-file markers and ownership rules.
+## Development command
 
-Adding these APIs requires explicit approval before implementation because it
-changes the published package surface and establishes a major application
-architecture.
+`typeferry develop` replaces `develop.ts`, `vite.config.ts`, and the
+application-owned development proxy.
+
+It owns:
+
+- Vite startup with automatic `vite.config.*` discovery disabled.
+- React and Tailwind Vite plugins.
+- The `@/` root alias and React singleton resolution.
+- The TypeFerry HTTP development proxy.
+- Client host, port, HMR, and watch defaults.
+- Initial server compilation and subsequent watch builds.
+- The bundled CommonJS server output used by the current template.
+- Backend child-process startup and restart behavior.
+- Tagged server output and the development log.
+- Graceful shutdown and process-tree cleanup.
+
+Arguments after `typeferry develop --` are forwarded to the server entry
+consistently with the existing development script.
+
+The implementation preserves the current defaults unless a focused change is
+approved:
+
+- Client port `8000`.
+- Server port `8002`, supplied through the server environment.
+- Client root `client/`.
+- Server entry `server/index.ts`.
+- Server development output `dist/server/index.cjs`.
+- Server environment file `.env.server`.
+
+## Production build command
+
+`typeferry build` replaces direct Vite and esbuild scripts while preserving
+the current artifacts:
+
+```text
+validate conventional inputs
+    ↓
+clean framework-owned dist output
+    ↓
+build client into dist/client
+    ↓
+bundle server into dist/server/index.cjs
+    ↓
+validate the client manifest and server entry
+```
+
+The client build retains React and Tailwind processing,
+`client/index.html` as its entry, the root alias, an asset manifest, and the
+current ECMAScript target.
+
+The server build retains bundling, CommonJS output, source maps, Node platform
+semantics, and the decorator compatibility setting required by the template.
+
+Production startup remains application-owned. The existing
+`node dist/server/index.cjs` script and production Dockerfile continue to
+consume the stable build artifacts.
+
+## Test command and API
+
+`typeferry test` replaces the three application-owned Vitest configuration
+files with package-owned named projects:
+
+```sh
+typeferry test
+typeferry test unit
+typeferry test integration
+typeferry test browser
+typeferry test unit --watch
+```
+
+The projects preserve the established conventions:
+
+- `*.unit.spec.ts(x)` runs in the unit project.
+- `*.integration.spec.ts(x)` runs serially with integration setup, decorator
+  transformation, and current timeouts.
+- `*.browser.spec.ts(x)` runs in headless Playwright Chromium with React and
+  Tailwind processing.
+- Discovery covers `client/`, `common/`, `server/`, and `test/`.
+- Application setup modules augment mandatory framework behavior.
+
+Applications must not rely on npm hoisting to import TypeFerry's transitive
+Vitest installation. TypeFerry exports the supported authoring API:
+
+```ts
+import { describe, expect, it } from 'typeferry/test'
+```
+
+The export should be narrower than an undocumented wildcard re-export. Its
+first implementation must inventory the Vitest APIs used by the template and
+define a supported surface. Broader APIs can be added when applications need
+them. Browser and component-testing libraries outside that surface remain
+explicit application dependencies.
+
+## Development Docker removal
+
+The application template removes:
+
+- `Dockerfile.development`.
+- The Compose `development` service.
+- The development `node_modules` volume.
+
+Local development runs through `typeferry develop` under the Mise-selected
+Node runtime. Compose remains for MongoDB and retains its single-node replica
+set, persistent data volume, health check, and host port.
+
+The production Dockerfile remains application-owned and runs
+`typeferry build` through the package script during its build stage. It then
+copies the stable `dist/` output into the non-root runtime stage.
+
+## Dependency and upgrade policy
+
+Vite, Vitest, esbuild, React and Tailwind Vite plugins, the Playwright Vitest
+provider, decorator transformation support, and process-management helpers are
+TypeFerry implementation dependencies when needed solely by these commands.
+
+Dependencies imported by application source remain application dependencies.
+This includes React, React DOM, MongoDB, Zod, Testing Library, and Playwright
+when applications use their APIs directly.
+
+The one-package choice increases installation weight for runtime-only
+consumers. The initial implementation accepts that tradeoff for simpler setup,
+while release inspection enforces separation between runtime and tooling code.
+
+The intended upgrade is ordinary npm behavior:
+
+```sh
+npm install typeferry@latest
+npm test
+npm run build
+```
+
+The lockfile records the resolved framework and toolchain graph. Minor releases
+may update internal tools only while observable command and artifact contracts
+remain compatible. Breaking configuration, command, test, or output changes
+require an appropriate TypeFerry version boundary and migration documentation.
+
+## Test strategy
+
+Tests should use a procedurally created consumer application, not only the
+repository's installed package tree.
+
+Verification layers are:
+
+1. Unit tests for root discovery, defaults, configuration validation, command
+   parsing, and process lifecycle.
+2. Command integration tests for development orchestration and named test
+   projects.
+3. Build integration tests asserting client manifest and server artifacts.
+4. Template tests confirming obsolete configs, scripts, proxy, and development
+   container files are absent.
+5. Packed-package tests installing `npm pack` output into a temporary consumer
+   and running development, builds, and all test projects.
+6. Package inspection proving runtime entries contain no application tooling.
+
+Development verification must cover clean signal shutdown, backend failure
+propagation, initial compiler errors, proxy routing, and watch rebuilds.
 
 ## Delivery sequence
 
-Implementation should proceed through vertically complete increments:
+Implementation should proceed through three independently verifiable units:
 
-1. Add the configuration resolver and `typeferry doctor`.
-2. Move development and client/server production builds behind the CLI.
-3. Add unit, integration, and browser test projects.
-4. Add TypeScript, ESLint, and Prettier commands and presets.
-5. Add managed integration files and `typeferry sync`.
-6. Add Docker and Compose rendering.
-7. Add migration and ejection commands.
-8. Reduce the application template to a framework consumer.
-9. Verify the workflow from a packed npm artifact.
+1. Configuration resolution, CLI routing, `develop`, and `build` with
+   consumer fixtures.
+2. Named Vitest projects and the `typeferry/test` authoring API.
+3. Template migration, development Docker removal, documentation, and complete
+   packed-consumer verification.
 
-Each increment should use a procedurally created fixture application. Final
-release verification installs the packed `typeferry` artifact into a temporary
-application and exercises development startup, builds, split tests, linting,
-formatting, type-checking, production startup, container build, and Compose
-validation.
+Each unit requires a specification before implementation and a decision record
+when its final public contracts are accepted.
 
 ## Acceptance criteria
 
-- Existing template development and production behavior remains equivalent.
-- Applications no longer own `develop.ts`, `vite.config.ts`, the development
-  proxy, or split Vitest configuration files.
-- One typed configuration controls framework conventions and supported
-  overrides.
-- The package CLI owns development, builds, tests, code quality, and container
-  workflows.
-- Tool upgrades ship through the `typeferry` dependency and lockfile.
-- Editor-required adapters contain no duplicated policy.
-- Managed files preserve user content and can be verified without mutation.
-- Advanced customization has documented stability and ejection semantics.
-- Runtime bundles contain no toolchain implementation.
-- A packed-package consumer fixture passes the complete application
-  verification surface.
+- A conventional application needs no `typeferry.config.ts`.
+- `typeferry develop`, `typeferry build`, and `typeferry test` work from a
+  packed package installed in a standalone consumer fixture.
+- Applications can add a typed `typeferry.config.ts` for high-level overrides.
+- The template no longer contains `develop.ts`, `vite.config.ts`, split
+  Vitest configs, or the development proxy.
+- The template no longer contains a development Dockerfile or Compose
+  development service.
+- Unit, integration, and browser test behavior remains equivalent.
+- Tests import supported runner APIs from `typeferry/test` without a direct
+  Vitest dependency.
+- TypeScript, ESLint, Prettier, Mise, npm policy, production Docker, and MongoDB
+  Compose behavior remain application-owned.
+- Development shutdown, backend failure, proxy, and watch behavior remain
+  observable and tested.
+- Production artifacts remain compatible with the existing startup script and
+  Dockerfile.
+- Runtime exports and bundles contain no application-tooling implementation.
 
-## Principal risks and mitigations
+## Risks and mitigations
 
 | Risk | Mitigation |
 |---|---|
-| One package becomes heavy to install. | Lazy-load tools and enforce runtime bundle boundaries. |
-| Raw tool options become accidental public APIs. | Keep stable intent fields separate from `advanced` escape hatches. |
-| Generated files overwrite user work. | Use ownership markers, check mode, and fail on ambiguity. |
-| Editors behave differently from the CLI. | Retain minimal discovery adapters and test common editor resolution paths. |
-| Container paths resolve relative to `node_modules`. | Render disposable assets and always use the application build context. |
-| Minor upgrades materially change behavior. | Version schemas and require explicit migrations for material defaults. |
-| Runtime and template Node policies conflict. | Define a supported range plus one tested exact default. |
+| Tool dependencies increase installation size. | Keep scope narrow, lazy-load tools, and inspect runtime bundles. |
+| Tool options become accidental public APIs. | Expose typed TypeFerry concepts, not raw configurations. |
+| Test re-exports lag behind Vitest use cases. | Start with an explicit supported inventory and expand deliberately. |
+| CLI behavior differs from the existing template. | Capture process, proxy, watch, test, and artifact behavior first. |
+| Zero-config discovery becomes surprising. | Keep one convention and provide actionable validation errors. |
+| Production Docker drifts from build output. | Treat output paths as contracts and retain a container smoke test. |
 
 ## Architectural principle
 
 The governing principle is:
 
-> `typeferry.config.ts` describes the application; TypeFerry translates that
-> description into Vite, Vitest, TypeScript, ESLint, Prettier, Docker, and
-> Compose behavior.
+> TypeFerry owns only the application machinery currently copied for
+> development, production builds, and tests. Applications retain control of
+> general code quality, runtime selection, and deployment infrastructure.
 
-The existing template already forms an implicit framework through its folder
-layout, proxy, build orchestration, test divisions, lint boundaries, database
-topology, and container lifecycle. Moving those conventions into the package
-makes them explicit, typed, testable, versioned, and upgradeable.
+This boundary removes the highest-value boilerplate without turning TypeFerry
+into a Node.js distribution, general-purpose toolchain manager, or container
+platform.
