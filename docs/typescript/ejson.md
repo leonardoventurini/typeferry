@@ -15,3 +15,9 @@ Use EJSON-compatible values at RPC and event boundaries. Do not manually add wir
 Custom types need a stable, globally unique tag and converters installed on every participating implementation. Changing a tag or representation is a protocol migration and requires updated conformance fixtures.
 
 EJSON preserves representation, not trust. Validate decoded network data before using it in authorization, database queries, filesystem paths, or process execution.
+
+The TypeScript serializer normalizes hydrated Mongoose documents and embedded
+documents to their stored fields, excluding document state and parent backlinks.
+ObjectIds retain their existing string representation and dates remain EJSON
+dates. This adapter does not run application `toObject()` or `toJSON()` transforms;
+apply those explicitly before serialization when the response requires them.

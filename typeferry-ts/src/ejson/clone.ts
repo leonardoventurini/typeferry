@@ -24,7 +24,15 @@ function cloneSpecialTypes(
     return { handled: true, result: val.toString() }
   }
 
-  if (val.constructor.name === 'model' && isObject(val._doc)) {
+  /**
+   * Embedded documents have different constructors but share document storage
+   * and state. Never visit their internal parent backlinks: doing so consumes
+   * parent fields in the shared-reference guard before those fields are cloned.
+   */
+  if (
+    (val.constructor?.name === 'model' || isObjectAndNotNull(val.$__)) &&
+    isObjectAndNotNull(val._doc)
+  ) {
     return { handled: true, result: internalClone(val._doc) }
   }
 
