@@ -19,6 +19,15 @@ describe('native project ownership', () => {
     expect(await readFile(path.join(root, 'generated.swift'), 'utf8')).toBe('custom')
   })
 
+  it('recognizes an unchanged generated file in a fresh checkout', async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'typeferry-native-'))
+    roots.push(root)
+    await writeFile(path.join(root, 'generated.swift'), 'current template')
+    await writeGeneratedFile(root, 'generated.swift', 'current template')
+    await writeGeneratedFile(root, 'generated.swift', 'next template')
+    expect(await readFile(path.join(root, 'generated.swift'), 'utf8')).toBe('next template')
+  })
+
   it('registers source once without replacing app project settings', () => {
     const project = [
       '/* Begin PBXBuildFile section */', '/* Begin PBXFileReference section */',

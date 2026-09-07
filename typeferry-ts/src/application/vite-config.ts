@@ -65,6 +65,9 @@ export function createViteConfig(
     viteConfig.define = { __TYPEFERRY_RUNTIME__: JSON.stringify({ target, backendOrigin: ios.backend.origin }) };
   }
   const extended = config.extensions.vite?.(viteConfig, { command, target }) ?? viteConfig;
+  if (target === 'ios' && extended.define?.__TYPEFERRY_RUNTIME__ !== viteConfig.define?.__TYPEFERRY_RUNTIME__) {
+    throw new Error('iOS public runtime metadata must be preserved by Vite extensions')
+  }
   if (target === 'ios' && extended.build?.outDir !== '../dist/ios-web') {
     throw new Error('iOS output must remain isolated in dist/ios-web');
   }

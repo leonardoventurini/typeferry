@@ -13,7 +13,11 @@ export async function writeGeneratedFile(root: string, relativePath: string, con
   try { existing = await readFile(destination, 'utf8') } catch (error) {
     if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error
   }
-  if (existing === contents) return
+  if (existing === contents) {
+    await mkdir(path.dirname(ledger), { recursive: true })
+    await writeFile(ledger, hash(contents))
+    return
+  }
   if (existing !== undefined) {
     let previousHash: string | undefined
     try { previousHash = await readFile(ledger, 'utf8') } catch { /* Unowned files cannot be replaced. */ }
