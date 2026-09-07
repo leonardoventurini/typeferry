@@ -30,6 +30,8 @@ export interface TypeFerryNativePlugin {
   setSession(options: { value: string }): Promise<void>
   clearSession(): Promise<void>
   authenticate(options: { url: string; callbackScheme: string }): Promise<{ url: string }>
+  acquireWakeLock(): Promise<{ id: string }>
+  releaseWakeLock(options: { id: string }): Promise<void>
   getState(): Promise<NativeAppState>
   addListener(eventName: 'appStateChange', listener: (state: NativeAppState) => void): Promise<PluginListenerHandle>
   beginFile(options: { fileName: string; size: number }): Promise<{ id: string }>
@@ -43,3 +45,6 @@ export const TypeFerryNative = registerPlugin<TypeFerryNativePlugin>('TypeFerryN
 
 export { NATIVE_FILE_CHUNK_BYTES, NATIVE_FILE_MAX_BYTES, shareNativeFile } from './share-file'
 export type { ShareNativeFileOptions } from './share-file'
+
+export { acquireNativeWakeLock } from './wake-lock'
+export type { NativeWakeLock } from './wake-lock'

@@ -4,6 +4,7 @@
 export const NATIVE_PLUGIN_SWIFT = String.raw`import AuthenticationServices
 import Capacitor
 import UIKit
+import WebKit
 
 @objc(TypeFerryNativePlugin)
 public class TypeFerryNativePlugin: CAPPlugin, CAPBridgedPlugin, ASWebAuthenticationPresentationContextProviding {
@@ -15,6 +16,8 @@ public class TypeFerryNativePlugin: CAPPlugin, CAPBridgedPlugin, ASWebAuthentica
         CAPPluginMethod(name: "setSession", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "clearSession", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "authenticate", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "acquireWakeLock", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "releaseWakeLock", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getState", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "beginFile", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "appendFile", returnType: CAPPluginReturnPromise),
@@ -29,6 +32,8 @@ public class TypeFerryNativePlugin: CAPPlugin, CAPBridgedPlugin, ASWebAuthentica
     private let fileStaging = TypeFerryFileStaging()
     private var stagingExpiry: DispatchWorkItem?
     private static let stagingTimeout: TimeInterval = 600
+    private static let wakeLocks = TypeFerryWakeLocks { enabled in UIApplication.shared.isIdleTimerDisabled = enabled }
+    private let wakeLockOwner = UUID().uuidString
     private var observers: [NSObjectProtocol] = []
 
     public override func load() {
@@ -46,14 +51,25 @@ public class TypeFerryNativePlugin: CAPPlugin, CAPBridgedPlugin, ASWebAuthentica
             http = try TypeFerryHTTPSession(backendURL: url)
         } catch { initializationError = error }
 
+        observers.append(NotificationCenter.default.addObserver(forName: .capacitorDecidePolicyForNavigationAction, object: nil, queue: .main) { [weak self] notification in
+            guard let self = self, let navigation = notification.object as? WKNavigationAction,
+                  navigation.targetFrame?.isMainFrame == true else { return }
+            Self.wakeLocks.removeOwner(self.wakeLockOwner)
+        })
+
         for name in [UIApplication.didBecomeActiveNotification, UIApplication.didEnterBackgroundNotification] {
             observers.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-                self?.notifyListeners("appStateChange", data: ["isActive": UIApplication.shared.applicationState == .active])
+                guard let self = self else { return }
+                let active = UIApplication.shared.applicationState == .active
+                Self.wakeLocks.setActive(owner: self.wakeLockOwner, active: active)
+                self.notifyListeners("appStateChange", data: ["isActive": active])
             })
         }
     }
 
     deinit {
+        let owner = wakeLockOwner
+        DispatchQueue.main.async { TypeFerryNativePlugin.wakeLocks.removeOwner(owner) }
         for observer in observers { NotificationCenter.default.removeObserver(observer) }
         authentication?.cancel()
         stagingExpiry?.cancel()
@@ -100,6 +116,24 @@ public class TypeFerryNativePlugin: CAPPlugin, CAPBridgedPlugin, ASWebAuthentica
             try TypeFerryKeychain.delete("session")
             call.resolve()
         } catch { call.reject("Unable to clear the secure session.", nil, error) }
+    }
+
+    @objc func acquireWakeLock(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            guard UIApplication.shared.applicationState == .active else {
+                call.reject("The application must be active to keep the screen awake."); return
+            }
+            Self.wakeLocks.setActive(owner: self.wakeLockOwner, active: true)
+            call.resolve(["id": Self.wakeLocks.acquire(owner: self.wakeLockOwner)])
+        }
+    }
+
+    @objc func releaseWakeLock(_ call: CAPPluginCall) {
+        guard let id = call.getString("id") else { call.reject("A wake lock identifier is required."); return }
+        DispatchQueue.main.async {
+            Self.wakeLocks.release(id: id, owner: self.wakeLockOwner)
+            call.resolve()
+        }
     }
 
     @objc func getState(_ call: CAPPluginCall) {
