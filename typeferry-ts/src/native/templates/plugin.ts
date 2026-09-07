@@ -52,7 +52,9 @@ public class TypeFerryNativePlugin: CAPPlugin, CAPBridgedPlugin, ASWebAuthentica
         } catch { initializationError = error }
 
         observers.append(NotificationCenter.default.addObserver(forName: .capacitorDecidePolicyForNavigationAction, object: nil, queue: .main) { [weak self] notification in
-            guard let self = self, let navigation = notification.object as? WKNavigationAction,
+            guard let self = self, let webView = self.bridge?.webView,
+                  let navigation = notification.object as? WKNavigationAction,
+                  navigation.sourceFrame.webView === webView,
                   navigation.targetFrame?.isMainFrame == true else { return }
             Self.wakeLocks.removeOwner(self.wakeLockOwner)
         })
