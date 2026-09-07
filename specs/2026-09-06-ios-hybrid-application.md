@@ -17,13 +17,30 @@ TypeFerry owns client/server builds and transports but assumes a browser origin 
 Local-origin cookies/OAuth and WKWebView behavior require integration validation. Native compilation and simulator checks cannot establish real camera recording or permission persistence. User explicitly accepts those checks pending. Keep browser contracts intact; revert task commits to recover. Generated files are isolated and native customization is preserved. No installed package patch or source aliases; validate built local package exports then leave publication to the user.
 
 ## Executable checklist
-- [ ] Config/build/CLI unit tests for target separation, invalid config, public runtime config and output paths.
-- [ ] Transport/auth regressions for explicit origins and session handoff.
-- [ ] Native adapters and permission contracts tested; Swift compiled with Xcode.
-- [ ] Local package installed into a downstream application; affected tests, lint/typecheck and web/iOS builds verified.
-- [ ] Upstream lint, typecheck, split suites, build, pack inspection and audit.
-- [ ] Document API and update architecture/decision/release records.
-- [ ] Commit verified units, bump unpublished minor candidate, provide manual publication handoff.
+- [x] Config/build/CLI unit tests for target separation, invalid config, public runtime config and output paths.
+- [x] Transport/auth regressions for explicit origins and session handoff.
+- [x] Native adapters and permission contracts tested; Swift compiled with Xcode.
+- [x] Local package installed into a downstream application; affected tests, lint/typecheck and web/iOS builds verified.
+- [x] Upstream lint, typecheck, split suites, build, pack inspection and audit.
+- [x] Document API and update architecture/decision/release records.
+- [x] Commit verified units, bump unpublished minor candidate, provide manual publication handoff.
 
 ## Direct rollout
 Build upstream, temporarily consume compiled local package in the downstream application, iterate, then prepare version for operator publication. Registry consumer installation/final consumer completion happens only after the user confirms publication. No push or publish is authorized.
+
+## Verification evidence
+Package unit, integration and browser suites passed (1,526 unit tests at the
+full-suite checkpoint; subsequent focused configuration/runtime/native tests
+also passed). Integration: 51 tests; browser: 9 tests. Final native suite: 11
+tests, including executable Swift checks. Lint, typecheck, build, npm artifact
+validation and audit passed. Local compiled tarball consumer checks preserved
+web authentication and completed both build targets. A simulator build/launch
+and an ad-hoc signed generic fixture checked real Keychain persistence, private
+cookies after restart, foreign-origin rejection, file cancellation, background
+lifecycle, delayed-response logout protection and wake leases. Physical capture,
+permission retention across binary upgrades and production OAuth remain pending.
+
+Capacitor's modern SceneDelegate and unavailable WKWebView browser wake locks
+required native registration and idle-timer lease support within the approved
+slice. Temporary fixture signing used no Apple account. Version 0.11.0 is prepared
+for manual publication; registry consumer adoption remains a subsequent step.

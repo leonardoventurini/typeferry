@@ -55,7 +55,10 @@ not import the Node configuration module into browser code. Configure
 not grant authorization: application endpoints must still authenticate requests.
 
 `typeferry/native` is the optional bridge entry point. It exposes native
-lifecycle, private cookie HTTP, browser auth, and file sharing. Media capture is
+lifecycle, private cookie HTTP, browser auth, file sharing, and
+`acquireNativeWakeLock()`. Release each wake lease when reading ends; native
+leases keep the screen awake only while the app is foregrounded and are cleaned
+up on navigation or bridge destruction. Media capture is
 permitted only from the bundled main frame and after the OS authorization. No
 permission is requested merely by configuring it. External content must not
 navigate inside the privileged webview. Native logging is disabled to avoid

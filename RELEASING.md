@@ -6,17 +6,26 @@ The TypeScript implementation is configured for operator-controlled publication 
 
 | Implementation | Registry identity             |  Version | Status                                   |
 | -------------- | ----------------------------- | -------: | ---------------------------------------- |
-| TypeScript     | `typeferry`                   | `0.10.0` | Unpublished candidate                    |
+| TypeScript     | `typeferry`                   | `0.11.0` | Unpublished candidate                    |
 | Python         | `typeferry-py`                |  `0.2.0` | Temporary identity; publication disabled |
 | Rust           | `typeferry` and `typeferry-*` |  `0.2.0` | Workspace publication disabled           |
 
-TypeFerry is published publicly on npm at `0.9.1`. The repository prepares
-`0.10.0` as an unpublished candidate adding validated server build externals
-on top of the application tooling, proxy routing, and Vite 8 improvements in
-`0.9.1`. The release recipe rechecks that the exact candidate version is absent
-immediately before every upload.
+TypeFerry is published publicly on npm at `0.10.0`. The repository prepares
+`0.11.0` as an unpublished candidate adding optional iOS application builds,
+Capacitor scaffolding, explicit backend transports, native authentication,
+private cookie/session storage, media permission ownership, file sharing and
+foreground wake leases. Existing web defaults remain unchanged.
 
-Published npm release: `typeferry@0.9.1`.
+Published npm release: `typeferry@0.10.0`.
+
+The candidate was validated with package lint/typecheck, unit/integration/browser
+suites, build, artifact inspection and a zero-vulnerability audit. A downstream
+application consumed the compiled local tarball for web/auth regressions and
+web/iOS builds. Xcode simulator compilation and a separately ad-hoc signed
+bridge fixture verified Keychain/cookie persistence, origin restrictions,
+lifecycle, file cancellation, logout races and native wake leases. Physical
+camera recording, upgrade permission retention and production OAuth acceptance
+remain pending. Publication is manual; no upload or push was performed.
 
 The repository template consumes the public release through `^0.8.0`; its
 lockfile resolves the package tarball from the npm registry.
@@ -56,7 +65,7 @@ The recipe requires:
 Only after those checks does it execute `npm publish --access public`. The
 recipe does not bump versions, create Git tags, push commits, or store
 credentials. After npm confirms the upload, create the annotated Git tag
-`v0.10.0` and push the release commit and tag. No GitHub release is created.
+`v0.11.0` and push the release commit and tag. No GitHub release is created.
 
 An npm version cannot be reused after publication. If a release is incorrect, deprecate it as appropriate, fix the repository, choose a higher semantic version, and rerun the gate.
 
