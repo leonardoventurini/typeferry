@@ -1,2 +1,6 @@
 export { broadcastTokenRefresh, setupCrossTabSync } from './cross-tab-sync'
 export { refreshAccessToken, setupTokenRefreshOnExpiry } from './token-refresh'
+export { authenticateNativeSession } from './native-session'
+export type { NativeAccessSession, NativeSessionOptions } from './native-session'
+export { createNativeHttpFetch } from './native-http'
+export type { NativeHttpBridge } from './native-http'

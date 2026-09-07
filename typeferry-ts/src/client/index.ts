@@ -4,3 +4,5 @@ export * from './client-http'
 export * from './client-socket'
 export * from './context-manager'
 export * from './logger'
+
+export * from './backend-origin'

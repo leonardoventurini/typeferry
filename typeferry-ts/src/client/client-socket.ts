@@ -11,6 +11,7 @@ import {
 import EventEmitter2 from '../utils/event-emitter'
 import type { Client, WebSocketOptions } from './client'
 import { LogLevel } from './logger'
+import { resolveBackendOrigins } from './backend-origin'
 
 /** Tracks a pending RPC call awaiting a correlated response. */
 interface PendingRequest<T = unknown> {
@@ -67,7 +68,10 @@ export class ClientSocket extends EventEmitter2 {
     const wsProtocol = this.client.options.secure ? 'wss://' : 'ws://'
     this.protocol = this.client.options.secure ? 'https://' : 'http://'
 
-    if (this.client.options.port) {
+    if (this.client.options.backend) {
+      this.uri = resolveBackendOrigins(this.client.options.backend).webSocketOrigin
+      this.protocol = this.uri.startsWith('wss:') ? 'https://' : 'http://'
+    } else if (this.client.options.port) {
       this.uri = `${wsProtocol}${this.client.options.host}:${this.client.options.port}`
     } else {
       this.uri = `${wsProtocol}${this.client.options.host}`

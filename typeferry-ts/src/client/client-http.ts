@@ -8,6 +8,7 @@ import {
 } from '../utils'
 import type { Client } from './client'
 import { LogLevel } from './logger'
+import { resolveBackendOrigins } from './backend-origin'
 
 type Resolve<T = unknown> = (value: T) => void
 type Reject = (reason?: unknown) => void
@@ -49,7 +50,10 @@ export class ClientHttp {
          * routes through Vite's proxy which forwards to the TypeFerry server.
      */
     const hasHttpPort = 'httpPort' in this.client.options
-    if (hasHttpPort && !this.client.options.httpPort) {
+    if (this.client.options.backend) {
+      this.host = resolveBackendOrigins(this.client.options.backend).httpOrigin
+      this.protocol = new URL(this.host).protocol + '//'
+    } else if (hasHttpPort && !this.client.options.httpPort) {
       // Use page origin (same-origin cookies via Vite proxy in dev)
       this.host =
         typeof window !== 'undefined'
@@ -79,8 +83,8 @@ export class ClientHttp {
     reject: Reject,
   ) {
     try {
-      // @ts-ignore
-      const data = await fetch(this.uri, {
+      const httpFetch = this.client.options.httpFetch ?? fetch
+      const data = await httpFetch(this.uri, {
         method: 'POST',
         headers: {
           [CLIENT_ID_HEADER_KEY]: this.client.uuid,

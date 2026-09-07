@@ -18,6 +18,7 @@ import {
 import { callMethodProxy } from './call-method-proxy'
 import { ClientChannel } from './client-channel'
 import { ClientHttp } from './client-http'
+import type { BackendOrigins, HttpFetch } from './backend-origin'
 import { ClientSocket } from './client-socket'
 import type { TypeFerryContext } from './context-manager'
 import { ContextManager } from './context-manager'
@@ -44,6 +45,14 @@ export type WebSocketRequestParams = {
 }
 
 export type ClientOptions = {
+  /**
+   * Explicit backend origins take precedence over host, port, httpPort and secure.
+   */
+  backend?: BackendOrigins
+  /**
+   * Optional HTTP transport for native cookie storage. Web clients use fetch.
+   */
+  httpFetch?: HttpFetch
   host?: string
   port?: number
   /**
