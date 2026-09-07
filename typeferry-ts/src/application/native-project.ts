@@ -54,3 +54,14 @@ export function registerNativeSource(project: string): string {
 export async function fileExists(file: string): Promise<boolean> {
   try { await access(file); return true } catch { return false }
 }
+
+/**
+ * Capacitor's scene lifecycle constructs its controller directly; storyboard
+ * registration alone does not install the native bridge in modern projects.
+ */
+export function registerNativeScene(source: string): string {
+  if (/rootViewController\s*=\s*TypeFerryBridgeViewController\(\)/u.test(source)) return source
+  const stockController = /rootViewController\s*=\s*CAPBridgeViewController\(\)/u
+  if (!stockController.test(source)) throw new Error('Custom scene controller detected; integrate TypeFerry native registration explicitly')
+  return source.replace(stockController, 'rootViewController = TypeFerryBridgeViewController()')
+}

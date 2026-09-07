@@ -5,7 +5,7 @@ import path from 'node:path'
 import { promisify } from 'node:util'
 
 import type { ResolvedApplicationConfig } from './config'
-import { fileExists, registerNativeSource, writeGeneratedFile } from './native-project'
+import { fileExists, registerNativeScene, registerNativeSource, writeGeneratedFile } from './native-project'
 
 const execute = promisify(execFile)
 
@@ -46,6 +46,12 @@ async function configureNativeProject(config: ResolvedApplicationConfig): Promis
   const project = await readFile(projectPath, 'utf8')
   const registered = registerNativeSource(project)
   if (registered !== project) await writeFile(projectPath, registered)
+  const scenePath = path.join(config.root, 'ios/App/App/SceneDelegate.swift')
+  if (await fileExists(scenePath)) {
+    const scene = await readFile(scenePath, 'utf8')
+    const updated = registerNativeScene(scene)
+    if (updated !== scene) await writeFile(scenePath, updated)
+  }
   const storyboardPath = path.join(config.root, 'ios/App/App/Base.lproj/Main.storyboard')
   const storyboard = await readFile(storyboardPath, 'utf8')
   if (storyboard.includes('customClass="CAPBridgeViewController"')) {

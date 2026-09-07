@@ -6,6 +6,8 @@ Status: informative. Follow [`typeferry-ts/AGENTS.md`](../../typeferry-ts/AGENTS
 
 | Area | Primary path | Responsibility |
 |---|---|---|
+| Application tooling | `typeferry-ts/src/application/` | Validated config, web/server and optional iOS builds, native scaffolding |
+| Optional native bridge | `typeferry-ts/src/native/` | Capacitor adapter, iOS permission/session/lifecycle/file templates |
 | Client core | `typeferry-ts/src/client/` | HTTP/WebSocket clients, calls, channels, local state |
 | Server core | `typeferry-ts/src/server/` | Method dispatch, client nodes, events, rooms, middleware |
 | Transports | `typeferry-ts/src/server/transports/` | Hono/Node HTTP and `ws` integration |
@@ -42,3 +44,8 @@ discard stale work before the next authenticated `INITIALIZED` boundary.
 - `src/test/test-utility.ts`: shared high-level server/client setup.
 
 Use focused tests near the changed runtime boundary, then run the split suites and release-surface checks required by the scoped instructions.
+
+Optional packaged clients use explicit backend origins and native HTTP session
+transport. See [iOS applications](../typescript/ios-applications.md) and
+[native authentication](../typescript/native-authentication.md). Product identity,
+endpoints, signing, authorization policy, and grant storage remain application-owned.

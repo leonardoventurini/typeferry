@@ -3,7 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { registerNativeSource, writeGeneratedFile } from './native-project'
+import { registerNativeScene, registerNativeSource, writeGeneratedFile } from './native-project'
 
 const roots: string[] = []
 afterEach(async () => { await Promise.all(roots.map(root => rm(root, { recursive: true, force: true }))) })
@@ -39,4 +39,14 @@ describe('native project ownership', () => {
     expect(registered).toContain('DEVELOPMENT_TEAM = existing;')
     expect(() => registerNativeSource('unrecognized')).toThrow(/Unsupported/)
   })
+})
+
+
+it('registers the modern scene root while preserving application scene handling', () => {
+  const source = 'window?.rootViewController = CAPBridgeViewController()\napplicationOwnedSetup()'
+  const registered = registerNativeScene(source)
+  expect(registered).toContain('window?.rootViewController = TypeFerryBridgeViewController()')
+  expect(registered).toContain('applicationOwnedSetup()')
+  expect(registerNativeScene(registered)).toBe(registered)
+  expect(() => registerNativeScene('window?.rootViewController = CustomController()')).toThrow(/Custom scene/)
 })
