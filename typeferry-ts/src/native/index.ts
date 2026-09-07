@@ -32,7 +32,14 @@ export interface TypeFerryNativePlugin {
   authenticate(options: { url: string; callbackScheme: string }): Promise<{ url: string }>
   getState(): Promise<NativeAppState>
   addListener(eventName: 'appStateChange', listener: (state: NativeAppState) => void): Promise<PluginListenerHandle>
+  beginFile(options: { fileName: string; size: number }): Promise<{ id: string }>
+  appendFile(options: { id: string; offset: number; base64: string }): Promise<void>
+  finishFile(options: { id: string }): Promise<{ completed: boolean }>
+  cancelFile(options: { id: string }): Promise<void>
   shareFile(options: { url: string; fileName: string; headers?: Record<string, string> }): Promise<{ completed: boolean }>
 }
 
 export const TypeFerryNative = registerPlugin<TypeFerryNativePlugin>('TypeFerryNative')
+
+export { NATIVE_FILE_CHUNK_BYTES, NATIVE_FILE_MAX_BYTES, shareNativeFile } from './share-file'
+export type { ShareNativeFileOptions } from './share-file'

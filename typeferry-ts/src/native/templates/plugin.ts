@@ -16,12 +16,19 @@ public class TypeFerryNativePlugin: CAPPlugin, CAPBridgedPlugin, ASWebAuthentica
         CAPPluginMethod(name: "clearSession", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "authenticate", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getState", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "beginFile", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "appendFile", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "finishFile", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "cancelFile", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "shareFile", returnType: CAPPluginReturnPromise)
     ]
     private var http: TypeFerryHTTPSession?
     private var initializationError: Error?
     private var authentication: ASWebAuthenticationSession?
     private var sharing = false
+    private let fileStaging = TypeFerryFileStaging()
+    private var stagingExpiry: DispatchWorkItem?
+    private static let stagingTimeout: TimeInterval = 600
     private var observers: [NSObjectProtocol] = []
 
     public override func load() {
@@ -49,6 +56,7 @@ public class TypeFerryNativePlugin: CAPPlugin, CAPBridgedPlugin, ASWebAuthentica
     deinit {
         for observer in observers { NotificationCenter.default.removeObserver(observer) }
         authentication?.cancel()
+        stagingExpiry?.cancel()
     }
 
     @objc func request(_ call: CAPPluginCall) {
@@ -123,6 +131,75 @@ public class TypeFerryNativePlugin: CAPPlugin, CAPBridgedPlugin, ASWebAuthentica
 
     public func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
         bridge?.viewController?.view.window ?? ASPresentationAnchor()
+    }
+
+    @objc func beginFile(_ call: CAPPluginCall) {
+        guard let name = call.getString("fileName"), let size = call.getInt("size") else {
+            call.reject("A file name and size are required."); return
+        }
+        DispatchQueue.main.async {
+            guard !self.sharing else { call.reject("File sharing is already running."); return }
+            do {
+                let id = try self.fileStaging.begin(fileName: name, size: size)
+                self.sharing = true
+                self.extendStagingDeadline(id: id)
+                call.resolve(["id": id])
+            } catch { call.reject("The file could not be prepared.", nil, error) }
+        }
+    }
+
+    @objc func appendFile(_ call: CAPPluginCall) {
+        guard let id = call.getString("id"), let offset = call.getInt("offset"), let base64 = call.getString("base64") else {
+            call.reject("A file identifier, offset and chunk are required."); return
+        }
+        DispatchQueue.main.async {
+            do {
+                try self.fileStaging.append(id: id, offset: offset, base64: base64)
+                self.extendStagingDeadline(id: id)
+                call.resolve()
+            } catch {
+                self.cancelStaging(id: id)
+                call.reject("The file chunk could not be written.", nil, error)
+            }
+        }
+    }
+
+    @objc func finishFile(_ call: CAPPluginCall) {
+        guard let id = call.getString("id") else { call.reject("A file identifier is required."); return }
+        DispatchQueue.main.async {
+            do {
+                let file = try self.fileStaging.finish(id: id)
+                self.stagingExpiry?.cancel()
+                self.stagingExpiry = nil
+                self.presentShare(file.url, fileName: file.fileName, call: call)
+            } catch {
+                self.cancelStaging(id: id)
+                call.reject("The file could not be completed.", nil, error)
+            }
+        }
+    }
+
+    @objc func cancelFile(_ call: CAPPluginCall) {
+        guard let id = call.getString("id") else { call.reject("A file identifier is required."); return }
+        DispatchQueue.main.async {
+            self.cancelStaging(id: id)
+            call.resolve()
+        }
+    }
+
+    private func cancelStaging(id: String) {
+        guard fileStaging.contains(id: id) else { return }
+        fileStaging.cancel(id: id)
+        stagingExpiry?.cancel()
+        stagingExpiry = nil
+        sharing = false
+    }
+
+    private func extendStagingDeadline(id: String) {
+        stagingExpiry?.cancel()
+        let expiry = DispatchWorkItem { [weak self] in self?.cancelStaging(id: id) }
+        stagingExpiry = expiry
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.stagingTimeout, execute: expiry)
     }
 
     @objc func shareFile(_ call: CAPPluginCall) {
