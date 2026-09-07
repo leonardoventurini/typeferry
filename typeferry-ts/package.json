@@ -71,6 +71,14 @@
     "./*": {
       "types": "./dist/*.d.ts",
       "import": "./dist/*.js"
+    },
+    "./native": {
+      "types": "./dist/native/index.d.ts",
+      "import": "./dist/native/index.js"
+    },
+    "./auth/client": {
+      "types": "./dist/auth/client/index.d.ts",
+      "import": "./dist/auth/client/index.js"
     }
   },
   "scripts": {
@@ -120,6 +128,7 @@
     "zod": "^4.4.3"
   },
   "peerDependencies": {
+    "@capacitor/core": ">=8 <9",
     "@react-oauth/google": ">=0.12",
     "mongodb": ">=6",
     "react": ">=18"
@@ -133,9 +142,15 @@
     },
     "@react-oauth/google": {
       "optional": true
+    },
+    "@capacitor/core": {
+      "optional": true
     }
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.1",
+    "@capacitor/core": "^8.5.1",
+    "@capacitor/ios": "^8.5.1",
     "@eslint/js": "^10.0.1",
     "@react-oauth/google": "^0.12.2",
     "@testing-library/react": "^16.3.2",
@@ -167,7 +182,8 @@
     "nanoid": "^6.0.1",
     "postcss": "^8.5.26",
     "qs": "^6.15.3",
-    "undici": "^7.29.0"
+    "undici": "^7.29.0",
+    "uuid": "^11.1.1"
   },
   "engines": {
     "node": ">=24.19.0 <27",

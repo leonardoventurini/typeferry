@@ -26,17 +26,35 @@ export interface ResolvedDevelopmentProxyRoute {
   readonly rewriteLocalhostCookies: boolean;
 }
 
+export type ApplicationTarget = 'web' | 'ios';
+
+export interface IosApplicationTarget {
+  readonly runtime: 'capacitor';
+  readonly backend: { readonly origin: string };
+  readonly permissions?: {
+    readonly camera?: { readonly purpose: string };
+    readonly microphone?: { readonly purpose: string };
+  };
+}
+
+export interface ApplicationIdentity {
+  readonly id: string;
+  readonly name: string;
+}
+
 export interface ApplicationToolingExtensions {
   readonly vite?: (
     config: InlineConfig,
-    context: { readonly command: "develop" | "build" },
+    context: { readonly command: "develop" | "build"; readonly target: ApplicationTarget },
   ) => InlineConfig;
   readonly serverBuild?: (options: BuildOptions) => BuildOptions;
   readonly test?: (config: VitestConfig) => VitestConfig;
-  readonly afterBuild?: () => void | Promise<void>;
+  readonly afterBuild?: (context: { readonly target: ApplicationTarget }) => void | Promise<void>;
 }
 
 export interface TypeFerryConfig {
+  readonly application?: ApplicationIdentity;
+  readonly client?: { readonly targets?: { readonly ios?: IosApplicationTarget } };
   readonly extensions?: ApplicationToolingExtensions;
   readonly development?: {
     readonly clientPort?: number;
@@ -62,6 +80,8 @@ export interface TypeFerryConfig {
 }
 
 export interface ResolvedApplicationConfig {
+  readonly application?: ApplicationIdentity;
+  readonly client: { readonly targets: { readonly ios?: IosApplicationTarget } };
   readonly root: string;
   readonly paths: {
     readonly client: string;
@@ -129,8 +149,24 @@ const extensionsSchema = z
     afterBuild: z.function().optional(),
   })
   .strict();
+const httpsOriginSchema = z.string().refine(value => {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && url.origin === value && !url.username && !url.password;
+  } catch { return false; }
+}, 'Expected an HTTPS origin without credentials, path, query or fragment');
+const permissionSchema = z.object({ purpose: z.string().trim().min(1) }).strict();
 const configSchema = z
   .object({
+    application: z.object({
+      id: z.string().regex(/^[a-zA-Z][a-zA-Z0-9-]*(\.[a-zA-Z][a-zA-Z0-9-]*)+$/u),
+      name: z.string().trim().min(1),
+    }).strict().optional(),
+    client: z.object({ targets: z.object({ ios: z.object({
+      runtime: z.literal('capacitor'),
+      backend: z.object({ origin: httpsOriginSchema }).strict(),
+      permissions: z.object({ camera: permissionSchema.optional(), microphone: permissionSchema.optional() }).strict().optional(),
+    }).strict().optional() }).strict().optional() }).strict().optional(),
     extensions: extensionsSchema.optional(),
     development: z
       .object({
@@ -169,6 +205,7 @@ const configSchema = z
   .strict();
 
 export const DEFAULT_APPLICATION_CONFIG = {
+  client: { targets: {} },
   paths: {
     client: "client",
     common: "common",
@@ -227,9 +264,14 @@ export function resolveApplicationConfig(
   input: unknown = {},
 ): ResolvedApplicationConfig {
   const config = configSchema.parse(input) as TypeFerryConfig;
+  if (config.client?.targets?.ios && !config.application) {
+    throw new Error('An iOS target requires application id and name');
+  }
 
   return {
     root: path.resolve(root),
+    ...(config.application ? { application: config.application } : {}),
+    client: { targets: config.client?.targets ?? {} },
     paths: DEFAULT_APPLICATION_CONFIG.paths,
     development: {
       ...DEFAULT_APPLICATION_CONFIG.development,

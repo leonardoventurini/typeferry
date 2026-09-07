@@ -1,7 +1,8 @@
 export type TestProjectName = 'unit' | 'integration' | 'browser'
 
 export type CliArguments =
-  | { readonly command: 'build' }
+  | { readonly command: 'build'; readonly target?: 'ios' }
+  | { readonly command: 'native'; readonly action: 'sync' | 'add' | 'open'; readonly target: 'ios' }
   | { readonly command: 'develop'; readonly serverArguments: readonly string[] }
   | {
       readonly command: 'test'
@@ -17,12 +18,18 @@ const TEST_PROJECTS = new Set<TestProjectName>([
 ])
 
 export const CLI_USAGE =
-  'Usage: typeferry <develop [-- server-args...]|build|test [unit|integration|browser] [--watch] [-- vitest-args...]>'
+  'Usage: typeferry <develop [-- server-args...]|build [--target ios]|native <add|sync|open> ios|test [unit|integration|browser] [--watch] [-- vitest-args...]>'
 
 export function parseCliArguments(arguments_: readonly string[]): CliArguments {
   const [command, ...rest] = arguments_
 
+  if (command === 'native') {
+    const [action, target] = rest
+    if (rest.length !== 2 || target !== 'ios' || !['add', 'sync', 'open'].includes(action ?? '')) throw new Error(CLI_USAGE)
+    return { command, action: action as 'add' | 'sync' | 'open', target }
+  }
   if (command === 'build') {
+    if (rest.length === 2 && rest[0] === '--target' && rest[1] === 'ios') return { command, target: 'ios' }
     if (rest.length > 0) throw new Error(`Unexpected build arguments. ${CLI_USAGE}`)
     return { command }
   }

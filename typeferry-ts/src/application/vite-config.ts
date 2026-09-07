@@ -4,12 +4,13 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import type { InlineConfig, PluginOption } from "vite";
 
-import type { ResolvedApplicationConfig } from "./config";
+import type { ApplicationTarget, ResolvedApplicationConfig } from "./config";
 import { createTypeFerryDevProxy } from "./proxy";
 
 export function createViteConfig(
   config: ResolvedApplicationConfig,
   command: "develop" | "build",
+  target: ApplicationTarget = "web",
 ): InlineConfig {
   const plugins: PluginOption[] = [react(), tailwindcss()];
   if (command === "develop") {
@@ -57,5 +58,15 @@ export function createViteConfig(
     },
   };
 
-  return config.extensions.vite?.(viteConfig, { command }) ?? viteConfig;
+  if (target === 'ios') {
+    const ios = config.client.targets.ios;
+    if (!ios) throw new Error('No iOS application target configured');
+    viteConfig.build = { ...viteConfig.build, outDir: '../dist/ios-web' };
+    viteConfig.define = { __TYPEFERRY_RUNTIME__: JSON.stringify({ target, backendOrigin: ios.backend.origin }) };
+  }
+  const extended = config.extensions.vite?.(viteConfig, { command, target }) ?? viteConfig;
+  if (target === 'ios' && extended.build?.outDir !== '../dist/ios-web') {
+    throw new Error('iOS output must remain isolated in dist/ios-web');
+  }
+  return extended;
 }

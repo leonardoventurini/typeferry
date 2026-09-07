@@ -1,3 +1,4 @@
+import { runNative } from '../application/native'
 import { runBuild } from '../application/build'
 import { parseCliArguments } from '../application/cli-arguments'
 import { loadApplicationConfig } from '../application/config'
@@ -11,7 +12,12 @@ export async function runCli(arguments_: readonly string[]): Promise<void> {
   const config = await loadApplicationConfig(root)
 
   if (parsed.command === 'build') {
-    await runBuild(config)
+    await runBuild(config, parsed.target)
+    return
+  }
+
+  if (parsed.command === 'native') {
+    await runNative(config, parsed.action)
     return
   }
 

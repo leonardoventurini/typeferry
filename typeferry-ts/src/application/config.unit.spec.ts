@@ -159,7 +159,7 @@ describe("application configuration", () => {
     });
 
     expect(resolved.extensions.afterBuild).toBeTypeOf("function");
-    expect(resolved.extensions.vite?.({}, { command: "build" })).toEqual({});
+    expect(resolved.extensions.vite?.({}, { command: "build", target: "web" })).toEqual({});
   });
 
   it("loads application configuration with the root alias", async () => {
