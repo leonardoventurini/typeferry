@@ -6,7 +6,7 @@ Status: informative. Follow [`typeferry-ts/AGENTS.md`](../../typeferry-ts/AGENTS
 
 | Area | Primary path | Responsibility |
 |---|---|---|
-| Application tooling | `typeferry-ts/src/application/` | Validated config, web/server and optional iOS builds, native scaffolding |
+| Application tooling | `typeferry-ts/src/application/` | Validated config, web/server and optional iOS builds, native scaffolding and simulator CLI |
 | Optional native bridge | `typeferry-ts/src/native/` | Capacitor adapter, iOS permission/session/lifecycle/file templates |
 | Client core | `typeferry-ts/src/client/` | HTTP/WebSocket clients, calls, channels, local state |
 | Server core | `typeferry-ts/src/server/` | Method dispatch, client nodes, events, rooms, middleware |
@@ -49,3 +49,30 @@ Optional packaged clients use explicit backend origins and native HTTP session
 transport. See [iOS applications](../typescript/ios-applications.md) and
 [native authentication](../typescript/native-authentication.md). Product identity,
 endpoints, signing, authorization policy, and grant storage remain application-owned.
+
+## Simulator tooling boundary
+
+The application CLI exposes `native devices`, `doctor`, `run`, `logs` and
+`screenshot` for iOS. `native-devices.ts` validates `simctl` JSON and performs
+explicit, deterministic device selection; ambiguity is an error.
+`native-simulator-settings.ts` resolves app-owned Xcode settings and identifies
+the simulator application product by bundle identifier. `native-command.ts`
+executes argument arrays without a shell, propagates failures and cancellation,
+and bounds captured diagnostics. The doctor checks local prerequisites without
+repairing the environment or validating distribution credentials.
+
+The run workflow owns rebuilding the iOS client, syncing the conventional
+Capacitor scaffold, booting the selected simulator, ad-hoc signing, installing
+and launching. It opens Simulator.app unless `--headless` is supplied; the
+existing `native open ios` remains the Xcode-opening workflow. Logs and
+screenshots require a booted selected device. Screenshots use a unique path
+under DerivedData by default and never overwrite existing output files.
+
+Typed `client.targets.ios.xcode` fields select a project or workspace, scheme,
+configuration and DerivedData directory; `simulator.device` supplies an optional
+default selector overridden by `--device`. These settings configure the build
+container, not the location of the generated `ios/App` scaffold. Product
+identity, native signing settings, entitlements and app data remain app-owned.
+There is no automatic distribution or publication path. See the
+[iOS simulator workflow](../typescript/ios-applications.md#simulator-workflow)
+for commands, defaults and machine-readable output options.

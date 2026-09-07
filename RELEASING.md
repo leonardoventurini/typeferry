@@ -6,26 +6,35 @@ The TypeScript implementation is configured for operator-controlled publication 
 
 | Implementation | Registry identity             |  Version | Status                                   |
 | -------------- | ----------------------------- | -------: | ---------------------------------------- |
-| TypeScript     | `typeferry`                   | `0.11.0` | Unpublished candidate                    |
+| TypeScript     | `typeferry`                   | `0.12.0` | Unpublished candidate                    |
 | Python         | `typeferry-py`                |  `0.2.0` | Temporary identity; publication disabled |
 | Rust           | `typeferry` and `typeferry-*` |  `0.2.0` | Workspace publication disabled           |
 
-TypeFerry is published publicly on npm at `0.10.0`. The repository prepares
-`0.11.0` as an unpublished candidate adding optional iOS application builds,
-Capacitor scaffolding, explicit backend transports, native authentication,
-private cookie/session storage, media permission ownership, file sharing and
-foreground wake leases. Existing web defaults remain unchanged.
+TypeFerry is published publicly on npm at `0.11.0`. The repository prepares
+`0.12.0` as an unpublished candidate adding generic iOS simulator discovery,
+diagnostics, build/install/launch, logs and screenshots. Typed configuration
+selects the Xcode container, scheme, build configuration, DerivedData path and
+simulator. Existing web defaults and native add/sync/open behavior remain unchanged.
 
-Published npm release: `typeferry@0.10.0`.
+Published npm release: `typeferry@0.11.0`.
 
-The candidate was validated with package lint/typecheck, unit/integration/browser
-suites, build, artifact inspection and a zero-vulnerability audit. A downstream
-application consumed the compiled local tarball for web/auth regressions and
-web/iOS builds. Xcode simulator compilation and a separately ad-hoc signed
-bridge fixture verified Keychain/cookie persistence, origin restrictions,
-lifecycle, file cancellation, logout races and native wake leases. Physical
-camera recording, upgrade permission retention and production OAuth acceptance
-remain pending. Publication is manual; no upload or push was performed.
+The candidate passed package lint/typecheck, all split unit/integration/browser
+suites plus the final focused safety regressions (1,697 tests in total), the
+`0.12.0` build, package artifact validation (506 files), the generic consumer
+verification and an audit reporting zero vulnerabilities. The candidate version
+is available for publication; no upload has been performed.
+
+A downstream application validated the compiled candidate with real simulator
+discovery, doctor, headless run, signed build, installation, launch, screenshot,
+existing-output refusal and log streaming interrupted with exit code 130.
+Invalid device selection was rejected. The built simulator app contained its
+entitlement section and passed deep, strict codesign verification. Physical-device
+behavior, distribution readiness and opening the normal Simulator GUI were not
+validated by this run; GUI launch remains covered by mocked orchestration tests.
+
+Publication is reserved for the user to perform
+manually after reviewing the final validation handoff. Do not upload this candidate
+automatically.
 
 The repository template consumes the public release through `^0.8.0`; its
 lockfile resolves the package tarball from the npm registry.
@@ -65,7 +74,7 @@ The recipe requires:
 Only after those checks does it execute `npm publish --access public`. The
 recipe does not bump versions, create Git tags, push commits, or store
 credentials. After npm confirms the upload, create the annotated Git tag
-`v0.11.0` and push the release commit and tag. No GitHub release is created.
+`v0.12.0` and push the release commit and tag. No GitHub release is created.
 
 An npm version cannot be reused after publication. If a release is incorrect, deprecate it as appropriate, fix the repository, choose a higher semantic version, and rerun the gate.
 

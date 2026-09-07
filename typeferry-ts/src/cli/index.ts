@@ -4,8 +4,13 @@ import {
   CLI_USAGE,
 } from '../application/cli-arguments'
 import { runCli } from './run'
+import { NativeCommandInterruptedError } from '../application/native-command'
 
 runCli(process.argv.slice(2)).catch((error: unknown) => {
+  if (error instanceof NativeCommandInterruptedError) {
+    process.exitCode = error.exitCode
+    return
+  }
   const message = error instanceof Error ? error.message : String(error)
   console.error(message)
   console.error(CLI_USAGE)

@@ -28,8 +28,29 @@ export interface ResolvedDevelopmentProxyRoute {
 
 export type ApplicationTarget = 'web' | 'ios';
 
+/**
+ * Optional Xcode build selection. Paths resolve from the application root;
+ * select either a project or a workspace, never both.
+ */
+export interface IosXcodeConfig {
+  readonly project?: string;
+  readonly workspace?: string;
+  readonly scheme?: string;
+  readonly configuration?: string;
+  readonly derivedDataPath?: string;
+}
+
+/**
+ * Default simulator selection, overridden by the CLI's explicit device.
+ */
+export interface IosSimulatorConfig {
+  readonly device?: string;
+}
+
 export interface IosApplicationTarget {
   readonly runtime: 'capacitor';
+  readonly xcode?: IosXcodeConfig;
+  readonly simulator?: IosSimulatorConfig;
   readonly backend: { readonly origin: string };
   readonly permissions?: {
     readonly camera?: { readonly purpose: string };
@@ -156,6 +177,18 @@ const httpsOriginSchema = z.string().refine(value => {
   } catch { return false; }
 }, 'Expected an HTTPS origin without credentials, path, query or fragment');
 const permissionSchema = z.object({ purpose: z.string().trim().min(1) }).strict();
+const nativeOptionStringSchema = z.string().trim().min(1).refine(
+  value => !value.includes('\0'),
+  'Native configuration values must not contain null bytes',
+);
+const iosXcodeSchema = z.object({
+  project: nativeOptionStringSchema.refine(value => value.endsWith('.xcodeproj'), 'Expected an .xcodeproj path').optional(),
+  workspace: nativeOptionStringSchema.refine(value => value.endsWith('.xcworkspace'), 'Expected an .xcworkspace path').optional(),
+  scheme: nativeOptionStringSchema.optional(),
+  configuration: nativeOptionStringSchema.optional(),
+  derivedDataPath: nativeOptionStringSchema.optional(),
+}).strict().refine(value => value.project === undefined || value.workspace === undefined, 'Select either an Xcode project or workspace, not both');
+const iosSimulatorSchema = z.object({ device: nativeOptionStringSchema.optional() }).strict();
 const configSchema = z
   .object({
     application: z.object({
@@ -164,6 +197,8 @@ const configSchema = z
     }).strict().optional(),
     client: z.object({ targets: z.object({ ios: z.object({
       runtime: z.literal('capacitor'),
+      xcode: iosXcodeSchema.optional(),
+      simulator: iosSimulatorSchema.optional(),
       backend: z.object({ origin: httpsOriginSchema }).strict(),
       permissions: z.object({ camera: permissionSchema.optional(), microphone: permissionSchema.optional() }).strict().optional(),
     }).strict().optional() }).strict().optional() }).strict().optional(),

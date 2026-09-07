@@ -1,4 +1,5 @@
 import { runNative } from '../application/native'
+import { runNativeSimulator } from '../application/native-simulator'
 import { runBuild } from '../application/build'
 import { parseCliArguments } from '../application/cli-arguments'
 import { loadApplicationConfig } from '../application/config'
@@ -17,7 +18,17 @@ export async function runCli(arguments_: readonly string[]): Promise<void> {
   }
 
   if (parsed.command === 'native') {
-    await runNative(config, parsed.action)
+    switch (parsed.action) {
+      case 'devices':
+      case 'doctor':
+      case 'run':
+      case 'logs':
+      case 'screenshot':
+        if (!await runNativeSimulator(config, parsed)) process.exitCode = 1
+        break
+      default:
+        await runNative(config, parsed.action)
+    }
     return
   }
 
