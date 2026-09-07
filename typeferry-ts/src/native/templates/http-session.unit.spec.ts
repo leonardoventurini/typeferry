@@ -23,6 +23,13 @@ describe.runIf(process.platform === 'darwin')('native backend transport', () => 
     if (!outsideAddress || typeof outsideAddress === 'string') throw new Error('Missing test address')
 
     const server = createServer((request, response) => {
+      if (request.url === '/delayed') {
+        setTimeout(() => {
+          response.setHeader('Set-Cookie', 'refresh=resurrected; HttpOnly; Path=/')
+          response.end('late')
+        }, 200)
+        return
+      }
       if (request.url === '/set') response.setHeader('Set-Cookie', 'refresh=secret; HttpOnly; Path=/')
       if (request.url === '/redirect') {
         response.statusCode = 302
@@ -60,7 +67,18 @@ _ = fetch(original, "set")
 let restored = try TypeFerryHTTPSession(backendURL: base)
 assert(String(data: fetch(restored, "check").0, encoding: .utf8) == "refresh=secret")
 assert(fetch(restored, "redirect").1.statusCode == 302)
+let pending = DispatchSemaphore(value: 0)
+var lateResult: Result<(Data, HTTPURLResponse), Error>?
+restored.request(URLRequest(url: base.appendingPathComponent("delayed"))) {
+    lateResult = $0
+    pending.signal()
+}
+Thread.sleep(forTimeInterval: 0.05)
 try restored.clearCookies()
+assert(pending.wait(timeout: .now() + 10) == .success)
+if case .success = lateResult { fatalError("A logged-out request must not succeed") }
+let afterLogout = try TypeFerryHTTPSession(backendURL: base)
+assert(String(data: fetch(afterLogout, "check").0, encoding: .utf8) == "")
 assert(String(data: fetch(restored, "check").0, encoding: .utf8) == "")
 `
 

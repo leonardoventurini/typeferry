@@ -8,16 +8,14 @@ final class TypeFerryHTTPSession: NSObject, URLSessionTaskDelegate {
     private let cookieAccount: String
     private var session: URLSession!
     private let cookieLock = NSLock()
+    private var generation = 0
 
     init(backendURL: URL) throws {
         self.backendURL = backendURL
         cookieAccount = "cookies:" + backendURL.absoluteString
         super.init()
 
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.httpShouldSetCookies = true
-        configuration.timeoutIntervalForRequest = 60
-        configuration.timeoutIntervalForResource = 300
+        let configuration = Self.makeConfiguration()
         if let data = try TypeFerryKeychain.read(cookieAccount),
            let rows = try PropertyListSerialization.propertyList(from: data, format: nil) as? [[String: Any]] {
             for row in rows {
@@ -37,13 +35,14 @@ final class TypeFerryHTTPSession: NSObject, URLSessionTaskDelegate {
 
     func request(_ request: URLRequest, completion: @escaping (Result<(Data, HTTPURLResponse), Error>) -> Void) {
         guard let url = request.url, accepts(url) else { completion(.failure(Self.failure("Untrusted backend URL."))); return }
-        session.dataTask(with: request) { [weak self] data, response, error in
+        let (requestSession, requestGeneration) = snapshot()
+        requestSession.dataTask(with: request) { [weak self] data, response, error in
             if let error = error { completion(.failure(error)); return }
             guard let self = self, let response = response as? HTTPURLResponse, let data = data else {
                 completion(.failure(Self.failure("The backend returned no response."))); return
             }
             do {
-                try self.persistCookies()
+                try self.persistCookies(session: requestSession, generation: requestGeneration)
                 completion(.success((data, response)))
             } catch { completion(.failure(error)) }
         }.resume()
@@ -51,14 +50,15 @@ final class TypeFerryHTTPSession: NSObject, URLSessionTaskDelegate {
 
     func download(_ request: URLRequest, completion: @escaping (Result<URL, Error>) -> Void) {
         guard let url = request.url, accepts(url) else { completion(.failure(Self.failure("Untrusted download URL."))); return }
-        session.downloadTask(with: request) { [weak self] location, response, error in
+        let (requestSession, requestGeneration) = snapshot()
+        requestSession.downloadTask(with: request) { [weak self] location, response, error in
             if let error = error { completion(.failure(error)); return }
             guard let self = self, let location = location, let response = response as? HTTPURLResponse,
                   (200..<300).contains(response.statusCode) else {
                 completion(.failure(Self.failure("The download failed."))); return
             }
             do {
-                try self.persistCookies()
+                try self.persistCookies(session: requestSession, generation: requestGeneration)
                 let retained = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
                 try FileManager.default.moveItem(at: location, to: retained)
                 completion(.success(retained))
@@ -69,9 +69,11 @@ final class TypeFerryHTTPSession: NSObject, URLSessionTaskDelegate {
     func clearCookies() throws {
         cookieLock.lock()
         defer { cookieLock.unlock() }
-        for cookie in session.configuration.httpCookieStorage?.cookies ?? [] {
-            session.configuration.httpCookieStorage?.deleteCookie(cookie)
-        }
+        let previous = session
+        generation += 1
+        // A fresh cookie jar prevents in-flight Set-Cookie from resurrecting logout.
+        session = URLSession(configuration: Self.makeConfiguration(), delegate: self, delegateQueue: nil)
+        previous?.invalidateAndCancel()
         try TypeFerryKeychain.delete(cookieAccount)
     }
 
@@ -81,9 +83,24 @@ final class TypeFerryHTTPSession: NSObject, URLSessionTaskDelegate {
         completionHandler(request)
     }
 
-    private func persistCookies() throws {
+    private func snapshot() -> (URLSession, Int) {
         cookieLock.lock()
         defer { cookieLock.unlock() }
+        return (session, generation)
+    }
+
+    private static func makeConfiguration() -> URLSessionConfiguration {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.httpShouldSetCookies = true
+        configuration.timeoutIntervalForRequest = 60
+        configuration.timeoutIntervalForResource = 300
+        return configuration
+    }
+
+    private func persistCookies(session: URLSession, generation: Int) throws {
+        cookieLock.lock()
+        defer { cookieLock.unlock() }
+        guard generation == self.generation else { throw Self.failure("The native session was cleared.") }
         let rows = (session.configuration.httpCookieStorage?.cookies ?? []).compactMap { cookie -> [String: Any]? in
             guard let properties = cookie.properties else { return nil }
             return Dictionary(uniqueKeysWithValues: properties.map { ($0.key.rawValue, $0.value) })
