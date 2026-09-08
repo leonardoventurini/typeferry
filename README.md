@@ -1,3 +1,10 @@
+<p align="center">
+  <img
+    src="docs/assets/typeferry-banner.webp"
+    alt="TypeFerry carries typed real-time data from a server across a bridge to web, component, and mobile clients"
+  >
+</p>
+
 # TypeFerry
 
 Build type-safe, real-time TypeScript applications from one server contract.
