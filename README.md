@@ -1,58 +1,49 @@
 # TypeFerry
 
-TypeFerry is a type-safe, real-time RPC framework with HTTP and WebSocket transports, server events and channels, authentication primitives, EJSON serialization, and shared conformance across TypeScript, Python, and Rust.
+Build type-safe, real-time TypeScript applications from one server contract.
 
-The TypeScript implementation includes browser clients plus a React integration. Python and Rust provide server-side implementations of the same wire protocol.
+TypeFerry connects a Node.js server to browser, Node.js, React, and optional
+Capacitor iOS clients through typed RPC, HTTP and WebSocket transports,
+authenticated events, and live data. It also owns the application workflow:
+develop, test, build, and run the complete stack without maintaining separate
+Vite or Vitest configurations.
 
-> [!IMPORTANT]
-> The TypeScript package is published on npm as `typeferry`. Python and Rust publication remains disabled. See [release status](RELEASING.md).
-
-## Implementations
-
-| Implementation | Server | Browser client | UI adapters | Status and entry point |
-|---|---:|---:|---|---|
-| [TypeScript](typeferry-ts/README.md) | Yes, Node.js | Yes | React | Reference implementation |
-| [Python](typeferry-py/README.md) | Yes | No | — | Server-side protocol parity |
-| [Rust](typeferry-rs/README.md) | Yes | No | — | Modular server-side protocol parity |
-
-All implementations share the normative [wire protocol](PROTOCOL.md) and [conformance fixtures](docs/conformance/README.md).
-
-## Install the TypeScript package
+The same wire protocol has server implementations in Python and Rust when a
+service needs to cross language boundaries.
 
 ```sh
 npm install typeferry
 ```
 
-Applications import focused exports such as `typeferry/client`, `typeferry/server`, and `typeferry/react`.
+## Why TypeFerry
 
-## Develop, build, and test applications
+- **One contract from server to client.** Infer the client API directly from
+  decorated server methods, with runtime input validation and no generated
+  client artifacts.
+- **RPC and real-time behavior belong together.** Call the same method over
+  HTTP or WebSocket, then use events, private channels, rooms, or live MongoDB
+  publications to keep clients current.
+- **React is an adapter, not a separate runtime.** Hooks expose method state,
+  authentication, connection and reconnection state, subscriptions,
+  event-driven refresh, and live publications over the core TypeScript client.
+- **The application toolchain is included.** TypeFerry supplies development,
+  client and server builds, split unit/integration/browser testing, and an
+  optional typed configuration surface.
+- **Web and iOS share the application model.** Build the React client for the
+  web or package it with Capacitor for iOS, with native authentication, private
+  cookie HTTP, lifecycle, file sharing, media permissions, and simulator tools.
+- **Production boundaries stay explicit.** Authentication and authorization
+  policy remain application-owned; the MongoDB extension preserves the native
+  driver instead of replacing it with an ORM.
 
-TypeFerry includes a batteries-included application workflow for the
-conventional root-level `client/`, `common/`, `server/`, and `test/`
-directories. No `typeferry.config.ts`, Vite configuration, or Vitest
-configuration is required for the defaults:
+## From a server method to a typed client call
 
-```json
-{
-  "scripts": {
-    "develop": "typeferry develop",
-    "build": "typeferry build",
-    "test": "typeferry test"
-  }
-}
-```
-
-Use `typeferry test unit`, `integration`, or `browser` for a single test
-project. Add an optional typed `typeferry.config.ts` only for supported
-high-level overrides. Read the [application framework guide](docs/typescript/application-framework.md)
-for commands, conventions, configuration, migration, and troubleshooting.
-
-## Define RPC methods with decorators
-
-Define a namespace as a class, expose its methods with decorators, and derive the client API type directly from the implementation:
+Define a namespace, validate its network input with Zod, and infer the client
+contract from the implementation:
 
 ```ts
-import type { ClientNode } from 'typeferry/server'
+// server/greeting.ts
+import { Server, type ClientNode } from 'typeferry/server'
 import {
   type InferNamespace,
   Method,
@@ -82,32 +73,138 @@ export class GreetingMethods {
 
 export type GreetingApi = InferNamespace<GreetingMethods, 'greeting'>
 
+const server = new Server({ host: '127.0.0.1', port: 8002 })
+
 registerNamespace(GreetingMethods)
+await server.isReady()
 ```
 
-The method is available as `greeting.hello` over HTTP and WebSocket, with runtime input validation and an inferred typed client call. See the [server and RPC guide](docs/typescript/server-rpc.md) for middleware, authentication, caching, and server setup.
+Parameterize the client with that exported type. The method path, input, and
+result are now checked by TypeScript:
 
-## What TypeFerry provides
+```ts
+// client/greeting.ts
+import { Client } from 'typeferry/client'
+import type { GreetingApi } from '../server/greeting'
 
-- Typed RPC methods with middleware, schema validation, protection, and caching.
-- HTTP calls and persistent WebSocket connections using the same method model.
-- Server-to-client events, named channels, rooms, and optional Redis propagation.
-- Authentication hooks, JWT/session helpers, cookies, and OAuth building blocks.
-- EJSON support for dates, binary data, regular expressions, non-finite numbers, and custom types.
-- React hooks over the same framework-agnostic TypeScript client.
-- An optional TypeScript MongoDB extension for typed collections and live invalidation.
-- Cross-language fixtures and interoperability tests.
+const client = new Client<GreetingApi>({
+  host: '127.0.0.1',
+  port: 8002,
+})
 
-## Run the local application
+const greeting = await client.m.greeting.hello({ name: 'Ada' })
+//    ^? string
+```
 
-The fastest development path is the template, which installs the published
-`typeferry` package from npm.
+Decorators can also attach middleware, authentication requirements, caching,
+and schemas to a namespace or method; application code retains authorization
+decisions. Read the [server and RPC guide](docs/typescript/server-rpc.md) and
+[client guide](docs/typescript/client.md) for the complete lifecycle.
 
-Prerequisites:
+## One framework from transport to UI
 
-- Mise
-- Docker
-- The toolchain pinned by [`template/.mise.toml`](template/.mise.toml)
+```text
+Decorated Node.js methods
+          │
+          ├── HTTP RPC ───────────────┐
+          ├── WebSocket RPC           │
+          └── events and channels     │
+                                      ▼
+                         Typed TypeScript client
+                                      │
+                         ┌────────────┴────────────┐
+                         ▼                         ▼
+                 React state hooks       framework-agnostic code
+                         │
+                         ▼
+              browser or Capacitor iOS
+
+MongoDB change streams ──► authorized live publications ──► React/client state
+```
+
+### Server and transport
+
+- Namespaced RPC methods with Zod validation, middleware, protection, caching,
+  rate limiting, and structured errors.
+- HTTP and persistent WebSocket transports backed by one Node.js server.
+- Server-to-client events, named channels, rooms, origin exclusion, and
+  optional Redis propagation across server processes.
+- EJSON serialization for dates, binary data, regular expressions,
+  non-finite numbers, and application-defined types.
+
+### Client and React
+
+- A framework-independent TypeScript client for browsers and Node.js.
+- Automatic connection lifecycle, retry and HTTP fallback controls, context,
+  authentication state, logging, and channel subscriptions.
+- React hooks for RPC state, lazy calls, debouncing, cache controls,
+  event-driven refresh, subscriptions, reconnection state, and token refresh.
+
+### Authentication and data
+
+- JWT, sessions, secure-cookie helpers, token refresh, cross-tab synchronization,
+  device metadata, and Google OAuth building blocks.
+- A native-driver-first MongoDB extension with typed collections, indexes,
+  Zod-to-BSON schema enforcement, timestamps, and change-stream events.
+- Authorized live MongoDB publications that deliver an initial snapshot and
+  apply added, changed, and removed operations over WebSocket, including
+  bounded ordered windows and automatic resynchronization.
+
+## Develop, test, and build an application
+
+Applications can use conventional root-level `client/`, `common/`, `server/`,
+and `test/` directories with no TypeFerry, Vite, or Vitest configuration:
+
+```json
+{
+  "scripts": {
+    "develop": "typeferry develop",
+    "build": "typeferry build",
+    "test": "typeferry test"
+  }
+}
+```
+
+- `typeferry develop` runs the Vite client and watched Node.js server with the
+  development proxy configured for RPC traffic.
+- `typeferry test unit`, `integration`, or `browser` selects the corresponding
+  Vitest project; browser tests run through Playwright.
+- `typeferry build` produces the Vite client and a bundled Node.js server for
+  deployment.
+- An optional typed `typeferry.config.ts` exposes supported ports, proxy routes,
+  test configuration, build extensions, server externals, and application
+  targets without handing ownership of the toolchain back to the application.
+
+See the [application framework guide](docs/typescript/application-framework.md)
+for conventions, configuration, migration, deployment boundaries, and
+troubleshooting.
+
+## Take the same client to iOS
+
+The optional iOS target bundles an existing React client with Capacitor.
+Ordinary web applications do not import Capacitor or pay for the native path.
+
+```sh
+npm exec -- typeferry build --target ios
+npm exec -- typeferry native add ios
+npm exec -- typeferry native doctor ios
+npm exec -- typeferry native run ios
+```
+
+TypeFerry can generate and safely synchronize the conventional native bridge,
+inspect available simulators, diagnose the local toolchain, build and launch an
+app, stream its logs, and capture screenshots. Product identity, signing,
+entitlements, native assets, physical-device testing, and distribution remain
+application-owned. Read the [iOS application guide](docs/typescript/ios-applications.md)
+and [native authentication guide](docs/typescript/native-authentication.md).
+
+## Run the reference application
+
+The repository includes a React, Node.js, and MongoDB application that shows a
+protected mutation, an acknowledged database write, a private real-time event,
+and authoritative UI refresh.
+
+Prerequisites are Git, [Mise](https://mise.jdx.dev/), and Docker with Compose:
 
 ```sh
 git clone https://github.com/leonardoventurini/typeferry.git
@@ -119,39 +216,58 @@ docker compose up -d mongodb
 mise exec -- npm run develop
 ```
 
-The template includes a Node.js server, WebSocket client, React UI, MongoDB replica set, migrations, typed RPC methods, authentication seam, and production build. Follow the [quickstart](docs/getting-started.md) for setup and verification.
+Follow the [quickstart](docs/getting-started.md) to trace the request from React
+through the typed server method, MongoDB, and the real-time invalidation path.
+
+## One protocol, multiple server runtimes
+
+TypeScript is the reference and only currently published package. Python and
+Rust implement the same normative wire protocol for server-side interoperability.
+
+| Implementation | Server | Client | UI adapter | Status |
+|---|---:|---:|---|---|
+| [TypeScript](typeferry-ts/README.md) | Node.js | Browser and Node.js | React | Published as `typeferry` |
+| [Python](typeferry-py/README.md) | Yes | — | — | Publication disabled |
+| [Rust](typeferry-rs/README.md) | Yes | — | — | Publication disabled |
+
+All implementations share the normative [wire protocol](PROTOCOL.md),
+[conformance fixtures](docs/conformance/README.md), and interoperability tests.
+See [release status](RELEASING.md) for current publication details.
 
 ## Documentation
 
-- [AI agent application guide](docs/agents/application-development.md)
-- [LLM documentation index](llms.txt)
-- [Documentation home](docs/README.md)
 - [Quickstart](docs/getting-started.md)
 - [TypeScript application framework](docs/typescript/application-framework.md)
-- [TypeScript server and RPC](docs/typescript/server-rpc.md)
-- [TypeScript client](docs/typescript/client.md)
+- [Server and RPC](docs/typescript/server-rpc.md)
+- [Client](docs/typescript/client.md)
 - [React integration](docs/typescript/react.md)
 - [Authentication](docs/typescript/authentication.md)
 - [Events and channels](docs/typescript/events-and-channels.md)
 - [MongoDB extension](docs/typescript/mongodb.md)
 - [EJSON](docs/typescript/ejson.md)
+- [iOS applications](docs/typescript/ios-applications.md)
+- [Native authentication](docs/typescript/native-authentication.md)
 - [Deployment](docs/typescript/deployment.md)
-- [Python server development](typeferry-py/README.md)
-- [Rust server development](typeferry-rs/README.md)
+- [Documentation home](docs/README.md)
+- [AI agent application guide](docs/agents/application-development.md)
+- [LLM documentation index](llms.txt)
 
 ## Repository layout
 
 ```text
-typeferry-ts/   TypeScript client and Node.js server
+typeferry-ts/   TypeScript application framework, client, and Node.js server
 typeferry-py/   Python server implementation
 typeferry-rs/   Rust server workspace
-template/       Repository-local React + MongoDB application
-docs/           End-user, protocol, conformance, and contributor docs
+template/       React, Node.js, and MongoDB reference application
+docs/           User guides, architecture, protocol, and conformance docs
 PROTOCOL.md     Normative wire protocol
 ```
 
 ## Contributing
 
-Start with [the agent and contributor router](docs/agents/README.md), then read the nearest `AGENTS.md` for the package you are changing. Protocol-visible changes must update `PROTOCOL.md`, affected implementations, and shared fixtures together.
+Start with [the agent and contributor router](docs/agents/README.md), then read
+the nearest `AGENTS.md` for the package you are changing. Protocol-visible
+changes must update `PROTOCOL.md`, affected implementations, and shared fixtures
+together.
 
 TypeFerry is licensed under the [MIT License](LICENSE).
