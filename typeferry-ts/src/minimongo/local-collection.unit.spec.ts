@@ -23,6 +23,10 @@ describe('LocalCollection and Cursor', () => {
 
     expect(id).toBe('generated')
     expect(collection.findOne(id)).toEqual({ _id: id, title: 'First', done: false, rank: 2 })
+    expect(collection.find().count()).toBe(1)
+    expect(collection.find(undefined).count()).toBe(0)
+    expect(collection.findOne()).toEqual({ _id: id, title: 'First', done: false, rank: 2 })
+    expect(collection.findOne(undefined)).toBeUndefined()
   })
 
   it('supports sort, skip, limit, projection, transform, and iteration', async () => {
@@ -121,6 +125,18 @@ describe('LocalCollection and Cursor', () => {
     expect(events).toContainEqual(['removed', 'b'])
     expect(events).toContainEqual(['added', 'd', 'a'])
     expect(events).toContainEqual(['moved', 'c', 'a'])
+  })
+
+  it('defers initial observer delivery when observation starts while paused', () => {
+    const collection = createTasks()
+    const events: string[] = []
+    collection.pauseObservers()
+
+    collection.find().observeChanges({ added: id => events.push(String(id)) })
+    expect(events).toEqual([])
+    collection.resumeObserversClient()
+
+    expect(events).toEqual(['a', 'b', 'c'])
   })
 
   it('tracks copy-on-write originals and defers callbacks', async () => {

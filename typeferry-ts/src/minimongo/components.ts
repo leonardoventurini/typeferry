@@ -1,4 +1,5 @@
 import { MemoryDocumentStore, type DocumentStore, type DocumentStoreFactory } from './document-store'
+import { diffOrdered, diffUnordered, type ChangeCallbacks } from './diff'
 import { meteorIdentityCodec, type IdentityCodec } from './identity'
 import { Matcher } from './matcher'
 import { createUpsertDocument, modifyDocument, type ModifyOptions } from './modifier'
@@ -65,12 +66,24 @@ export interface MutationEngine {
   ): TDocument
 }
 
+export interface ObserverEngine {
+  diff<TDocument extends Record<string, unknown>>(
+    ordered: boolean,
+    previous: readonly TDocument[],
+    current: readonly TDocument[],
+    callbacks: ChangeCallbacks<TDocument>,
+    identities: IdentityCodec<unknown>,
+    values: ValueSemantics,
+  ): void
+}
+
 export interface MinimongoComponents {
   readonly values: ValueSemantics
   readonly identities: IdentityCodec<unknown>
   readonly documentStoreFactory: DocumentStoreFactory
   readonly query: QueryEngine
   readonly mutations: MutationEngine
+  readonly observers: ObserverEngine
   readonly scheduler: ObserverScheduler
   readonly randomId: () => string
   readonly now: () => Date
@@ -112,6 +125,13 @@ const defaultMutationEngine: MutationEngine = {
   },
 }
 
+const defaultObserverEngine: ObserverEngine = {
+  diff(ordered, previous, current, callbacks, identities, values) {
+    if (ordered) diffOrdered(previous, current, callbacks, identities, values)
+    else diffUnordered(previous, current, callbacks, identities, values)
+  },
+}
+
 export const meteor352Components: MinimongoComponents = {
   values: meteorValueSemantics,
   identities: meteorIdentityCodec,
@@ -125,6 +145,7 @@ export const meteor352Components: MinimongoComponents = {
   },
   query: defaultQueryEngine,
   mutations: defaultMutationEngine,
+  observers: defaultObserverEngine,
   scheduler: new SynchronousObserverScheduler(),
   randomId,
   now: () => new Date(),

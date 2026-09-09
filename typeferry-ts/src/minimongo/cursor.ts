@@ -1,5 +1,5 @@
 import type { MinimongoComponents } from './components'
-import { diffOrdered, diffUnordered, type ChangeCallbacks } from './diff'
+import type { ChangeCallbacks } from './diff'
 import { Matcher } from './matcher'
 import type { Sorter } from './sorter'
 import type {
@@ -17,6 +17,7 @@ export interface CursorCollection<TDocument extends Record<string, unknown>> {
   readonly components: MinimongoComponents
   documents(): Iterable<TDocument>
   addObserver(observer: () => void): () => void
+  isPaused(): boolean
 }
 
 class ObserveHandleState implements ObserveHandle {
@@ -229,7 +230,8 @@ export class Cursor<
       throw new Error('You may not observe a cursor with {fields: {_id: 0}}')
     }
 
-    let previous = this.projectedDocuments()
+    const initial = this.projectedDocuments()
+    let previous = this.collection.isPaused() ? [] : initial
     let active = true
     const queued: ChangeCallbacks<TDocument> = {}
     for (const name of ['added', 'addedBefore', 'changed', 'removed', 'movedBefore'] as const) {
@@ -243,8 +245,8 @@ export class Cursor<
       }
     }
     const suppressInitial = Boolean((callbacks as ObserveChangesCallbacks<TDocument> & { _suppress_initial?: boolean })._suppress_initial)
-    if (!suppressInitial) {
-      for (const document of previous) {
+    if (!suppressInitial && !this.collection.isPaused()) {
+      for (const document of initial) {
         const id = document['_id'] as MinimongoId
         const fields = this.collection.components.values.clone(document)
         delete fields['_id']
@@ -258,11 +260,14 @@ export class Cursor<
       : this.collection.addObserver(() => {
           if (!active) return
           const current = this.projectedDocuments()
-          if (ordered) {
-            diffOrdered(previous, current, queued, this.collection.components.identities, this.collection.components.values)
-          } else {
-            diffUnordered(previous, current, queued, this.collection.components.identities, this.collection.components.values)
-          }
+          this.collection.components.observers.diff(
+            ordered,
+            previous,
+            current,
+            queued,
+            this.collection.components.identities,
+            this.collection.components.values,
+          )
           previous = current
         })
     const handle = new ObserveHandleState(this.collection, () => {

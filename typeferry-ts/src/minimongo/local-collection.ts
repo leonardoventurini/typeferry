@@ -57,25 +57,35 @@ export class LocalCollection<
     return () => this.observers.delete(observer)
   }
 
+  isPaused(): boolean {
+    return this.paused
+  }
+
   find<TOutput = Stored<TSchema, TId>>(
-    selector: Selector<Stored<TSchema, TId>> | undefined = {},
+    selector?: Selector<Stored<TSchema, TId>>,
     options: FindOptions<Stored<TSchema, TId>, TOutput> = {},
   ): Cursor<Stored<TSchema, TId>, TOutput> {
-    return new Cursor(this, selector, options)
+    const effectiveSelector = arguments.length === 0 ? {} : selector
+
+    return new Cursor(this, effectiveSelector, options)
   }
 
   findOne<TOutput = Stored<TSchema, TId>>(
-    selector: Selector<Stored<TSchema, TId>> | undefined = {},
+    selector?: Selector<Stored<TSchema, TId>>,
     options: FindOptions<Stored<TSchema, TId>, TOutput> = {},
   ): TOutput | undefined {
-    return this.find(selector, { ...options, limit: 1 }).fetch()[0]
+    const effectiveSelector = arguments.length === 0 ? {} : selector
+
+    return this.find(effectiveSelector, { ...options, limit: 1 }).fetch()[0]
   }
 
   findOneAsync<TOutput = Stored<TSchema, TId>>(
-    selector: Selector<Stored<TSchema, TId>> | undefined = {},
+    selector?: Selector<Stored<TSchema, TId>>,
     options: FindOptions<Stored<TSchema, TId>, TOutput> = {},
   ): Promise<TOutput | undefined> {
-    return Promise.resolve(this.findOne(selector, options))
+    const effectiveSelector = arguments.length === 0 ? {} : selector
+
+    return Promise.resolve(this.findOne(effectiveSelector, options))
   }
 
   countDocuments(
