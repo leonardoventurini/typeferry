@@ -5,10 +5,10 @@
  * EJSON.fromJSONValue
  */
 import { builtinConverters } from '../built-in-converters'
-import { isObject, keysOf } from '../utils'
+import { isObjectRecord, keysOf } from '../utils'
 
-export const fromJSONValueHelper = value => {
-  if (isObject(value) && value !== null) {
+export const fromJSONValueHelper = (value: unknown): unknown => {
+  if (isObjectRecord(value)) {
     const keys = keysOf(value)
     if (
       keys.length <= 2 &&
@@ -16,6 +16,7 @@ export const fromJSONValueHelper = value => {
     ) {
       for (let i = 0; i < builtinConverters.length; i++) {
         const converter = builtinConverters[i]
+        if (!converter) continue
         if (converter.matchJSONValue(value)) {
           return converter.fromJSONValue(value)
         }

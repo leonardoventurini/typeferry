@@ -3,148 +3,147 @@ import { customTypes } from './custom-types'
 import { EJSON } from './index'
 import { hasOwn, isInfOrNaN, keysOf, lengthOf } from './utils'
 
-export const builtinConverters = [
+type EJSONRecord = Record<string, unknown>
+
+interface CustomEJSONValue {
+  typeName(): string
+  toJSONValue(): unknown
+}
+
+export interface EJSONConverter {
+  matchJSONValue(value: unknown): boolean
+  matchObject(value: unknown): boolean
+  toJSONValue(value: unknown): unknown
+  fromJSONValue(value: unknown): unknown
+}
+
+function isRecord(value: unknown): value is EJSONRecord {
+  return typeof value === 'object' && value !== null
+}
+
+function requireRecord(value: unknown): EJSONRecord {
+  if (!isRecord(value)) throw new TypeError('Invalid EJSON converter input')
+
+  return value
+}
+
+function requireString(value: unknown): string {
+  if (typeof value !== 'string') throw new TypeError('Invalid EJSON string value')
+
+  return value
+}
+
+export const builtinConverters: readonly EJSONConverter[] = [
   {
-    // Date
-    matchJSONValue(obj) {
-      return hasOwn(obj, '$date') && lengthOf(obj) === 1
+    matchJSONValue: value =>
+      isRecord(value) && hasOwn(value, '$date') && lengthOf(value) === 1,
+    matchObject: value => value instanceof Date,
+    toJSONValue: value => {
+      if (!(value instanceof Date)) throw new TypeError('Expected Date')
+
+      return { $date: value.getTime() }
     },
-    matchObject(obj) {
-      return obj instanceof Date
+    fromJSONValue: value => new Date(Number(requireRecord(value)['$date'])),
+  },
+  {
+    matchJSONValue: value =>
+      isRecord(value) &&
+      hasOwn(value, '$regexp') &&
+      hasOwn(value, '$flags') &&
+      lengthOf(value) === 2,
+    matchObject: value => value instanceof RegExp,
+    toJSONValue: value => {
+      if (!(value instanceof RegExp)) throw new TypeError('Expected RegExp')
+
+      return { $regexp: value.source, $flags: value.flags }
     },
-    toJSONValue(obj) {
-      return { $date: obj.getTime() }
-    },
-    fromJSONValue(obj) {
-      return new Date(obj.$date)
+    fromJSONValue: value => {
+      const record = requireRecord(value)
+      const pattern = requireString(record['$regexp'])
+      const flags = requireString(record['$flags'])
+        .slice(0, 50)
+        .replace(/[^gimuy]/g, '')
+        .replace(/(.)(?=.*\1)/g, '')
+
+      // eslint-disable-next-line security/detect-non-literal-regexp -- intentional EJSON deserialization
+      return new RegExp(pattern, flags)
     },
   },
   {
-    // RegExp
-    matchJSONValue(obj) {
-      return (
-        hasOwn(obj, '$regexp') && hasOwn(obj, '$flags') && lengthOf(obj) === 2
-      )
-    },
-    matchObject(obj) {
-      return obj instanceof RegExp
-    },
-    toJSONValue(regexp) {
-      return {
-        $regexp: regexp.source,
-        $flags: regexp.flags,
-      }
-    },
-    fromJSONValue(obj) {
-      // Replaces duplicate / invalid flags.
-      // eslint-disable-next-line security/detect-non-literal-regexp -- intentional for EJSON deserialization
-      return new RegExp(
-        obj.$regexp,
-        obj.$flags
-          // Cut off flags at 50 chars to avoid abusing RegExp for DOS.
-          .slice(0, 50)
-          .replace(/[^gimuy]/g, '')
-          .replace(/(.)(?=.*\1)/g, ''),
-      )
-    },
-  },
-  {
-    // NaN, Inf, -Inf. (These are the only objects with typeof !== 'object'
-    // which we match.)
-    matchJSONValue(obj) {
-      return hasOwn(obj, '$InfNaN') && lengthOf(obj) === 1
-    },
+    matchJSONValue: value =>
+      isRecord(value) && hasOwn(value, '$InfNaN') && lengthOf(value) === 1,
     matchObject: isInfOrNaN,
-    toJSONValue(obj) {
-      let sign
-      if (Number.isNaN(obj)) {
-        sign = 0
-      } else if (obj === Infinity) {
-        sign = 1
-      } else {
-        sign = -1
-      }
-      return { $InfNaN: sign }
-    },
-    fromJSONValue(obj) {
-      return obj.$InfNaN / 0
-    },
+    toJSONValue: value => ({
+      $InfNaN: Number.isNaN(value) ? 0 : value === Infinity ? 1 : -1,
+    }),
+    fromJSONValue: value => Number(requireRecord(value)['$InfNaN']) / 0,
   },
   {
-    // Binary
-    matchJSONValue(obj) {
-      return hasOwn(obj, '$binary') && lengthOf(obj) === 1
+    matchJSONValue: value =>
+      isRecord(value) && hasOwn(value, '$binary') && lengthOf(value) === 1,
+    matchObject: value => EJSON.isBinary(value),
+    toJSONValue: value => {
+      if (!EJSON.isBinary(value)) throw new TypeError('Expected EJSON binary')
+
+      return { $binary: encodeBase64(value) }
     },
-    matchObject(obj) {
+    fromJSONValue: value =>
+      decodeBase64(requireString(requireRecord(value)['$binary'])),
+  },
+  {
+    matchJSONValue: value =>
+      isRecord(value) && hasOwn(value, '$escape') && lengthOf(value) === 1,
+    matchObject: value => {
+      if (!isRecord(value)) return false
+
+      const keyCount = lengthOf(value)
+
       return (
-        (typeof Uint8Array !== 'undefined' && obj instanceof Uint8Array) ||
-        (obj && hasOwn(obj, '$Uint8ArrayPolyfill'))
+        (keyCount === 1 || keyCount === 2) &&
+        builtinConverters.some(converter => converter.matchJSONValue(value))
       )
     },
-    toJSONValue(obj) {
-      return { $binary: encodeBase64(obj) }
+    toJSONValue: value => {
+      const record = requireRecord(value)
+      const escaped: EJSONRecord = {}
+
+      for (const key of keysOf(record)) {
+        escaped[key] = EJSON.toJSONValue(record[key])
+      }
+
+      return { $escape: escaped }
     },
-    fromJSONValue(obj) {
-      return decodeBase64(obj.$binary)
+    fromJSONValue: value => {
+      const escaped = requireRecord(requireRecord(value)['$escape'])
+      const result: EJSONRecord = {}
+
+      for (const key of keysOf(escaped)) {
+        result[key] = EJSON.fromJSONValue(escaped[key])
+      }
+
+      return result
     },
   },
   {
-    // Escaping one level
-    matchJSONValue(obj) {
-      return hasOwn(obj, '$escape') && lengthOf(obj) === 1
-    },
-    matchObject(obj) {
-      let match = false
-      if (obj) {
-        const keyCount = lengthOf(obj)
-        if (keyCount === 1 || keyCount === 2) {
-          match = builtinConverters.some(converter =>
-            converter.matchJSONValue(obj),
-          )
-        }
-      }
-      return match
-    },
-    toJSONValue(obj) {
-      const newObj = {}
-      keysOf(obj).forEach(key => {
-        newObj[key] = EJSON.toJSONValue(obj[key])
-      })
-      return { $escape: newObj }
-    },
-    fromJSONValue(obj) {
-      const newObj = {}
-      keysOf(obj.$escape).forEach(key => {
-        newObj[key] = EJSON.fromJSONValue(obj.$escape[key])
-      })
-      return newObj
-    },
-  },
-  {
-    // Custom
-    matchJSONValue(obj) {
-      return (
-        hasOwn(obj, '$type') && hasOwn(obj, '$value') && lengthOf(obj) === 2
-      )
-    },
-    matchObject(obj) {
-      return EJSON._isCustomType(obj)
-    },
-    toJSONValue(obj) {
-      const jsonValue = obj.toJSONValue()
+    matchJSONValue: value =>
+      isRecord(value) &&
+      hasOwn(value, '$type') &&
+      hasOwn(value, '$value') &&
+      lengthOf(value) === 2,
+    matchObject: value => EJSON._isCustomType(value),
+    toJSONValue: value => {
+      const custom = value as CustomEJSONValue
 
-      return { $type: obj.typeName(), $value: jsonValue }
+      return { $type: custom.typeName(), $value: custom.toJSONValue() }
     },
-    fromJSONValue(obj) {
-      const typeName = obj.$type
+    fromJSONValue: value => {
+      const record = requireRecord(value)
+      const typeName = requireString(record['$type'])
+      const factory = customTypes.get(typeName)
 
-      if (!customTypes.has(typeName)) {
-        throw new Error(`Custom EJSON type ${typeName} is not defined`)
-      }
+      if (!factory) throw new Error(`Custom EJSON type ${typeName} is not defined`)
 
-      const converter = customTypes.get(typeName)
-
-      return converter(obj.$value)
+      return factory(record['$value'])
     },
   },
 ]

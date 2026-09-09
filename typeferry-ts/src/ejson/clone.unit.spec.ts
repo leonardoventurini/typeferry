@@ -107,7 +107,7 @@ describe('clone', () => {
     })
 
     it('clones real arguments objects', () => {
-      function captureArgs() {
+      function captureArgs(..._values: unknown[]) {
         return arguments
       }
       const args = captureArgs.call(null, 'x', 'y', 'z')

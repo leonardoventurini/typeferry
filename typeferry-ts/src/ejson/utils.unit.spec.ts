@@ -368,9 +368,9 @@ describe('newBinary', () => {
     const origUint8Array = globalThis.Uint8Array
     const origArrayBuffer = globalThis.ArrayBuffer
 
-    // Temporarily remove Uint8Array and ArrayBuffer
-    globalThis.Uint8Array = undefined
-    globalThis.ArrayBuffer = undefined
+    // Temporarily remove Uint8Array and ArrayBuffer.
+    vi.stubGlobal('Uint8Array', undefined)
+    vi.stubGlobal('ArrayBuffer', undefined)
 
     try {
       const result = newBinary(3)
@@ -386,8 +386,9 @@ describe('newBinary', () => {
       expect((result as any).$Uint8ArrayPolyfill).toBe(true)
     } finally {
       // Restore
-      globalThis.Uint8Array = origUint8Array
-      globalThis.ArrayBuffer = origArrayBuffer
+      vi.stubGlobal('Uint8Array', origUint8Array)
+      vi.stubGlobal('ArrayBuffer', origArrayBuffer)
+      vi.unstubAllGlobals()
     }
   })
 })

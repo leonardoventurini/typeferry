@@ -20,7 +20,7 @@ type OnceListener = EventListener & {
 }
 
 export default class EventEmitter2 {
-  _events?: Record<string, EventEntry | undefined> = {}
+  _events: Record<string, EventEntry | undefined> = {}
   private anyListeners = new Set<AnyEventListener>()
   private maxListeners = Number.POSITIVE_INFINITY
 

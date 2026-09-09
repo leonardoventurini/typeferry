@@ -38,7 +38,7 @@ function cloneSpecialTypes(
 
   if (EJSON.isBinary(val)) {
     const ret = EJSON.newBinary(val.length)
-    for (let i = 0; i < val.length; i++) ret[i] = val[i]
+    for (let i = 0; i < val.length; i++) ret[i] = val[i] ?? 0
     return { handled: true, result: ret }
   }
 

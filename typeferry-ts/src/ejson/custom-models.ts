@@ -4,7 +4,7 @@ class Address {
   city: string
   state: string
 
-  constructor(city, state) {
+  constructor(city: string, state: string) {
     this.city = city
     this.state = state
   }
@@ -20,7 +20,7 @@ class Address {
     }
   }
 
-  equals(other: any) {
+  equals(other: unknown) {
     return (
       other instanceof Address &&
       this.city === other.city &&
@@ -34,7 +34,7 @@ class Person {
   birthDate: Date
   address: Address
 
-  constructor(name, birthDate, address) {
+  constructor(name: string, birthDate: Date, address: Address) {
     this.name = name
     this.birthDate = birthDate
     this.address = address
@@ -52,7 +52,7 @@ class Person {
     }
   }
 
-  equals(other: any) {
+  equals(other: unknown) {
     return (
       other instanceof Person &&
       this.name === other.name &&
@@ -63,9 +63,9 @@ class Person {
 }
 
 class Holder {
-  value: any
+  value: unknown
 
-  constructor(value) {
+  constructor(value: unknown) {
     this.value = value
   }
 
@@ -77,22 +77,43 @@ class Holder {
     return this.value
   }
 
-  equals(other: any) {
+  equals(other: unknown) {
     return other instanceof Holder && EJSON.equals(this.value, other.value)
   }
 }
 
-const addTypes = () => {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function requireRecord(value: unknown): Record<string, unknown> {
+  if (!isRecord(value)) {
+    throw new TypeError('Invalid custom EJSON value')
+  }
+
+  return value
+}
+
+const addTypes = (): void => {
   EJSON.addType(
     'Person',
-    value =>
-      new Person(
-        value.name,
-        EJSON.fromJSONValue(value.birthDate),
-        EJSON.fromJSONValue(value.address),
-      ),
+    value => {
+      const record = requireRecord(value)
+      const birthDate = EJSON.fromJSONValue(record['birthDate'])
+      const address = EJSON.fromJSONValue(record['address'])
+
+      if (!(birthDate instanceof Date) || !(address instanceof Address)) {
+        throw new TypeError('Invalid Person EJSON value')
+      }
+
+      return new Person(String(record['name']), birthDate, address)
+    },
   )
-  EJSON.addType('Address', value => new Address(value.city, value.state))
+  EJSON.addType('Address', value => {
+    const record = requireRecord(value)
+
+    return new Address(String(record['city']), String(record['state']))
+  })
   EJSON.addType('Holder', value => new Holder(value))
 }
 

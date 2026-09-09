@@ -8,22 +8,28 @@ export namespace Helpers {
     data?: string
   }
 
-  export function isSecure() {
+  export function isSecure(): boolean {
     return (
       typeof window === 'object' && document?.location?.protocol === 'https:'
     )
   }
 
-  export function extend(target: object, source: object) {
+  export function extend<
+    TTarget extends object,
+    TSource extends Record<string, (...args: never[]) => unknown>,
+  >(target: TTarget, source: TSource): void {
     Object.entries(source).forEach(([key, fn]) => {
-      target[key] = fn.bind(target)
+      Reflect.set(target, key, fn.bind(target))
     })
   }
 
-  export function getCircularReplacer() {
-    const seen = new WeakSet()
+  export function getCircularReplacer(): (
+    key: string,
+    value: unknown,
+  ) => unknown {
+    const seen = new WeakSet<object>()
 
-    return (key, value) => {
+    return (_key: string, value: unknown): unknown => {
       if (typeof value === 'object' && value !== null) {
         if (seen.has(value)) {
           return
@@ -34,15 +40,16 @@ export namespace Helpers {
     }
   }
 
-  export function ensureArray(value: any) {
+  export function ensureArray<T>(value: T | T[]): T[] {
     return Array.isArray(value) ? value : [value]
   }
 
-  export function toString(id: any) {
+  export function toString(id: unknown): string {
     if (
       id != null &&
       typeof id === 'object' &&
-      id.constructor.name === 'ObjectId'
+      id.constructor.name === 'ObjectId' &&
+      'toString' in id
     ) {
       return id.toString()
     }

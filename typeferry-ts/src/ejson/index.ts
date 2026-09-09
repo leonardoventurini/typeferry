@@ -1,7 +1,7 @@
 import { adjustTypesFromJSONValue } from './adjust-types-from-json-value'
 import { builtinConverters } from './built-in-converters'
 import { clone } from './clone'
-import { customTypes } from './custom-types'
+import { customTypes, type EJSONTypeFactory } from './custom-types'
 import { equals } from './equals'
 import { fromJSONValue } from './from-json-value'
 import { adjustTypesToJSONValue } from './helpers/adjust-types-to-json-value'
@@ -9,7 +9,12 @@ import { isBinary } from './is-binary'
 import { parse } from './parse'
 import { stringify } from './stringify'
 import { toJSONValue } from './to-json-value'
-import { convertMapToObject, isFunction, newBinary } from './utils'
+import {
+  convertMapToObject,
+  isFunction,
+  isObjectRecord,
+  newBinary,
+} from './utils'
 
 export const EJSON = {
   clone,
@@ -32,7 +37,7 @@ export const EJSON = {
    *                           match the serialization performed by your
    *                           type's `toJSONValue` method.
    */
-  addType(name: string, factory) {
+  addType(name: string, factory: EJSONTypeFactory) {
     if (customTypes.has(name)) {
       throw new Error(`Type ${name} already present`)
     }
@@ -40,12 +45,12 @@ export const EJSON = {
     customTypes.set(name, factory)
   },
 
-  _isCustomType(obj) {
+  _isCustomType(obj: unknown): boolean {
     return (
-      obj &&
+      isObjectRecord(obj) &&
       isFunction(obj.toJSONValue) &&
       isFunction(obj.typeName) &&
-      customTypes.has(obj.typeName())
+      customTypes.has(String(obj.typeName.call(obj)))
     )
   },
 

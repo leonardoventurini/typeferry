@@ -40,7 +40,7 @@ function getBase64Lengths(value: string): {
 }
 
 function readBase64Char(value: string, index: number): number {
-  const decoded = BASE64_LOOKUP[value.charCodeAt(index)]
+  const decoded = BASE64_LOOKUP[value.charCodeAt(index)] ?? INVALID_CHAR
 
   if (decoded === INVALID_CHAR) {
     throw new Error('Invalid base64 character')
@@ -53,7 +53,7 @@ function readBase64Char(value: string, index: number): number {
  * Encodes binary payloads for EJSON without relying on a CJS-only dependency
  * that breaks browser ESM loading in source-first consumers.
  */
-export function encodeBase64(bytes: Uint8Array): string {
+export function encodeBase64(bytes: ArrayLike<number>): string {
   let output = ''
 
   for (let index = 0; index < bytes.length; index += 3) {

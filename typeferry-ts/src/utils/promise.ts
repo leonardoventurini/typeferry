@@ -1,7 +1,10 @@
-export function getPromise() {
-  let resolve = null
+export function getPromise<T = unknown>(): {
+  promise: Promise<T>
+  resolve: (value: T | PromiseLike<T>) => void
+} {
+  let resolve!: (value: T | PromiseLike<T>) => void
 
-  const promise = new Promise(r => {
+  const promise = new Promise<T>(r => {
     resolve = r
   })
 
@@ -11,10 +14,10 @@ export function getPromise() {
   }
 }
 
-export function sleep(ms: number) {
+export function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-export async function randomSleep(min = 50, max = 200) {
+export function randomSleep(min = 50, max = 200): Promise<void> {
   return sleep(Math.floor(Math.random() * (max - min) + min))
 }

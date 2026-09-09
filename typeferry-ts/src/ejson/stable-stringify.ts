@@ -1,11 +1,8 @@
-type JsonPrimitive = boolean | null | number | string
-type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue }
-
-function isPlainObject(value: JsonValue): value is { [key: string]: JsonValue } {
+function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function sortJsonValue(value: JsonValue): JsonValue {
+function sortJsonValue(value: unknown): unknown {
   if (Array.isArray(value)) {
     return value.map(sortJsonValue)
   }
@@ -16,8 +13,11 @@ function sortJsonValue(value: JsonValue): JsonValue {
 
   return Object.keys(value)
     .sort()
-    .reduce<{ [key: string]: JsonValue }>((accumulator, key) => {
-      accumulator[key] = sortJsonValue(value[key])
+    .reduce<Record<string, unknown>>((accumulator, key) => {
+      const child = value[key]
+
+      if (child !== undefined) accumulator[key] = sortJsonValue(child)
+
       return accumulator
     }, {})
 }
@@ -27,7 +27,7 @@ function sortJsonValue(value: JsonValue): JsonValue {
  * on a CommonJS dependency that breaks source-first browser consumers.
  */
 export function stableStringify(
-  value: JsonValue,
+  value: unknown,
   space?: number | string,
 ): string {
   return JSON.stringify(sortJsonValue(value), null, space)

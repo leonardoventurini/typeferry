@@ -6,7 +6,7 @@ export class PublicError extends Error {
 }
 
 export class SchemaValidationError extends Error {
-  errors: string[]
+  errors: string[] | undefined
 
   constructor(message: string, errors?: string[]) {
     super(message)

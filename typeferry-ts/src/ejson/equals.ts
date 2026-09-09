@@ -1,5 +1,9 @@
 import { EJSON } from './index'
-import { hasOwn, isFunction, isObject, keysOf } from './utils'
+import { hasOwn, isFunction, isObject, isObjectRecord, keysOf } from './utils'
+
+export interface EqualsOptions {
+  readonly keyOrderSensitive?: boolean
+}
 
 function areBothNaN(a: unknown, b: unknown): boolean {
   return Number.isNaN(a) && Number.isNaN(b)
@@ -17,7 +21,7 @@ function areBinaryEqual(a: ArrayLike<number>, b: ArrayLike<number>): boolean {
   return true
 }
 
-function areArraysEqual(a: unknown[], b: unknown[], options?: any): boolean {
+function areArraysEqual(a: unknown[], b: unknown[], options?: EqualsOptions): boolean {
   if (a.length !== b.length) return false
   for (let i = 0; i < a.length; i++) {
     if (!EJSON.equals(a[i], b[i], options)) return false
@@ -36,17 +40,19 @@ function handleCustomTypes(a: any, b: any): boolean | null {
 }
 
 function compareKeysOrderSensitive(
-  a: object,
+  a: Record<string, unknown>,
   aKeys: string[],
-  b: object,
+  b: Record<string, unknown>,
   bKeys: string[],
-  options?: any,
+  options?: EqualsOptions,
 ): boolean {
   let i = 0
   const ret = aKeys.every(key => {
     if (i >= bKeys.length) return false
-    if (key !== bKeys[i]) return false
-    if (!EJSON.equals(a[key], b[bKeys[i]], options)) return false
+    const bKey = bKeys[i]
+
+    if (bKey === undefined || key !== bKey) return false
+    if (!EJSON.equals(a[key], b[bKey], options)) return false
     i++
     return true
   })
@@ -54,11 +60,11 @@ function compareKeysOrderSensitive(
 }
 
 function compareKeysUnordered(
-  a: object,
+  a: Record<string, unknown>,
   aKeys: string[],
-  b: object,
+  b: Record<string, unknown>,
   bKeys: string[],
-  options?: any,
+  options?: EqualsOptions,
 ): boolean {
   let i = 0
   const ret = aKeys.every(key => {
@@ -103,7 +109,11 @@ function handleArrayComparison(a: any, b: any, options?: any): boolean | null {
   return null
 }
 
-export const equals = (a, b, options?: any) => {
+export const equals = (
+  a: unknown,
+  b: unknown,
+  options?: EqualsOptions,
+): boolean => {
   const primitiveResult = handlePrimitiveChecks(a, b)
   if (primitiveResult !== null) return primitiveResult
 
@@ -115,6 +125,8 @@ export const equals = (a, b, options?: any) => {
 
   const customResult = handleCustomTypes(a, b)
   if (customResult !== null) return customResult
+
+  if (!isObjectRecord(a) || !isObjectRecord(b)) return false
 
   const aKeys = keysOf(a)
   const bKeys = keysOf(b)

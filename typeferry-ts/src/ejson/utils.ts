@@ -1,65 +1,85 @@
-export const isFunction = fn => typeof fn === 'function'
+export type DynamicFunction = (
+  this: unknown,
+  ...args: unknown[]
+) => unknown
 
-export const isObject = fn => typeof fn === 'object'
+export const isFunction = (value: unknown): value is DynamicFunction =>
+  typeof value === 'function'
 
-export const keysOf = obj => Object.keys(obj)
+export const isObject = (value: unknown): boolean => typeof value === 'object'
 
-export const lengthOf = obj => Object.keys(obj).length
+export const isObjectRecord = (
+  value: unknown,
+): value is Record<string, unknown> =>
+  value !== null && typeof value === 'object'
 
-export const hasOwn = (obj, prop) =>
-  Object.prototype.hasOwnProperty.call(obj, prop)
+export const keysOf = (value: object): string[] => Object.keys(value)
 
-export const convertMapToObject = map =>
-  Array.from(map).reduce((acc, [key, value]) => {
-    // reassign to not create new object
-    acc[key] = value
-    return acc
-  }, {})
+export const lengthOf = (value: object): number => Object.keys(value).length
 
-export const isArguments = obj => obj != null && hasOwn(obj, 'callee')
+export const hasOwn = (value: object, property: PropertyKey): boolean =>
+  Object.prototype.hasOwnProperty.call(value, property)
 
-export const isInfOrNaN = obj =>
-  Number.isNaN(obj) || obj === Infinity || obj === -Infinity
+export function convertMapToObject<TKey extends PropertyKey, TValue>(
+  map: ReadonlyMap<TKey, TValue>,
+): Record<TKey, TValue> {
+  const result = {} as Record<TKey, TValue>
 
-export const checkError = {
-  maxStack: msgError =>
-    new RegExp('Maximum call stack size exceeded', 'g').test(msgError),
+  for (const [key, value] of map) result[key] = value
+
+  return result
 }
 
-export const handleError = fn =>
-  function (...args) {
+export const isArguments = (value: unknown): value is IArguments =>
+  value !== null && typeof value === 'object' && hasOwn(value, 'callee')
+
+export const isInfOrNaN = (value: unknown): boolean =>
+  typeof value === 'number' &&
+  (Number.isNaN(value) || value === Infinity || value === -Infinity)
+
+export const checkError = {
+  maxStack: (message: string): boolean =>
+    new RegExp('Maximum call stack size exceeded', 'g').test(message),
+}
+
+export function handleError<TThis, TArguments extends unknown[], TResult>(
+  fn: (this: TThis, ...args: TArguments) => TResult,
+): (this: TThis, ...args: TArguments) => TResult {
+  return function (this: TThis, ...args: TArguments): TResult {
     try {
       return fn.apply(this, args)
     } catch (error) {
-      const isMaxStack = checkError.maxStack(error.message)
-      if (isMaxStack) {
+      if (
+        error instanceof Error &&
+        checkError.maxStack(error.message)
+      ) {
         throw new Error('Converting circular structure to JSON')
       }
+
       throw error
     }
   }
-
-export const quote = string => {
-  return JSON.stringify(string)
 }
+
+export const quote = (value: string): string => JSON.stringify(value)
 
 export type PolyfillableArray = Array<number> & {
   $Uint8ArrayPolyfill?: boolean
 }
 
-export const newBinary = (len: number) => {
+export function newBinary(length: number): PolyfillableArray | Uint8Array {
   if (typeof Uint8Array === 'undefined' || typeof ArrayBuffer === 'undefined') {
-    const ret: PolyfillableArray = []
+    const result: PolyfillableArray = []
 
-    for (let i = 0; i < len; i++) {
-      ret.push(0)
-    }
+    for (let index = 0; index < length; index++) result.push(0)
 
-    ret.$Uint8ArrayPolyfill = true
+    result.$Uint8ArrayPolyfill = true
 
-    return ret
+    return result
   }
-  return new Uint8Array(new ArrayBuffer(len))
+
+  return new Uint8Array(new ArrayBuffer(length))
 }
 
-export const isObjectAndNotNull = obj => obj !== null && typeof obj === 'object'
+export const isObjectAndNotNull = (value: unknown): value is object =>
+  value !== null && typeof value === 'object'

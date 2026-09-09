@@ -3,7 +3,7 @@ import { toJSONValueHelper } from './helpers/to-json-value-helper'
 import { EJSON } from './index'
 import { isObject } from './utils'
 
-export const toJSONValue = item => {
+export const toJSONValue = (item: unknown): unknown => {
   const changed = toJSONValueHelper(item)
   if (changed !== undefined) {
     return changed

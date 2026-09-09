@@ -1,10 +1,10 @@
 /**
  * for both arrays and objects, in-place modification.
  */
-import { isInfOrNaN, isObject, keysOf } from '../utils'
+import { isInfOrNaN, isObject, isObjectRecord, keysOf } from '../utils'
 import { toJSONValueHelper } from './to-json-value-helper'
 
-export const adjustTypesToJSONValue = obj => {
+export const adjustTypesToJSONValue = (obj: unknown): unknown => {
   // Is it an atom that we need to adjust?
   if (obj === null) {
     return null
@@ -21,6 +21,8 @@ export const adjustTypesToJSONValue = obj => {
   }
 
   // Iterate over array or object structure.
+  if (!isObjectRecord(obj)) return obj
+
   keysOf(obj).forEach(key => {
     const value = obj[key]
     if (!isObject(value) && value !== undefined && !isInfOrNaN(value)) {

@@ -5,7 +5,7 @@ import { EJSON } from './index'
  *
  * @param item
  */
-export const parse = item => {
+export const parse = (item: unknown): unknown => {
   if (typeof item !== 'string')
     throw new Error('EJSON.parse argument should be a string')
 

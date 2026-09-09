@@ -4,9 +4,9 @@
  * different if the object you hand it itself needs changing.
  */
 import { fromJSONValueHelper } from './helpers/from-json-value-helper'
-import { isObject, keysOf } from './utils'
+import { isObject, isObjectRecord, keysOf } from './utils'
 
-export const adjustTypesFromJSONValue = obj => {
+export const adjustTypesFromJSONValue = (obj: unknown): unknown => {
   if (obj === null) {
     return null
   }
@@ -20,6 +20,8 @@ export const adjustTypesFromJSONValue = obj => {
   if (!isObject(obj)) {
     return obj
   }
+
+  if (!isObjectRecord(obj)) return obj
 
   keysOf(obj).forEach(key => {
     const value = obj[key]

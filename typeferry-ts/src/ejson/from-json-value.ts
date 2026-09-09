@@ -3,7 +3,7 @@ import { fromJSONValueHelper } from './helpers/from-json-value-helper'
 import { EJSON } from './index'
 import { isObject } from './utils'
 
-export const fromJSONValue = item => {
+export const fromJSONValue = (item: unknown): unknown => {
   let changed = fromJSONValueHelper(item)
 
   if (changed === item && isObject(item)) {

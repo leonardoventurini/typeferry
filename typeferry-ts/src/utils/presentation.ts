@@ -15,15 +15,17 @@ export namespace Presentation {
 
   export type Payload = {
     type: PayloadType
-    [key: string]: any
+    [key: string]: unknown
   }
 
   export function decode<T = Payload>(payload: string | { data: string }): T {
+    // The transport method's type parameter is the caller's decoded envelope
+    // contract; runtime validation remains the owning transport's concern.
     return EJSON.parse(
       typeof payload === 'string'
         ? payload
-        : (payload as { data: string }).data,
-    )
+        : payload.data,
+    ) as T
   }
 
   export function encode<T = Payload>(payload: T): string {
