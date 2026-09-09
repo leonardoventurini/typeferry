@@ -136,6 +136,10 @@ Clients can call the method as `client.m.greeting.hello({ name: 'Ada' })` when p
 
 Run commands from `typeferry-ts/`:
 
+The package and all of its tests share the strict compiler contract in
+`tsconfig.json`; `tsconfig.build.json` only selects production inputs and emit
+settings.
+
 ```sh
 npm ci
 npm run lint

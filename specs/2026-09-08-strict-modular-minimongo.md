@@ -214,8 +214,8 @@ Executed on 2026-09-09:
 - The full browser suite passed: 3 files and 10 tests.
 - The focused Minimongo suites passed: 7 unit files with 41 tests and one
   browser smoke test.
-- The repository TypeScript check, dedicated strict Minimongo type-contract
-  check, and ESLint check passed.
+- The repository TypeScript check, strict type-contract check, and ESLint check
+  passed. Strictness was subsequently unified package-wide.
 - The production build, declaration/runtime export smoke check, and dependency
   boundary scan passed. Generated Minimongo declarations contain no `any`, and
   the subpath imports no MongoDB, React, or transport modules.

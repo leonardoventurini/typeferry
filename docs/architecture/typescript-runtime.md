@@ -37,6 +37,17 @@ discard stale work before the next authenticated `INITIALIZED` boundary.
 - ESM imports and generated declarations must resolve without consumer aliases.
 - Browser consumers import compiled exports, never `node_modules/typeferry/src`.
 
+## Compiler contract
+
+`typeferry-ts/tsconfig.json` is the single typechecking authority for all
+package source and tests. It enables the strict compiler family, implicit-any
+checking, unchecked-index checking, exact optional-property checking, and
+unknown catch variables. `tsconfig.build.json` extends that contract and only
+changes emission and production-file selection; it must not weaken type safety.
+
+The standalone `template/` remains independently compilable and owns its own
+application configuration.
+
 ## Testing architecture
 
 - Unit runner: pure/local behavior and EJSON fixture coverage.
