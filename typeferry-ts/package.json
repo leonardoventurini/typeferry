@@ -84,7 +84,8 @@
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json && node scripts/prepare-dist.mjs",
     "verify:consumer": "node ../scripts/verify-application-consumer.mjs",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && npm run typecheck:minimongo",
+    "typecheck:minimongo": "tsc -p tsconfig.minimongo.json",
     "test": "npm run test:unit && npm run test:integration && npm run test:browser",
     "test:watch": "npm run test:unit:watch",
     "test:unit": "vitest --config vitest.config.unit.ts --run --watch=false",
