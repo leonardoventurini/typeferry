@@ -100,7 +100,7 @@ describe('mongodb change-stream integration', () => {
       expect(server.addEvent).toHaveBeenCalledWith('boards.changed', {
         protected: true,
       })
-      expect(events[0]).toMatchObject({
+      expect(events[0]!).toMatchObject({
         channel: author.toHexString(),
         event: 'boards.changed',
         payload: {

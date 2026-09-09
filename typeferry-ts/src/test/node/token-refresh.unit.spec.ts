@@ -30,7 +30,10 @@ describe('Cookie Utilities', () => {
     expect(headers['Set-Cookie']).toContain('SameSite=Lax')
 
     // Extract the cookie value from the Set-Cookie header
-    const cookieMatch = headers['Set-Cookie'].match(/refreshToken=([^;]+)/)
+    const setCookie = headers['Set-Cookie']
+    if (!setCookie) throw new Error('Expected refresh token cookie')
+
+    const cookieMatch = setCookie.match(/refreshToken=([^;]+)/)
     expect(cookieMatch).toBeDefined()
     expect(cookieMatch).not.toBeNull()
 

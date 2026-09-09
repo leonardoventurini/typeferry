@@ -20,7 +20,7 @@ interface Board {
   author: ObjectId
   createdAt: Date
   updatedAt: Date
-  deletedAt?: Date | null
+  deletedAt?: Date | null | undefined
 }
 
 const BoardSchema = z.object({

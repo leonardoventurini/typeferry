@@ -62,7 +62,7 @@ describe('Cached', () => {
 
       // Flush the queued update against a dummy class
       class Host {}
-      PENDING_METHOD_UPDATES[0](Host)
+      PENDING_METHOD_UPDATES[0]!(Host)
 
       const map = METHOD_META.get(Host)
       expect(map).toBeDefined()
@@ -83,7 +83,7 @@ describe('Cached', () => {
       Cached(5_000)(fn, context)
 
       class Host2 {}
-      PENDING_METHOD_UPDATES[0](Host2)
+      PENDING_METHOD_UPDATES[0]!(Host2)
 
       const meta = getOrCreateMethodMeta(Host2, 'anotherMethod')
       expect(meta.cached).toBe(true)
@@ -102,7 +102,7 @@ describe('Cached', () => {
       Cached()(fn, context)
 
       class Host3 {}
-      PENDING_METHOD_UPDATES[0](Host3)
+      PENDING_METHOD_UPDATES[0]!(Host3)
 
       const map = METHOD_META.get(Host3)
       expect(map!.get(String(sym))).toBeDefined()
@@ -130,7 +130,7 @@ describe('NoCache', () => {
     const meta = getOrCreateMethodMeta(Host, 'realtime')
     meta.cached = true
 
-    PENDING_METHOD_UPDATES[0](Host)
+    PENDING_METHOD_UPDATES[0]!(Host)
 
     expect(meta.cached).toBe(false)
   })
@@ -146,7 +146,7 @@ describe('NoCache', () => {
     NoCache()(fn, context)
 
     class Host2 {}
-    PENDING_METHOD_UPDATES[0](Host2)
+    PENDING_METHOD_UPDATES[0]!(Host2)
 
     const map = METHOD_META.get(Host2)
     expect(map!.get('someMethod')!.cached).toBe(false)

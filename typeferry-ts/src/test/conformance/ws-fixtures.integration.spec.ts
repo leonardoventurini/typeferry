@@ -84,7 +84,7 @@ class BufferingSocket {
     await new Promise(resolve => setTimeout(resolve, windowMs))
     if (this.queue.length > 0) {
       throw new Error(
-        `unexpected server frame within ${windowMs}ms: ${JSON.stringify(this.queue[0])}`,
+        `unexpected server frame within ${windowMs}ms: ${JSON.stringify(this.queue[0]!)}`,
       )
     }
   }

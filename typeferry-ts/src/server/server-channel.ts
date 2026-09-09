@@ -15,7 +15,7 @@ const SystemEvents: string[] = [
 
 export class ServerChannel extends EventEmitter2 {
   channelName: string
-  server: Server | undefined
+  private attachedServer: Server | undefined
 
   constructor(channelName: string) {
     super({
@@ -26,15 +26,15 @@ export class ServerChannel extends EventEmitter2 {
 
     this.onAny((event, value) => {
       if (
-        this.server &&
-        !this.server.events.has(event as string) &&
+        this.attachedServer &&
+        !this.attachedServer.events.has(event as string) &&
         !SystemEvents.includes(event as string)
       ) {
         console.warn('Event Not Registered:', event)
       }
 
-      if (this.server?.events.has(event as string)) {
-        const eventObject = this.server.events.get(event as string)
+      if (this.attachedServer?.events.has(event as string)) {
+        const eventObject = this.attachedServer.events.get(event as string)
 
         eventObject?.handler(this, value)
       }
@@ -42,12 +42,19 @@ export class ServerChannel extends EventEmitter2 {
   }
 
   setServer(server: Server) {
-    this.server = server
+    this.attachedServer = server
+  }
+
+  get server(): Server {
+    return this.requireServer()
   }
 
   private requireServer(): Server {
-    if (!this.server) throw new Error('Server channel is not attached to a server')
-    return this.server
+    if (!this.attachedServer) {
+      throw new Error('Server channel is not attached to a server')
+    }
+
+    return this.attachedServer
   }
 
   /**

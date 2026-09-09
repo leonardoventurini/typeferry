@@ -5,17 +5,14 @@ import type { Client } from '../../client'
 import { EJSON } from '../../ejson'
 import type { CallOptions } from '../../utils'
 
-export interface MethodCaller {
-  call(
-    thisArgument: Client,
-    method: string,
-    params?: unknown,
-    options?: CallOptions,
-  ): Promise<unknown>
-}
+export type MethodCaller = (
+  method: string,
+  params?: unknown,
+  options?: CallOptions,
+) => Promise<unknown>
 
 interface UseCallerOptions {
-  readonly client: Client | null
+  readonly client: Pick<Client, 'call'> | null
   readonly cache: boolean
   readonly maxAge: number
 }

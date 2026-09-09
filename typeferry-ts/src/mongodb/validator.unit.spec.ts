@@ -118,7 +118,9 @@ describe('MongoDB Zod validator compiler', () => {
   })
 
   it('rejects unconstrained root schemas', () => {
-    expect(() => toMongoJsonSchema(z.unknown())).toThrow(/<root>/)
+    expect(() => Reflect.apply(toMongoJsonSchema, undefined, [z.unknown()])).toThrow(
+      /<root>/,
+    )
   })
 
   it('rejects string formats without an enforceable MongoDB pattern', () => {

@@ -424,7 +424,7 @@ describe('refreshAccessToken error handling and queue', () => {
     // The logger should have been called with isAuthFailure: true
     const authLogCall = client.logger.auth.mock.calls.find(
       (args: any[]) =>
-        args[1] === 'Token refresh failed' && args[2]?.isAuthFailure === true,
+        args[1]! === 'Token refresh failed' && args[2]?.isAuthFailure === true,
     )
     expect(authLogCall).toBeTruthy()
 
@@ -437,7 +437,7 @@ describe('refreshAccessToken error handling and queue', () => {
 
     const transientLogCall = client.logger.auth.mock.calls.find(
       (args: any[]) =>
-        args[1] === 'Token refresh failed' && args[2]?.isAuthFailure === false,
+        args[1]! === 'Token refresh failed' && args[2]?.isAuthFailure === false,
     )
     expect(transientLogCall).toBeTruthy()
   })

@@ -151,9 +151,11 @@ describe('useConnectionState', () => {
 
     // Find the onReconnecting callback
     const reconnectingCall = client.on.mock.calls.find(
-      (call: any[]) => call[0] === ClientEvents.WEBSOCKET_RECONNECTING,
+      (call: any[]) => call[0]! === ClientEvents.WEBSOCKET_RECONNECTING,
     )
-    const onReconnecting = reconnectingCall[1]
+    if (!reconnectingCall) throw new Error('Expected reconnecting listener')
+
+    const onReconnecting = reconnectingCall[1]!
 
     act(() => {
       onReconnecting()
@@ -169,14 +171,18 @@ describe('useConnectionState', () => {
     const { result } = renderHook(() => useConnectionState())
 
     const reconnectingCall = client.on.mock.calls.find(
-      (call: any[]) => call[0] === ClientEvents.WEBSOCKET_RECONNECTING,
+      (call: any[]) => call[0]! === ClientEvents.WEBSOCKET_RECONNECTING,
     )
-    const onReconnecting = reconnectingCall[1]
+    if (!reconnectingCall) throw new Error('Expected reconnecting listener')
+
+    const onReconnecting = reconnectingCall[1]!
 
     const initializedCall = client.on.mock.calls.find(
-      (call: any[]) => call[0] === ClientEvents.INITIALIZED,
+      (call: any[]) => call[0]! === ClientEvents.INITIALIZED,
     )
-    const onConnected = initializedCall[1]
+    if (!initializedCall) throw new Error('Expected initialized listener')
+
+    const onConnected = initializedCall[1]!
 
     act(() => {
       onReconnecting()

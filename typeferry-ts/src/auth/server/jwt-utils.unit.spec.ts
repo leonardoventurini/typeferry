@@ -41,7 +41,7 @@ describe('signAccessToken', () => {
     const payload = makePayload()
     const token = signAccessToken(payload, config)
     const header = JSON.parse(
-      Buffer.from(token.split('.')[0], 'base64url').toString(),
+      Buffer.from(token.split('.')[0]!, 'base64url').toString(),
     )
     expect(header.alg).toBe('HS256')
   })
@@ -51,7 +51,7 @@ describe('signAccessToken', () => {
     const payload = makePayload()
     const token = signAccessToken(payload, config)
     const header = JSON.parse(
-      Buffer.from(token.split('.')[0], 'base64url').toString(),
+      Buffer.from(token.split('.')[0]!, 'base64url').toString(),
     )
     expect(header.alg).toBe('HS384')
   })

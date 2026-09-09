@@ -6,7 +6,7 @@ test('should be able to parse a JSON string', () => {
   const json = { date: new Date() }
   const str = EJSON.stringify(json)
   const parsed = EJSON.parse(str)
-  expect(parsed.date).toBeInstanceOf(Date)
+  expect(parsed).toMatchObject({ date: expect.any(Date) })
 })
 
 test('option: keyOrderSensitive', () => {

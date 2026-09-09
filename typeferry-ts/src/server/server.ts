@@ -40,16 +40,21 @@ export type ChannelChecker = (
 export type AuthFunction = (
   this: ClientNode,
   context: ClientNodeContext,
-) => ClientNodeContext | false | Promise<ClientNodeContext | false>
+) =>
+  | ClientNodeContext
+  | false
+  | null
+  | undefined
+  | Promise<ClientNodeContext | false | null | undefined>
 
 /**
  * Configuration for server authentication.
  */
-export type AuthSetup = {
+export type AuthSetup<TParameters = unknown, TResult = unknown> = {
   /** Authentication function called to validate tokens */
   auth: AuthFunction
   /** Login method handler */
-  logIn: MethodFunction
+  logIn: MethodFunction<TParameters, TResult>
 }
 
 export type RateLimit =
@@ -227,7 +232,7 @@ export class Server<
     return this.httpTransport.app
   }
 
-  setAuth({ auth, logIn }: AuthSetup) {
+  setAuth<TParameters, TResult>({ auth, logIn }: AuthSetup<TParameters, TResult>) {
     this.isAuthEnabled = true
     this.auth = auth
     this.addMethod(Methods.RPC_LOGIN, logIn)
@@ -253,7 +258,7 @@ export class Server<
     await this.webSocketTransport?.close()
     await this.httpTransport?.close()
 
-    global.TypeFerry = undefined
+    Reflect.deleteProperty(global, 'TypeFerry')
 
     this.emit(ServerEvents.CLOSED)
 

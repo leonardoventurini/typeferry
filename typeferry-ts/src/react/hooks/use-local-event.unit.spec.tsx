@@ -70,10 +70,10 @@ describe('useLocalEvent', () => {
     renderHook(() => useLocalEvent('my-event', fn))
 
     // When channel is NO_CHANNEL (not a string match for the conditional
-    // `typeof channel === 'string'`), it still resolves to client.channel(channel)
-    // But NO_CHANNEL is a string, so it calls client.channel('NO_CHANNEL')
-    // Actually looking at the code: `typeof channel === 'string' ? client.channel(channel) : client`
-    // Since NO_CHANNEL = 'NO_CHANNEL' (a string), it calls client.channel('NO_CHANNEL')
+    // `typeof channel === 'string'`), it still resolves to client.channel(channel).
+    // But NO_CHANNEL is a string, so it calls client.channel('NO_CHANNEL').
+    // Actually looking at the code: `typeof channel === 'string' ? client.channel(channel)! : client`
+    // Since NO_CHANNEL = 'NO_CHANNEL' (a string), it calls client.channel('NO_CHANNEL').
     expect(client.channel).toHaveBeenCalledWith('NO_CHANNEL')
     expect(client._channel.on).toHaveBeenCalledWith(
       'my-event',

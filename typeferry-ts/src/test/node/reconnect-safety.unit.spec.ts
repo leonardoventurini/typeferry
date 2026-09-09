@@ -47,6 +47,8 @@ describe('Reconnection Safety', () => {
     const origCreate = (
       test.client.clientSocket as unknown as Record<string, () => void>
     )['createSocket']
+    if (!origCreate) throw new Error('Expected client socket factory')
+
     ;(test.client.clientSocket as unknown as Record<string, () => void>)[
       'createSocket'
     ] = function (this: unknown) {

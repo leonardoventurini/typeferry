@@ -257,6 +257,8 @@ describe('Server', () => {
 
       const method = s.getMethod('custom.method')
       expect(method).toBeDefined()
+      if (!method) throw new Error('Expected registered method')
+
       expect(method.name).toBe('custom.method')
     })
   })
@@ -483,7 +485,7 @@ describe('Server', () => {
 
       // setupHttpListening registers http.on('error', handler)
       const errorCall = mockHttpOn.mock.calls.find(
-        (c: any[]) => c[0] === 'error',
+        (c: any[]) => c[0]! === 'error',
       )
       expect(errorCall).toBeDefined()
 
@@ -533,7 +535,7 @@ describe('Server', () => {
       s.emit(ServerEvents.HTTP_LISTENING)
 
       // Restore
-      mockHttpListen.mockImplementation(originalImpl)
+      if (originalImpl) mockHttpListen.mockImplementation(originalImpl)
       consoleSpy.mockRestore()
 
       await s.close()

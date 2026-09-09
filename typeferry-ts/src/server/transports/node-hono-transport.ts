@@ -336,7 +336,7 @@ export class NodeHonoTransport {
     if (this.server.auth instanceof Function) {
       let result = this.server.auth.call(clientNode, context)
       result = result instanceof Promise ? await result : result
-      return result
+      return result || false
     }
 
     return false

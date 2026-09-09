@@ -75,7 +75,7 @@ describeIf('JS client ↔ Python server (cross-language integration)', () => {
       const client = new Client({
         host: '127.0.0.1',
         port,
-        initialContext: context,
+        ...(context === undefined ? {} : { initialContext: context }),
       })
       client.once(ClientEvents.INITIALIZED, () => resolve(client))
       client.once(ClientEvents.ERROR, reject)
@@ -128,7 +128,7 @@ describeIf('JS client ↔ Python server (cross-language integration)', () => {
     const client = await newClient()
     try {
       const received: any[] = []
-      const channel = client.channel()
+      const channel = client.channel()!
       // The channel event bus uses JS events; listen before subscribing.
       channel.on('ping.tick', (payload: unknown) => received.push(payload))
       await channel.subscribe('ping.tick')

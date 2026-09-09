@@ -104,7 +104,7 @@ describe('Acknowledgments', () => {
         array: [1, 2, 3],
         nested: { a: 1, b: 2 },
       })
-      expect(result.date).toBeInstanceOf(Date)
+      expect(result).toMatchObject({ date: expect.any(Date) })
     })
 
     it('should handle protected methods when authenticated', async () => {

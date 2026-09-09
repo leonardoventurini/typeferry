@@ -105,7 +105,7 @@ describe('InMemorySessionManager', () => {
 
       // Get session id via getUserSessions to revoke
       const sessions = await manager.getUserSessions('user-1')
-      await manager.revokeSession(sessions[0].id)
+      await manager.revokeSession(sessions[0]!.id)
 
       const result = await manager.refreshSession(pair.refreshToken)
       expect(result).toBeNull()
@@ -191,7 +191,7 @@ describe('InMemorySessionManager', () => {
     it('marks session as revoked and returns true', async () => {
       const pair = await manager.createSession('user-1')
       const sessions = await manager.getUserSessions('user-1')
-      const sessionId = sessions[0].id
+      const sessionId = sessions[0]!.id
 
       const result = await manager.revokeSession(sessionId)
       expect(result).toBe(true)
@@ -209,7 +209,7 @@ describe('InMemorySessionManager', () => {
     it('prevents refresh after revocation', async () => {
       const pair = await manager.createSession('user-1')
       const sessions = await manager.getUserSessions('user-1')
-      await manager.revokeSession(sessions[0].id)
+      await manager.revokeSession(sessions[0]!.id)
 
       const refreshed = await manager.refreshSession(pair.refreshToken)
       expect(refreshed).toBeNull()
@@ -226,7 +226,7 @@ describe('InMemorySessionManager', () => {
       // Get familyId from one of them
       const sessions = await manager.getUserSessions('user-1')
       expect(sessions.length).toBeGreaterThan(0)
-      const familyId = sessions[0].familyId
+      const familyId = sessions[0]!.familyId
 
       const count = await manager.revokeFamily(familyId)
       expect(count).toBeGreaterThan(0)
@@ -251,8 +251,8 @@ describe('InMemorySessionManager', () => {
       const sessions = await manager.getUserSessions('user-1')
       expect(sessions).toHaveLength(2)
 
-      const family1 = sessions[0].familyId
-      const family2 = sessions[1].familyId
+      const family1 = sessions[0]!.familyId
+      const family2 = sessions[1]!.familyId
       expect(family1).not.toBe(family2)
 
       // Revoke first family
@@ -261,7 +261,7 @@ describe('InMemorySessionManager', () => {
       // Second family should still work
       const remaining = await manager.getUserSessions('user-1')
       expect(remaining).toHaveLength(1)
-      expect(remaining[0].familyId).toBe(family2)
+      expect(remaining[0]!.familyId).toBe(family2)
     })
   })
 
@@ -286,7 +286,7 @@ describe('InMemorySessionManager', () => {
       const before = await manager.getUserSessions('user-1')
       expect(before).toHaveLength(2)
 
-      await manager.revokeSession(before[0].id)
+      await manager.revokeSession(before[0]!.id)
 
       const after = await manager.getUserSessions('user-1')
       expect(after).toHaveLength(1)
@@ -299,7 +299,7 @@ describe('InMemorySessionManager', () => {
       // After rotation, old session has replacedBy set, should be excluded
       const sessions = await manager.getUserSessions('user-1')
       expect(sessions).toHaveLength(1)
-      expect(sessions[0].replacedBy).toBeUndefined()
+      expect(sessions[0]!.replacedBy).toBeUndefined()
     })
 
     it('excludes expired sessions', async () => {
@@ -343,14 +343,14 @@ describe('InMemorySessionManager', () => {
       expect(sessions).toHaveLength(3)
 
       // Keep the family of the first session
-      const keepFamilyId = sessions[0].familyId
+      const keepFamilyId = sessions[0]!.familyId
 
       const count = await manager.revokeAllUserSessions('user-1', keepFamilyId)
       expect(count).toBe(2)
 
       const remaining = await manager.getUserSessions('user-1')
       expect(remaining).toHaveLength(1)
-      expect(remaining[0].familyId).toBe(keepFamilyId)
+      expect(remaining[0]!.familyId).toBe(keepFamilyId)
     })
 
     it('returns 0 for a user with no sessions', async () => {
@@ -363,7 +363,7 @@ describe('InMemorySessionManager', () => {
       await manager.createSession('user-1')
 
       const sessions = await manager.getUserSessions('user-1')
-      await manager.revokeSession(sessions[0].id)
+      await manager.revokeSession(sessions[0]!.id)
 
       const count = await manager.revokeAllUserSessions('user-1')
       // Only one session was still active
@@ -388,7 +388,7 @@ describe('InMemorySessionManager', () => {
     it('removes revoked sessions', async () => {
       await manager.createSession('user-1')
       const sessions = await manager.getUserSessions('user-1')
-      await manager.revokeSession(sessions[0].id)
+      await manager.revokeSession(sessions[0]!.id)
 
       expect(manager.size).toBe(1) // still stored, just revoked
 
@@ -411,7 +411,7 @@ describe('InMemorySessionManager', () => {
     it('runs automatically on interval', async () => {
       await manager.createSession('user-1')
       const sessions = await manager.getUserSessions('user-1')
-      await manager.revokeSession(sessions[0].id)
+      await manager.revokeSession(sessions[0]!.id)
 
       // Advance enough for the 60-second cleanup interval to fire
       vi.advanceTimersByTime(61_000)
@@ -433,7 +433,7 @@ describe('InMemorySessionManager', () => {
     it('stops the cleanup interval', async () => {
       await manager.createSession('user-1')
       const sessions = await manager.getUserSessions('user-1')
-      await manager.revokeSession(sessions[0].id)
+      await manager.revokeSession(sessions[0]!.id)
 
       manager.destroy()
 
@@ -463,7 +463,7 @@ describe('InMemorySessionManager', () => {
     it('decreases after cleanup', async () => {
       await manager.createSession('user-1')
       const sessions = await manager.getUserSessions('user-1')
-      await manager.revokeSession(sessions[0].id)
+      await manager.revokeSession(sessions[0]!.id)
 
       expect(manager.size).toBe(1)
       vi.advanceTimersByTime(60_000)

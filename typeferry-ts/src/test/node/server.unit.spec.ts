@@ -58,7 +58,7 @@ describe('Server', () => {
 
     expect(global).to.have.property('TypeFerry').that.is.not.undefined
 
-    await global.TypeFerry.close()
+    await global.TypeFerry?.close()
 
     expect(global).to.not.have.property('TypeFerry')
 
@@ -75,7 +75,7 @@ describe('Server', () => {
     await test.server.close()
 
     // Clear global for this test
-    delete global.TypeFerry
+    Reflect.deleteProperty(global, 'TypeFerry')
 
     const srv = new Server({
       globalInstance: true,
@@ -107,7 +107,7 @@ describe('Server', () => {
     await test.server.close()
 
     // Temporarily clear global for this test
-    delete global.TypeFerry
+    Reflect.deleteProperty(global, 'TypeFerry')
 
     const server = await test.createRandomSrv({
       requestListener(req, res) {
@@ -149,7 +149,7 @@ describe('Server', () => {
 
     server.channel('test:channel')
 
-    await client.channel('test:channel').subscribe('test')
+    await client.channel('test:channel')!.subscribe('test')
 
     expect(server.allClients.size).to.equal(1)
 
@@ -187,6 +187,7 @@ describe('Server', () => {
     ).to.be.deep.equal([client.uuid])
 
     const node = server.allClients.get(client.uuid)
+    if (!node) throw new Error('Expected connected client node')
 
     expect(node.meta).to.deep.equal({
       test: true,
@@ -196,7 +197,7 @@ describe('Server', () => {
   })
 
   it('should create and call method using proxy syntax', async () => {
-    ;(test.server.m.test as any).proxy = async num => num * 2
+    ;(test.server.m.test as any).proxy = async (num: number) => num * 2
 
     const result = await (test.client.m.test as any).proxy(4, {
       http: true,

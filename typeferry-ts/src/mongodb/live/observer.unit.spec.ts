@@ -243,7 +243,7 @@ describe('MongoLiveObserver', () => {
     await waitFor(() => deltas.length === 3)
 
     expect(
-      deltas.map(delta => required(delta.operations[0], 'delta operation').type),
+      deltas.map(delta => required(delta.operations[0]!, 'delta operation').type),
     ).toEqual([
       'added',
       'changed',
@@ -303,7 +303,7 @@ describe('MongoLiveObserver', () => {
     ])
     let clientDocuments = [...snapshot.documents]
 
-    const insertedId = required(ids[6], 'inserted id')
+    const insertedId = required(ids[6]!, 'inserted id')
     documents.set(insertedId.toHexString(), {
       _id: insertedId,
       owner: 'owner-1',
@@ -318,7 +318,7 @@ describe('MongoLiveObserver', () => {
     })
     await waitFor(() => deltas.length === 1)
     const inserted = required(
-      required(deltas[0], 'insert delta').operations[0],
+      required(deltas[0]!, 'insert delta').operations[0]!,
       'insert operation',
     )
     expect(inserted.type).toBe('window-splice')
@@ -333,7 +333,7 @@ describe('MongoLiveObserver', () => {
       'D',
     ])
 
-    const removedId = required(ids[3], 'removed id')
+    const removedId = required(ids[3]!, 'removed id')
     documents.delete(removedId.toHexString())
     await source.emit({
       type: 'change',
@@ -355,7 +355,7 @@ describe('MongoLiveObserver', () => {
       'E',
     ])
     const removed = required(
-      required(deltas[1], 'remove delta').operations[0],
+      required(deltas[1]!, 'remove delta').operations[0]!,
       'remove operation',
     )
     if (removed.type === 'window-splice') {
@@ -432,7 +432,7 @@ describe('MongoLiveObserver', () => {
     })
     await observer.start()
     blockReads = true
-    const changedId = required(ids[3], 'changed id')
+    const changedId = required(ids[3]!, 'changed id')
     documents.set(changedId.toHexString(), {
       _id: changedId,
       owner: 'owner-1',

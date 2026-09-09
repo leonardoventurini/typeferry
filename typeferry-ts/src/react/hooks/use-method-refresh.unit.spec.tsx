@@ -2,15 +2,20 @@
 import { renderHook, act } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
-import { useMethodRefresh } from './use-method-refresh'
+import {
+  useMethodRefresh,
+  type UseMethodRefreshOptions,
+} from './use-method-refresh'
+import type { MethodCaller } from './use-caller'
 
 describe('useMethodRefresh', () => {
-  function createArgs(overrides = {}) {
-    return {
+  function createArgs(
+    overrides: Partial<UseMethodRefreshOptions> = {},
+  ) {
+    const caller = vi.fn<MethodCaller>().mockResolvedValue('result-data')
+    const options: UseMethodRefreshOptions = {
       authenticated: false,
-      caller: {
-        call: vi.fn().mockResolvedValue('result-data'),
-      },
+      caller,
       client: {
         authenticated: true,
       },
@@ -26,6 +31,8 @@ describe('useMethodRefresh', () => {
       deps: [],
       ...overrides,
     }
+
+    return { caller, options }
   }
 
   beforeEach(() => {
@@ -34,141 +41,140 @@ describe('useMethodRefresh', () => {
   })
 
   it('returns undefined when method is falsy', () => {
-    const args = createArgs({ method: null })
-    const { result } = renderHook(() => useMethodRefresh(args))
+    const { caller, options } = createArgs({ method: null })
+    const { result } = renderHook(() => useMethodRefresh(options))
 
     const returnValue = result.current()
     expect(returnValue).toBeUndefined()
-    expect(args.caller.call).not.toHaveBeenCalled()
+    expect(caller).not.toHaveBeenCalled()
   })
 
   it('returns undefined when method is empty string', () => {
-    const args = createArgs({ method: '' })
-    const { result } = renderHook(() => useMethodRefresh(args))
+    const { caller, options } = createArgs({ method: '' })
+    const { result } = renderHook(() => useMethodRefresh(options))
 
     const returnValue = result.current()
     expect(returnValue).toBeUndefined()
-    expect(args.caller.call).not.toHaveBeenCalled()
+    expect(caller).not.toHaveBeenCalled()
   })
 
   it('returns undefined when shouldCall is false', () => {
-    const args = createArgs({ shouldCall: false })
-    const { result } = renderHook(() => useMethodRefresh(args))
+    const { caller, options } = createArgs({ shouldCall: false })
+    const { result } = renderHook(() => useMethodRefresh(options))
 
     const returnValue = result.current()
     expect(returnValue).toBeUndefined()
-    expect(args.caller.call).not.toHaveBeenCalled()
+    expect(caller).not.toHaveBeenCalled()
   })
 
   it('returns undefined when caller is falsy', () => {
-    const args = createArgs({ caller: null })
-    const { result } = renderHook(() => useMethodRefresh(args))
+    const { options } = createArgs({ caller: null })
+    const { result } = renderHook(() => useMethodRefresh(options))
 
     const returnValue = result.current()
     expect(returnValue).toBeUndefined()
   })
 
   it('skips call when authenticated required but client.authenticated is false', () => {
-    const args = createArgs({
+    const { caller, options } = createArgs({
       authenticated: true,
       client: { authenticated: false },
       defaultValue: 'default-val',
     })
-    const { result } = renderHook(() => useMethodRefresh(args))
+    const { result } = renderHook(() => useMethodRefresh(options))
 
     result.current()
 
-    expect(args.setLoading).toHaveBeenCalledWith(false)
-    expect(args.setResult).toHaveBeenCalledWith('default-val')
-    expect(args.caller.call).not.toHaveBeenCalled()
+    expect(options.setLoading).toHaveBeenCalledWith(false)
+    expect(options.setResult).toHaveBeenCalledWith('default-val')
+    expect(caller).not.toHaveBeenCalled()
   })
 
   it('does not skip call when authenticated is false (public method)', async () => {
-    const args = createArgs({
+    const { caller, options } = createArgs({
       authenticated: false,
       client: { authenticated: false },
     })
-    const { result } = renderHook(() => useMethodRefresh(args))
+    const { result } = renderHook(() => useMethodRefresh(options))
 
     await act(async () => {
       result.current()
       await Promise.resolve()
     })
 
-    expect(args.caller.call).toHaveBeenCalled()
+    expect(caller).toHaveBeenCalled()
   })
 
   it('sets result and clears error on successful call', async () => {
-    const args = createArgs()
-    args.caller.call.mockResolvedValue('success-data')
+    const { caller, options } = createArgs()
+    caller.mockResolvedValue('success-data')
 
-    const { result } = renderHook(() => useMethodRefresh(args))
+    const { result } = renderHook(() => useMethodRefresh(options))
 
     await act(async () => {
       result.current()
       await Promise.resolve()
     })
 
-    expect(args.caller.call).toHaveBeenCalledWith(
-      args.client,
+    expect(caller).toHaveBeenCalledWith(
       'test.method',
-      args.params,
-      args.methodOptions,
+      options.params,
+      options.methodOptions,
     )
-    expect(args.setResult).toHaveBeenCalledWith('success-data')
-    expect(args.setError).toHaveBeenCalledWith(undefined)
+    expect(options.setResult).toHaveBeenCalledWith('success-data')
+    expect(options.setError).toHaveBeenCalledWith(undefined)
   })
 
   it('sets error and clears result on failed call', async () => {
     const error = new Error('call failed')
-    const args = createArgs()
-    args.caller.call.mockRejectedValue(error)
+    const { caller, options } = createArgs()
+    caller.mockRejectedValue(error)
 
-    const { result } = renderHook(() => useMethodRefresh(args))
+    const { result } = renderHook(() => useMethodRefresh(options))
 
     await act(async () => {
       result.current()
       await Promise.resolve()
     })
 
-    expect(args.setError).toHaveBeenCalledWith(error)
-    expect(args.setResult).toHaveBeenCalledWith(undefined)
+    expect(options.setError).toHaveBeenCalledWith(error)
+    expect(options.setResult).toHaveBeenCalledWith(undefined)
   })
 
   it('calls startLoading.cancel and setLoading(false) on completion', async () => {
-    const args = createArgs()
+    const { options } = createArgs()
 
-    const { result } = renderHook(() => useMethodRefresh(args))
+    const { result } = renderHook(() => useMethodRefresh(options))
 
     await act(async () => {
       result.current()
       await Promise.resolve()
     })
 
-    expect(args.startLoading.cancel).toHaveBeenCalled()
-    expect(args.setLoading).toHaveBeenCalledWith(false)
+    expect(options.startLoading.cancel).toHaveBeenCalled()
+    expect(options.setLoading).toHaveBeenCalledWith(false)
   })
 
   it('calls startLoading.cancel and setLoading(false) even on failure', async () => {
-    const args = createArgs()
-    args.caller.call.mockRejectedValue(new Error('fail'))
+    const { caller, options } = createArgs()
+    caller.mockRejectedValue(new Error('fail'))
 
-    const { result } = renderHook(() => useMethodRefresh(args))
+    const { result } = renderHook(() => useMethodRefresh(options))
 
     await act(async () => {
       result.current()
       await Promise.resolve()
     })
 
-    expect(args.startLoading.cancel).toHaveBeenCalled()
-    expect(args.setLoading).toHaveBeenCalledWith(false)
+    expect(options.startLoading.cancel).toHaveBeenCalled()
+    expect(options.setLoading).toHaveBeenCalledWith(false)
   })
 
   it('calls callback after successful completion', async () => {
-    const args = createArgs()
+    const { options } = createArgs()
     const callback = vi.fn()
 
-    const { result } = renderHook(() => useMethodRefresh(args))
+    const { result } = renderHook(() => useMethodRefresh(options))
 
     await act(async () => {
       result.current(callback)
@@ -179,11 +185,11 @@ describe('useMethodRefresh', () => {
   })
 
   it('calls callback after failed completion', async () => {
-    const args = createArgs()
-    args.caller.call.mockRejectedValue(new Error('fail'))
+    const { caller, options } = createArgs()
+    caller.mockRejectedValue(new Error('fail'))
     const callback = vi.fn()
 
-    const { result } = renderHook(() => useMethodRefresh(args))
+    const { result } = renderHook(() => useMethodRefresh(options))
 
     await act(async () => {
       result.current(callback)
@@ -198,16 +204,16 @@ describe('useMethodRefresh', () => {
     let callOrder = -1
     let order = 0
 
-    const args = createArgs()
-    args.startLoading.mockImplementation(() => {
+    const { caller, options } = createArgs()
+    vi.mocked(options.startLoading).mockImplementation(() => {
       startLoadingOrder = order++
     })
-    args.caller.call.mockImplementation(() => {
+    caller.mockImplementation(() => {
       callOrder = order++
       return Promise.resolve('data')
     })
 
-    const { result } = renderHook(() => useMethodRefresh(args))
+    const { result } = renderHook(() => useMethodRefresh(options))
 
     await act(async () => {
       result.current()
@@ -218,15 +224,15 @@ describe('useMethodRefresh', () => {
   })
 
   it('does not call callback if callback is not a function', async () => {
-    const args = createArgs()
-    const { result } = renderHook(() => useMethodRefresh(args))
+    const { options } = createArgs()
+    const { result } = renderHook(() => useMethodRefresh(options))
 
     // Should not throw when callback is not a function
     await act(async () => {
-      result.current('not-a-function')
+      Reflect.apply(result.current, undefined, ['not-a-function'])
       await Promise.resolve()
     })
 
-    expect(args.setResult).toHaveBeenCalledWith('result-data')
+    expect(options.setResult).toHaveBeenCalledWith('result-data')
   })
 })

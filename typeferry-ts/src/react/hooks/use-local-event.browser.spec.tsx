@@ -31,9 +31,9 @@ function client(): MockClient {
   return mockClientRef.current as MockClient
 }
 
-/** Default channel emitter — NO_CHANNEL routes through client.channel(). */
+/** Default channel emitter — NO_CHANNEL routes through the root client channel. */
 function defaultEmitter(): EventEmitter2 {
-  return client().channel(NO_CHANNEL)
+  return client().channel(NO_CHANNEL)!
 }
 
 describe('useLocalEvent', () => {
@@ -78,7 +78,7 @@ describe('useLocalEvent', () => {
     client().emit('ch:event', 'root')
     expect(callback).not.toHaveBeenCalled()
 
-    client().channel('my-channel').emit('ch:event', 'channel')
+    client().channel('my-channel')?.emit('ch:event', 'channel')
     expect(callback).toHaveBeenCalledWith('channel')
   })
 

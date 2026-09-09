@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { resolveApplicationConfig } from './config'
+import { defineConfig, resolveApplicationConfig } from './config'
 import { createServerBuildOptions } from './server-build'
 import { createTestConfig } from './test-config'
 import { createViteConfig } from './vite-config'
@@ -77,7 +77,7 @@ describe('application tool configuration', () => {
   })
 
   it('applies typed application extensions after framework defaults', () => {
-    const extended = resolveApplicationConfig(ROOT, {
+    const extended = resolveApplicationConfig(ROOT, defineConfig({
       extensions: {
         vite: viteConfig => ({
           ...viteConfig,
@@ -92,7 +92,7 @@ describe('application tool configuration', () => {
           test: { ...testConfig.test, testTimeout: 12_000 },
         }),
       },
-    })
+    }))
 
     expect(createViteConfig(extended, 'build').define).toEqual({
       __APPLICATION__: 'true',

@@ -66,12 +66,12 @@ describe('createIterator', () => {
   })
 
   describe('return()', () => {
-    it('returns { done: true }', () => {
+    it('resolves to a completed iterator result', async () => {
       const emitter = new EventEmitter2()
       const iterator = createIterator(emitter, 'data')
 
-      const result = iterator.return()
-      expect(result).toEqual({ done: true })
+      const result = await iterator.return()
+      expect(result).toEqual({ done: true, value: undefined })
     })
 
     it('sets done to true so subsequent next() calls resolve immediately', async () => {

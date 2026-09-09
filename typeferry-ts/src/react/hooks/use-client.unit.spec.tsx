@@ -17,6 +17,7 @@ vi.mock('../components', () => ({
 }))
 
 import { ClientContext } from '../components'
+import type { Client } from '../../client'
 import { useClient } from './use-client'
 
 describe('useClient', () => {
@@ -28,7 +29,7 @@ describe('useClient', () => {
     const fakeClient = { call: vi.fn() }
 
     const wrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-      <ClientContext.Provider value={fakeClient}>
+      <ClientContext.Provider value={fakeClient as unknown as Client}>
         {children}
       </ClientContext.Provider>
     )

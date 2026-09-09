@@ -14,7 +14,7 @@ describe('HTTP', async () => {
       auth(context: any) {
         return context?.token ? { ...context, user: { _id: 'id' } } : false
       },
-      async logIn({ email, password }) {
+      async logIn({ email, password }: { email: string; password: string }) {
         if (email === 'test@typeferry.test' && password === '123456') {
           return {
             token: 'test',
@@ -27,7 +27,7 @@ describe('HTTP', async () => {
   it('should call an rpc method through http and get the right result', async () => {
     let capture = null
 
-    test.server.addMethod<number[], number>('sum', async function ([a, b, c]) {
+    test.server.addMethod<[number, number, number], number>('sum', async function ([a, b, c]) {
       capture = (this.req as unknown as { path?: string })?.path
 
       return a + b + c

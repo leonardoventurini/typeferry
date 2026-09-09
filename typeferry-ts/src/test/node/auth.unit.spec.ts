@@ -13,7 +13,7 @@ describe('Auth', async () => {
           ? { ...context, user: { _id: 'id' } }
           : false
       },
-      async logIn({ email, password }) {
+      async logIn({ email, password }: { email: string; password: string }) {
         if (email === 'test@typeferry.test' && password === '123456') {
           return {
             token: 'test',
@@ -89,7 +89,7 @@ describe('Auth', async () => {
       password: '123456',
     })
 
-    const result2 = await test.client.channel('id').subscribe('protected:event')
+    const result2 = await test.client.channel('id')!.subscribe('protected:event')
 
     expect(result2).to.have.property('protected:event').that.is.true
 
@@ -111,7 +111,7 @@ describe('Connection-Time Auth', async () => {
           ? { ...context, user: { _id: 'id' } }
           : false
       },
-      async logIn({ email, password }) {
+      async logIn({ email, password }: { email: string; password: string }) {
         if (email === 'test@typeferry.test' && password === '123456') {
           return { token: 'test' }
         }
@@ -278,6 +278,8 @@ describe('Auth with ClientNode Context', async () => {
 
     const clientNode = test.server.allClients.get(client.uuid)
     expect(clientNode).to.exist
+    if (!clientNode) throw new Error('Expected authenticated client node')
+
     expect(clientNode.limiter).to.be.null
   })
 })

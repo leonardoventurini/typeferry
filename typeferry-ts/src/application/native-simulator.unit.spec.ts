@@ -46,10 +46,10 @@ describe('native simulator workflow', () => {
   it('builds, syncs, boots, signs, verifies and installs the resolved product before launching', async () => {
     const f = await fixture('Shutdown')
     await runNativeSimulator(f.config, { command: 'native', target: 'ios', action: 'run', headless: true }, f.deps)
-    expect(f.calls.map(call => call[0] === 'xcrun' ? call[2] : call[0])).toEqual([
+    expect(f.calls.map(call => call[0]! === 'xcrun' ? call[2]! : call[0]!)).toEqual([
       'list', 'build-web', 'sync-native', 'bootstatus', 'xcodebuild', 'xcodebuild', '/usr/bin/plutil', 'codesign', 'install', 'launch',
     ])
-    expect(f.calls.find(call => call.includes('build') && call[0] === 'xcodebuild')).toEqual(expect.arrayContaining(['CODE_SIGNING_ALLOWED=YES', 'CODE_SIGN_IDENTITY=-']))
+    expect(f.calls.find(call => call.includes('build') && call[0]! === 'xcodebuild')).toEqual(expect.arrayContaining(['CODE_SIGNING_ALLOWED=YES', 'CODE_SIGN_IDENTITY=-']))
     expect(f.calls.find(call => call.includes('install'))).toEqual(['xcrun', 'simctl', 'install', f.udid, f.product])
     expect(f.calls.flat()).not.toContain('uninstall')
     expect(f.calls.flat()).not.toContain('-allowProvisioningUpdates')
@@ -109,7 +109,7 @@ describe('native simulator workflow', () => {
 
     await runNativeSimulator(f.config, { command: 'native', target: 'ios', action: 'run', headless: false }, f.deps)
 
-    const guiIndex = f.calls.findIndex(call => call[0] === 'open')
+    const guiIndex = f.calls.findIndex(call => call[0]! === 'open')
     const bootIndex = f.calls.findIndex(call => call.includes('bootstatus'))
     expect(guiIndex).toBeGreaterThan(bootIndex)
     expect(f.calls[guiIndex]).toEqual(['open', '-a', 'Simulator', '--args', '-CurrentDeviceUDID', f.udid])

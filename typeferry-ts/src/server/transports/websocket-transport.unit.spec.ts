@@ -91,7 +91,7 @@ function createMockWs(readyState: number = SocketState.OPEN): any {
 function getUpgradeHandler(server: any): Function {
   return server.httpTransport.http.on.mock.calls.find(
     ([event]: [string]) => event === 'upgrade',
-  )[1]
+  )[1]!
 }
 
 /**
@@ -135,7 +135,7 @@ describe('WebSocketTransport', () => {
       new WebSocketTransport(server, [])
 
       const errorHandler = mockWssOn.mock.calls.find(
-        ([event]: [string]) => event === 'error',
+        call => call[0] === 'error',
       )![1]
       const error = new Error('wss error')
       errorHandler(error)

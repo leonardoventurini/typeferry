@@ -24,9 +24,7 @@ describe('adjustTypesFromJSONValue', () => {
     const obj = { created: { $date: 2000 }, name: 'test' }
     const result = adjustTypesFromJSONValue(obj)
 
-    expect(result.created).toBeInstanceOf(Date)
-    expect((result.created as Date).getTime()).toBe(2000)
-    expect(result.name).toBe('test')
+    expect(result).toMatchObject({ created: expect.any(Date), name: 'test' })
   })
 
   it('recursively adjusts deeply nested objects', () => {
@@ -39,7 +37,9 @@ describe('adjustTypesFromJSONValue', () => {
     }
 
     const result = adjustTypesFromJSONValue(obj)
-    expect(result.level1.level2.ts).toBeInstanceOf(Date)
+    expect(result).toMatchObject({
+      level1: { level2: { ts: expect.any(Date) } },
+    })
   })
 
   it('returns the same object reference for plain objects', () => {

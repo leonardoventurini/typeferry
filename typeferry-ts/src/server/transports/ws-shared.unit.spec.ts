@@ -896,7 +896,7 @@ describe('authenticateNode', () => {
       isAuthEnabled: true,
       auth: {
         call: vi.fn().mockImplementation(async () => {
-          node.socket = null
+          Reflect.set(node, 'socket', null)
           return { userId: 'u1' }
         }),
       },

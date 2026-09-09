@@ -7,7 +7,7 @@ import { useCircuitBreaker } from './use-circuit-breaker'
 describe('useCircuitBreaker', () => {
   it('returns shouldCall=true when no parse and no required', () => {
     const { result } = renderHook(() =>
-      useCircuitBreaker({ parse: undefined, params: {}, required: [], deps: [] }),
+      useCircuitBreaker({ params: {}, required: [], deps: [] }),
     )
 
     expect(result.current).toEqual({ shouldCall: true })
@@ -39,7 +39,6 @@ describe('useCircuitBreaker', () => {
   it('returns shouldCall=true when all required params are present', () => {
     const { result } = renderHook(() =>
       useCircuitBreaker({
-        parse: undefined,
         params: { id: '1', name: 'test' },
         required: ['id', 'name'],
         deps: [],
@@ -52,7 +51,6 @@ describe('useCircuitBreaker', () => {
   it('returns shouldCall=false when required params are missing', () => {
     const { result } = renderHook(() =>
       useCircuitBreaker({
-        parse: undefined,
         params: { id: '1' },
         required: ['id', 'name'],
         deps: [],
@@ -68,7 +66,6 @@ describe('useCircuitBreaker', () => {
   it('returns shouldCall=true when required is an empty array', () => {
     const { result } = renderHook(() =>
       useCircuitBreaker({
-        parse: undefined,
         params: {},
         required: [],
         deps: [],
@@ -99,7 +96,6 @@ describe('useCircuitBreaker', () => {
   it('treats null params as missing required keys', () => {
     const { result } = renderHook(() =>
       useCircuitBreaker({
-        parse: undefined,
         params: { id: null },
         required: ['id'],
         deps: [],

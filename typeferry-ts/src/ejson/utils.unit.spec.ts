@@ -378,9 +378,9 @@ describe('newBinary', () => {
       // Should be a plain array
       expect(Array.isArray(result)).toBe(true)
       expect(result.length).toBe(3)
-      expect(result[0]).toBe(0)
-      expect(result[1]).toBe(0)
-      expect(result[2]).toBe(0)
+      expect(result[0]!).toBe(0)
+      expect(result[1]!).toBe(0)
+      expect(result[2]!).toBe(0)
 
       // Should have the polyfill flag
       expect((result as any).$Uint8ArrayPolyfill).toBe(true)

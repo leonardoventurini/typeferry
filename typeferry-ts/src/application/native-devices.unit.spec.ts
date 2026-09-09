@@ -31,7 +31,7 @@ describe('iOS simulator discovery', () => {
 
     expect(output).toEqual([earlier, unavailable, later])
     expect(parseIosSimulators(response([earlier, unavailable, later, television]))).toEqual(output)
-    expect(output[0]).not.toHaveProperty('dataPath')
+    expect(output[0]!).not.toHaveProperty('dataPath')
   })
 
   it('orders duplicate names by UDID without relying on incoming order', () => {
@@ -82,7 +82,7 @@ describe('iOS simulator selection', () => {
   it('reports every ambiguous exact-name candidate with a usable UDID', () => {
     const devices = [simulator({ runtime: runtime(18) }), simulator()]
     for (const device of devices) expect(() => selectIosSimulator(devices, device.name)).toThrow(device.udid)
-    expect(() => selectIosSimulator(devices, devices[0].name)).toThrow(/--device/)
+    expect(() => selectIosSimulator(devices, devices[0]!.name)).toThrow(/--device/)
   })
 
   it('prefers the sole available booted simulator and otherwise the sole available simulator', () => {

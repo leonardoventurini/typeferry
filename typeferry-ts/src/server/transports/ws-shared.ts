@@ -203,7 +203,7 @@ export async function authenticateNode(
 
   try {
     const auth = server.auth
-    const authPromise: Promise<ClientNodeContext | false> = handshakeAuthenticator
+    const authPromise: Promise<ClientNodeContext | false | null | undefined> = handshakeAuthenticator
       ? Promise.resolve(
           handshakeAuthenticator(
             node,

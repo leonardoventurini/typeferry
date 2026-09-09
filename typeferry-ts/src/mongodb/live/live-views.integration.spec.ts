@@ -59,7 +59,7 @@ describe("MongoDB live views integration", () => {
 
   beforeEach(async () => {
     if (!harness) throw new Error("MongoDB integration harness is unavailable");
-    await harness.reset();
+    await requireHarness(harness).reset();
   });
 
   afterAll(async () => {
@@ -67,7 +67,7 @@ describe("MongoDB live views integration", () => {
   });
 
   it("materializes snapshot and membership transitions over TypeFerry", async () => {
-    if (!(await harness.supportsChangeStreams())) {
+    if (!(await requireHarness(harness).supportsChangeStreams())) {
       if (process.env.CI) {
         throw new Error(
           "MongoDB live-view integration requires a replica set in CI.",
@@ -80,7 +80,7 @@ describe("MongoDB live views integration", () => {
     }
 
     globalThis.WebSocket = NodeWebSocket as unknown as typeof WebSocket;
-    const collectionName = harness.collectionName("boards");
+    const collectionName = requireHarness(harness).collectionName("boards");
 
     @MongoCollection(collectionName)
     class BoardsCollectionDefinition {}
@@ -99,7 +99,7 @@ describe("MongoDB live views integration", () => {
 
     const server = await createServer();
     const mongo = await createTypeFerryMongo({
-      db: harness.db,
+      db: requireHarness(harness).db,
       server,
       collections: [BoardsToken],
       live: { publications: [publication] },
@@ -128,7 +128,7 @@ describe("MongoDB live views integration", () => {
           { _id: { $objectId: initial._id.toHexString() }, name: "Initial" },
         ],
       });
-      expect(view.getSnapshot().documents[0]).not.toHaveProperty("secret");
+      expect(view.getSnapshot().documents[0]!).not.toHaveProperty("secret");
 
       const inserted = {
         _id: new ObjectId(),
@@ -166,7 +166,7 @@ describe("MongoDB live views integration", () => {
   });
 
   it("restarts a protected subscription interrupted by client reconnection", async () => {
-    if (!(await harness.supportsChangeStreams())) {
+    if (!(await requireHarness(harness).supportsChangeStreams())) {
       if (process.env.CI) {
         throw new Error(
           "MongoDB protected live-view integration requires a replica set in CI.",
@@ -179,7 +179,7 @@ describe("MongoDB live views integration", () => {
     }
 
     globalThis.WebSocket = NodeWebSocket as unknown as typeof WebSocket;
-    const collectionName = harness.collectionName("protected_boards");
+    const collectionName = requireHarness(harness).collectionName("protected_boards");
 
     @MongoCollection(collectionName)
     class ProtectedBoardsCollectionDefinition {}
@@ -188,8 +188,12 @@ describe("MongoDB live views integration", () => {
       ProtectedBoardsCollectionDefinition,
     );
     let authorizationCalls = 0;
-    let releaseFirstAuthorization: (() => void) | null = null;
-    let signalFirstAuthorization: (() => void) | null = null;
+    let releaseFirstAuthorization = (): void => {
+      throw new Error("Authorization gate was not initialized");
+    };
+    let signalFirstAuthorization = (): void => {
+      throw new Error("Authorization signal was not initialized");
+    };
     const firstAuthorizationGate = new Promise<void>((resolve) => {
       releaseFirstAuthorization = resolve;
     });
@@ -205,7 +209,7 @@ describe("MongoDB live views integration", () => {
       ): Promise<{ readonly owner: string }> => {
         authorizationCalls += 1;
         if (authorizationCalls === 1) {
-          signalFirstAuthorization?.();
+          signalFirstAuthorization();
           await firstAuthorizationGate;
         }
         return { owner: args.owner };
@@ -223,7 +227,7 @@ describe("MongoDB live views integration", () => {
       logIn: async () => false,
     });
     const mongo = await createTypeFerryMongo({
-      db: harness.db,
+      db: requireHarness(harness).db,
       server,
       collections: [BoardsToken],
       live: { publications: [publication] },
@@ -246,7 +250,7 @@ describe("MongoDB live views integration", () => {
       client.reconnect();
       await reinitialized;
       await waitFor(() => authorizationCalls === 2);
-      releaseFirstAuthorization?.();
+      releaseFirstAuthorization();
       await starting;
       await waitFor(() => view.getSnapshot().status === "ready");
 
@@ -262,7 +266,7 @@ describe("MongoDB live views integration", () => {
         documents: [expect.objectContaining({ name: "After reconnect" })],
       });
     } finally {
-      releaseFirstAuthorization?.();
+      releaseFirstAuthorization();
       await view.stop();
       await client.close();
       await mongo.close();
@@ -271,7 +275,7 @@ describe("MongoDB live views integration", () => {
   });
 
   it("replays a matching write that lands while the snapshot is projecting", async () => {
-    if (!(await harness.supportsChangeStreams())) {
+    if (!(await requireHarness(harness).supportsChangeStreams())) {
       if (process.env.CI) {
         throw new Error(
           "MongoDB live-view handoff integration requires a replica set in CI.",
@@ -284,7 +288,7 @@ describe("MongoDB live views integration", () => {
     }
 
     globalThis.WebSocket = NodeWebSocket as unknown as typeof WebSocket;
-    const collectionName = harness.collectionName("handoff_boards");
+    const collectionName = requireHarness(harness).collectionName("handoff_boards");
 
     @MongoCollection(collectionName)
     class HandoffBoardsCollectionDefinition {}
@@ -292,8 +296,12 @@ describe("MongoDB live views integration", () => {
     const BoardsToken = typedMongoCollection<Board>(
       HandoffBoardsCollectionDefinition,
     );
-    let releaseProjection: (() => void) | null = null;
-    let signalProjectionStarted: (() => void) | null = null;
+    let releaseProjection = (): void => {
+      throw new Error("Projection gate was not initialized");
+    };
+    let signalProjectionStarted = (): void => {
+      throw new Error("Projection signal was not initialized");
+    };
     const projectionGate = new Promise<void>((resolve) => {
       releaseProjection = resolve;
     });
@@ -314,7 +322,7 @@ describe("MongoDB live views integration", () => {
       }),
       project: async (document) => {
         if (document.name === "Initial") {
-          signalProjectionStarted?.();
+          signalProjectionStarted();
           await projectionGate;
         }
         return { name: document.name };
@@ -323,7 +331,7 @@ describe("MongoDB live views integration", () => {
 
     const server = await createServer();
     const mongo = await createTypeFerryMongo({
-      db: harness.db,
+      db: requireHarness(harness).db,
       server,
       collections: [BoardsToken],
       live: { publications: [publication] },
@@ -351,7 +359,7 @@ describe("MongoDB live views integration", () => {
         name: "During snapshot",
         secret: "hidden",
       });
-      releaseProjection?.();
+      releaseProjection();
       await starting;
       await waitFor(() => view.getSnapshot().documents.length === 2);
 
@@ -359,7 +367,7 @@ describe("MongoDB live views integration", () => {
         view.getSnapshot().documents.map((document) => document.name),
       ).toEqual(["During snapshot", "Initial"]);
     } finally {
-      releaseProjection?.();
+      releaseProjection();
       await view.stop();
       await client.close();
       await mongo.close();
@@ -368,7 +376,7 @@ describe("MongoDB live views integration", () => {
   });
 
   it("maintains exact sorted, skipped, and limited boundaries", async () => {
-    if (!(await harness.supportsChangeStreams())) {
+    if (!(await requireHarness(harness).supportsChangeStreams())) {
       if (process.env.CI) {
         throw new Error(
           "MongoDB ordered live-window integration requires a replica set in CI.",
@@ -381,7 +389,7 @@ describe("MongoDB live views integration", () => {
     }
 
     globalThis.WebSocket = NodeWebSocket as unknown as typeof WebSocket;
-    const collectionName = harness.collectionName("ordered_boards");
+    const collectionName = requireHarness(harness).collectionName("ordered_boards");
 
     @MongoCollection(collectionName)
     class OrderedBoardsCollectionDefinition {}
@@ -410,7 +418,7 @@ describe("MongoDB live views integration", () => {
 
     const server = await createServer();
     const mongo = await createTypeFerryMongo({
-      db: harness.db,
+      db: requireHarness(harness).db,
       server,
       collections: [BoardsToken],
       live: { publications: [publication] },
@@ -442,7 +450,7 @@ describe("MongoDB live views integration", () => {
       expect(readOrderedNames(view)).toEqual(["B", "C", "D"]);
 
       await Boards.insertOne({
-        _id: ids[5],
+        _id: ids[5]!,
         owner: "owner-1",
         name: "X",
         score: 5,
@@ -450,13 +458,13 @@ describe("MongoDB live views integration", () => {
       });
       await waitFor(() => readOrderedNames(view).join() === "A,B,C");
 
-      await Boards.updateOne({ _id: ids[4] }, { $set: { score: 20 } });
+      await Boards.updateOne({ _id: ids[4]! }, { $set: { score: 20 } });
       await waitFor(() => readOrderedNames(view).join() === "A,B,E");
 
-      await Boards.deleteOne({ _id: ids[0] });
+      await Boards.deleteOne({ _id: ids[0]! });
       await waitFor(() => readOrderedNames(view).join() === "B,E,C");
 
-      await Boards.updateOne({ _id: ids[1] }, { $set: { name: "B updated" } });
+      await Boards.updateOne({ _id: ids[1]! }, { $set: { name: "B updated" } });
       await waitFor(() => readOrderedNames(view).join() === "B updated,E,C");
 
       const authoritative = await Boards.find(
@@ -473,7 +481,7 @@ describe("MongoDB live views integration", () => {
       expect(readOrderedNames(view)).toEqual(
         authoritative.map((document) => document.name),
       );
-      expect(view.getSnapshot().documents[0]).not.toHaveProperty("secret");
+      expect(view.getSnapshot().documents[0]!).not.toHaveProperty("secret");
     } finally {
       await view.stop();
       await client.close();
@@ -508,7 +516,11 @@ async function createClient(
   port: number,
   initialContext?: Record<string, unknown>,
 ): Promise<Client> {
-  const client = new Client({ host: "127.0.0.1", initialContext, port });
+  const client = new Client({
+    host: "127.0.0.1",
+    port,
+    ...(initialContext === undefined ? {} : { initialContext }),
+  });
   if (!client.initialized) {
     await new Promise<void>((resolve, reject) => {
       client.once(ClientEvents.INITIALIZED, () => resolve());
@@ -516,6 +528,14 @@ async function createClient(
     });
   }
   return client;
+}
+
+function requireHarness(
+  harness: MongoIntegrationHarness | undefined,
+): MongoIntegrationHarness {
+  if (!harness) throw new Error("MongoDB integration harness is unavailable");
+
+  return harness;
 }
 
 async function waitFor(

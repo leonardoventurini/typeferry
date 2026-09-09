@@ -15,7 +15,7 @@ describe('callMethodProxy', () => {
     const client = createMockClient()
     const proxy = callMethodProxy(client)
 
-    await proxy.boards({ id: '1' })
+    await proxy.boards!({ id: '1' })
 
     expect(client.call).toHaveBeenCalledWith('boards', { id: '1' })
   })
@@ -24,7 +24,7 @@ describe('callMethodProxy', () => {
     const client = createMockClient()
     const proxy = callMethodProxy(client)
 
-    await proxy.ai.generation.abort({ generationId: 'g1' })
+    await proxy.ai!.generation!.abort!({ generationId: 'g1' })
 
     expect(client.call).toHaveBeenCalledWith('ai.generation.abort', {
       generationId: 'g1',
@@ -35,7 +35,10 @@ describe('callMethodProxy', () => {
     const client = createMockClient()
     const proxy = callMethodProxy(client)
 
-    await proxy.ai.mermaid.generate({ prompt: 'test' }, { timeout: 300000 })
+    await proxy.ai!.mermaid!.generate!(
+      { prompt: 'test' },
+      { timeout: 300000 },
+    )
 
     expect(client.call).toHaveBeenCalledWith(
       'ai.mermaid.generate',
@@ -57,7 +60,7 @@ describe('callMethodProxy', () => {
     const client = createMockClient()
     const proxy = callMethodProxy(client)
     const nested = proxy.ai as unknown as Record<symbol, unknown>
-    const deep = proxy.ai.generation as unknown as Record<symbol, unknown>
+    const deep = proxy.ai?.generation as unknown as Record<symbol, unknown>
 
     expect(() => nested[Symbol.toPrimitive]).not.toThrow()
     expect(deep[Symbol.iterator]).toBeUndefined()
@@ -67,7 +70,7 @@ describe('callMethodProxy', () => {
     const client = createMockClient()
     const proxy = callMethodProxy(client)
 
-    await proxy.status()
+    await proxy.status!()
 
     expect(client.call).toHaveBeenCalledWith('status')
   })
@@ -77,7 +80,7 @@ describe('callMethodProxy', () => {
     client.call.mockResolvedValue({ width: 100 })
     const proxy = callMethodProxy(client)
 
-    const result = await proxy.ai.mermaid.dimensions({ svg: '<svg/>' })
+    const result = await proxy.ai!.mermaid!.dimensions!({ svg: '<svg/>' })
 
     expect(result).toEqual({ width: 100 })
   })
@@ -87,29 +90,31 @@ describe('callMethodProxy', () => {
       const client = createMockClient()
       const proxy = callMethodProxy(client)
 
-      expect(() => `${proxy.boards}`).not.toThrow()
-      expect(`${proxy.boards}`).toBe('boards')
+      expect(() => `${proxy.boards!}`).not.toThrow()
+      expect(`${proxy.boards!}`).toBe('boards')
     })
 
     it('should return the dotted path from toString', () => {
       const client = createMockClient()
       const proxy = callMethodProxy(client)
 
-      expect(proxy.ai.generation.abort.toString()).toBe('ai.generation.abort')
+      expect(proxy.ai!.generation!.abort!.toString()).toBe(
+        'ai.generation.abort',
+      )
     })
 
     it('should return the path from valueOf', () => {
       const client = createMockClient()
       const proxy = callMethodProxy(client)
 
-      expect(proxy.boards.valueOf()).toBe('boards')
+      expect(proxy.boards!.valueOf()).toBe('boards')
     })
 
     it('should serialize to path via toJSON', () => {
       const client = createMockClient()
       const proxy = callMethodProxy(client)
 
-      expect(JSON.stringify({ method: proxy.nodes.update })).toBe(
+      expect(JSON.stringify({ method: proxy.nodes!.update })).toBe(
         '{"method":"nodes.update"}',
       )
     })

@@ -54,7 +54,7 @@ describe('MongoDB live publication contracts', () => {
       owner: 'owner-1',
     })
     expect(() => publication.parseArgs({ owner: 1 })).toThrow()
-    expect(publication.window({}, {})).toEqual({
+    expect(publication.window?.({}, {})).toEqual({
       sort: { score: -1 },
       skip: 2,
       limit: 5,

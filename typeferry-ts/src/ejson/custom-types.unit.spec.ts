@@ -3,23 +3,36 @@ import { expect, test } from 'vitest'
 import { CustomModels } from './custom-models'
 import { EJSON } from './index'
 
-const testSameConstructors = (someObj, compareWith) => {
+const testSameConstructors = (someObj: unknown, compareWith: unknown): void => {
+  if (
+    someObj === null ||
+    compareWith === null ||
+    (typeof someObj !== 'object' && typeof someObj !== 'function') ||
+    (typeof compareWith !== 'object' && typeof compareWith !== 'function')
+  ) {
+    expect(someObj).toEqual(compareWith)
+    return
+  }
+
   expect(someObj.constructor).toEqual(compareWith.constructor)
 
-  if (typeof someObj === 'object') {
+  if (!Array.isArray(someObj)) {
     Object.keys(someObj).forEach(key => {
-      const value = someObj[key]
-      testSameConstructors(value, compareWith[key])
+      if (!(key in compareWith)) throw new Error(`Missing comparison key: ${key}`)
+
+      const value = Object.getOwnPropertyDescriptor(someObj, key)?.value
+      const comparison = Object.getOwnPropertyDescriptor(compareWith, key)?.value
+      testSameConstructors(value, comparison)
     })
   }
 }
 
-const testReallyEqual = (someObj, compareWith) => {
+const testReallyEqual = (someObj: unknown, compareWith: unknown): void => {
   expect(someObj).toEqual(compareWith)
   testSameConstructors(someObj, compareWith)
 }
 
-const testRoundTrip = someObj => {
+const testRoundTrip = (someObj: unknown): void => {
   const str = EJSON.stringify(someObj)
 
   const roundTrip = EJSON.parse(str)
@@ -27,7 +40,7 @@ const testRoundTrip = someObj => {
   testReallyEqual(someObj, roundTrip)
 }
 
-const testCustomObject = someObj => {
+const testCustomObject = (someObj: unknown): void => {
   testRoundTrip(someObj)
   testReallyEqual(someObj, EJSON.clone(someObj))
 }

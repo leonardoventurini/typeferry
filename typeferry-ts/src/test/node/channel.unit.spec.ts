@@ -43,7 +43,7 @@ describe('Channel', () => {
     test.server.channel(channel).addEvent(event)
 
     await otherClient.subscribe(event)
-    await test.client.channel(channel).subscribe(event)
+    await test.client.channel(channel)!.subscribe(event)
 
     /**
      * Make sure the default emit from EventEmitter works as expected.
@@ -52,7 +52,7 @@ describe('Channel', () => {
       test.server.channel(channel).emit(event, { test: true })
     }, 0)
 
-    const result1 = await test.client.channel(channel).wait(event)
+    const result1 = await test.client.channel(channel)!.wait(event)
     const timeout1 = await otherClient.timeout(event)
     expect(result1).to.have.property('test').that.is.true
     expect(timeout1).to.be.true
@@ -73,7 +73,7 @@ describe('Channel', () => {
       auth(context: any) {
         return context?.token ? { ...context, user: { _id: 'id' } } : false
       },
-      async logIn({ email, password }) {
+      async logIn({ email, password }: { email: string; password: string }) {
         if (email === 'test@typeferry.test' && password === '123456') {
           return {
             token: 'test',
@@ -92,13 +92,13 @@ describe('Channel', () => {
       return client.authenticated
     })
 
-    let res = await test.client.channel('any:channel').subscribe('any:event')
+    let res = await test.client.channel('any:channel')!.subscribe('any:event')
 
     expect(res).to.have.property('any:event').that.is.false
 
     await test.client.login({ email: 'test@typeferry.test', password: '123456' })
 
-    res = await test.client.channel('any:channel').subscribe('any:event')
+    res = await test.client.channel('any:channel')!.subscribe('any:event')
 
     expect(res).to.have.property('any:event').that.is.true
 

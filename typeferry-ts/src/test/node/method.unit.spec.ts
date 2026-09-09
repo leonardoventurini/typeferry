@@ -77,11 +77,11 @@ describe('Methods', () => {
       'test:method:middleware',
       function (_params) {
         params = _params
-        resolve()
+        resolve(undefined)
       },
       {
         middleware: [
-          function () {
+          function (this: ClientNode) {
             calledMiddleware = true
             expect(this).toBeInstanceOf(ClientNode)
 
@@ -140,8 +140,8 @@ describe('Methods', () => {
   })
 
   it('should register and call a method with zod schema validation', async () => {
-    const { server } = await test.createRandomSrv({ globalInstance: true })
-    const { client } = await test.createClient({ port: server.port })
+    const server = await test.createRandomSrv({ globalInstance: true })
+    const client = await test.createClient({ port: server.port })
 
     server.addMethod(
       'validated:zod:method',
@@ -218,6 +218,8 @@ describe('Methods', () => {
       })
       expect.fail('Should have thrown')
     } catch (err) {
+      if (!(err instanceof Error)) throw err
+
       expect(err.message).toContain('email')
       expect(err.message).toContain('count')
     }
@@ -231,9 +233,9 @@ describe('Methods', () => {
     const result1 = await test.client.call('get:async:ls')
 
     expect(result1).toHaveProperty('executionId')
-    expect(result1.executionId).toBeTypeOf('string')
+    expect(result1).toMatchObject({ executionId: expect.any(String) })
     expect(result1).toHaveProperty('context')
-    expect(result1.context).toBeTypeOf('object')
+    expect(result1).toMatchObject({ context: expect.any(Object) })
   })
 
   it('should have async local storage in middleware', async () => {
@@ -254,9 +256,9 @@ describe('Methods', () => {
     const result1 = await test.client.call('get:async:ls')
 
     expect(result1).toHaveProperty('executionId')
-    expect(result1.executionId).toBeTypeOf('string')
+    expect(result1).toMatchObject({ executionId: expect.any(String) })
     expect(result1).toHaveProperty('context')
-    expect(result1.context).toBeTypeOf('object')
+    expect(result1).toMatchObject({ context: expect.any(Object) })
   })
 
   it('should call a method in the server', async () => {
@@ -340,7 +342,7 @@ describe('Methods', () => {
   })
 
   it('should only call a method if the client has initialized', async () => {
-    const calls = []
+    const calls: unknown[] = []
 
     test.server.addMethod('test:method', async (param) => {
       calls.push(param)
@@ -377,7 +379,7 @@ describe('Methods', () => {
   })
 
   it('should retry failed method calls according to retry options', async () => {
-    const calls = []
+    const calls: unknown[] = []
     let shouldFail = true
 
     test.server.addMethod('test:method', async (param) => {

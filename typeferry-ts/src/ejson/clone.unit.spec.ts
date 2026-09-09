@@ -59,7 +59,7 @@ describe('clone', () => {
       const arr = [inner, 3]
       const cloned = clone(arr)
       expect(cloned).toEqual([[1, 2], 3])
-      expect(cloned[0]).not.toBe(inner)
+      expect(cloned[0]!).not.toBe(inner)
     })
 
     it('handles circular references in arrays by removing them', () => {

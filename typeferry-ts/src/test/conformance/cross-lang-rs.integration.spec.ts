@@ -100,7 +100,7 @@ describeIf('JS client ↔ Rust server (cross-language integration)', () => {
       const client = new Client({
         host: '127.0.0.1',
         port,
-        initialContext: context,
+        ...(context === undefined ? {} : { initialContext: context }),
       })
       client.once(ClientEvents.INITIALIZED, () => resolve(client))
       client.once(ClientEvents.ERROR, reject)
@@ -152,7 +152,7 @@ describeIf('JS client ↔ Rust server (cross-language integration)', () => {
   it('subscribes via rpc:on and receives a server-emitted event', async () => {
     const client = await newClient()
     try {
-      const channel = client.channel('room-rs')
+      const channel = client.channel('room-rs')!
       const received: any[] = []
       const seen = new Promise<void>(resolve => {
         channel.on('ping.tick', (payload: any) => {

@@ -140,8 +140,14 @@ describe('useTokenRefresh', () => {
 
     renderHook(() => useTokenRefresh())
 
-    const onBeforeReconnect = client.visibilityManager.onBeforeReconnect
+    const onBeforeReconnect: unknown = Reflect.get(
+      client.visibilityManager,
+      'onBeforeReconnect',
+    )
     expect(onBeforeReconnect).toBeInstanceOf(Function)
+    if (typeof onBeforeReconnect !== 'function') {
+      throw new Error('Expected reconnect callback')
+    }
 
     await onBeforeReconnect()
 
@@ -157,7 +163,14 @@ describe('useTokenRefresh', () => {
 
     renderHook(() => useTokenRefresh())
 
-    const onBeforeReconnect = client.visibilityManager.onBeforeReconnect
+    const onBeforeReconnect: unknown = Reflect.get(
+      client.visibilityManager,
+      'onBeforeReconnect',
+    )
+    if (typeof onBeforeReconnect !== 'function') {
+      throw new Error('Expected reconnect callback')
+    }
+
     await onBeforeReconnect()
 
     expect(mockIsTokenExpired).toHaveBeenCalledWith(client.context)

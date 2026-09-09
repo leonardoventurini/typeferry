@@ -15,13 +15,13 @@ describe('idleness', () => {
 
     expect(client.clientSocket.socket).to.be.undefined
 
-    await client.idleTimer.reset()
+    await client.idleTimer!.reset()
 
     expect(client.clientSocket.ready).toBe(true)
 
     for (let i = 0; i < 20; i++) {
       await sleep(20)
-      await client.idleTimer.reset()
+      await client.idleTimer!.reset()
     }
 
     expect(client.clientSocket.ready).toBe(true)
@@ -36,7 +36,7 @@ describe('idleness', () => {
       auth(context: any) {
         return context?.token ? { ...context, user: { _id: '42' } } : false
       },
-      async logIn({ email, password }) {
+      async logIn({ email, password }: { email: string; password: string }) {
         if (email === 'test@typeferry.test' && password === '123456') {
           return {
             token: 'test',
@@ -65,13 +65,13 @@ describe('idleness', () => {
 
     expect(test.server.allClients.size).to.equal(0)
 
-    await client.idleTimer.reset()
+    await client.idleTimer!.reset()
 
     expect(client.clientSocket.ready).toBe(true)
 
     for (let i = 0; i < 20; i++) {
       await sleep(50)
-      await client.idleTimer.reset()
+      await client.idleTimer!.reset()
     }
 
     expect(client.clientSocket.ready).toBe(true)

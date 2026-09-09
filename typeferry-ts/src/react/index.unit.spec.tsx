@@ -2,6 +2,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { omit, pick } from '../utils/lodash'
 import React from 'react'
+import type { ReactNode } from 'react'
 import sinon from 'sinon'
 import NodeWebSocket from 'ws'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -44,7 +45,7 @@ afterEach(() => {
 describe('React Hooks', () => {
   const test = new TestUtility()
 
-  const wrapper = function wrapper({ children }) {
+  const wrapper = function wrapper({ children }: { children: ReactNode }) {
     return (
       <ClientProvider clientInstance={test.client}>{children}</ClientProvider>
     )
@@ -53,7 +54,7 @@ describe('React Hooks', () => {
   describe('useAuth', () => {
     beforeEach(() => {
       test.server.setAuth({
-        async logIn({ email, password }) {
+        async logIn({ email, password }: { email: string; password: string }) {
           if (email === '123' && password === '123') {
             return {
               token: 'foo',
@@ -254,7 +255,7 @@ describe('React Hooks', () => {
 
       const unsub = sinon.fake.returns(Promise.resolve())
 
-      test.client.channel().unsubscribe = unsub
+      test.client.channel()!.unsubscribe = unsub
 
       const { result, rerender } = renderHook(
         ({ event }: any) =>
@@ -335,7 +336,7 @@ describe('React Hooks', () => {
     })
 
     it('should use local event', async () => {
-      const values = []
+      const values: unknown[] = []
 
       await test.client.isConnected()
 
@@ -369,7 +370,7 @@ describe('React Hooks', () => {
 
   describe('useThrottledEvents', () => {
     it('should listen to multiple events', async () => {
-      const values = []
+      const values: unknown[] = []
 
       const emitter = new EventEmitter2()
 

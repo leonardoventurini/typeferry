@@ -508,7 +508,7 @@ describe('Client', () => {
     })
 
     it('creates and caches a new ClientChannel for a string name', () => {
-      const ch = client.channel('my-channel')
+      const ch = client.channel('my-channel')!
       expect(ch).toBeTruthy()
       expect(ch).not.toBe(client)
 
@@ -524,7 +524,7 @@ describe('Client', () => {
       // Manually set the constructor name
       Object.defineProperty(objectId.constructor, 'name', { value: 'ObjectId' })
 
-      const ch = client.channel(objectId)
+      const ch = client.channel(objectId)!
       expect(ch).toBeTruthy()
 
       // Calling again with same string should return cached channel
@@ -906,7 +906,7 @@ describe('Client', () => {
     })
 
     it('forwards event to named channel', () => {
-      const ch = client.channel('my-channel')
+      const ch = client.channel('my-channel')!
       const eventSpy = vi.fn()
       ch.on('some-event', eventSpy)
 

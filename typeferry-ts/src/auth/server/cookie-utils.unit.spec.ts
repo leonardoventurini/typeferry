@@ -116,7 +116,7 @@ describe('setRefreshTokenCookie', () => {
       `refresh_token=${encodeURIComponent(tokenWithSpecials)}`,
     )
     // Should not contain raw semicolons in the token part
-    expect(headerValue.split('=')[1].split(';')[0]).not.toContain(';')
+    expect(headerValue.split('=')[1]!.split(';')[0]!).not.toContain(';')
   })
 
   it('calculates Max-Age from maxAgeDays correctly', () => {

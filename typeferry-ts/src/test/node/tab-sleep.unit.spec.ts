@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { Client } from '../../client'
+import { Client, LogLevel } from '../../client'
 import { ClientEvents, sleep } from '../../utils'
 import { TestUtility } from '../test-utility'
 
@@ -437,7 +437,7 @@ describe('IdleTimer/VisibilityManager Separation (MEN-120)', () => {
     const client = await test.createClient()
 
     // idleTimer is null when no idlenessTimeout is configured
-    expect(client.idleTimer).toBeNull()
+    expect(client.idleTimer!).toBeNull()
     // visibilityManager is always active
     expect(client.visibilityManager).toBeDefined()
 
@@ -884,7 +884,7 @@ describe('IdleTimer.reset() Behavior (MEN-120)', () => {
     // Call reset - this is called on user activity (mousemove, etc)
     // It should NOT cause reconnection just because initialized=false
     // That would create reconnection loops on active tabs
-    await client.idleTimer.reset()
+    await client.idleTimer!.reset()
 
     // Should NOT have called connect - reset() only reconnects if socket is down
     expect(connectSpy).not.toHaveBeenCalled()
@@ -905,7 +905,7 @@ describe('IdleTimer.reset() Behavior (MEN-120)', () => {
     const connectSpy = vi.spyOn(client.clientSocket, 'connect')
 
     // Call reset while connected AND initialized
-    await client.idleTimer.reset()
+    await client.idleTimer!.reset()
 
     // Should NOT have tried to reconnect
     expect(connectSpy).not.toHaveBeenCalled()
@@ -924,7 +924,7 @@ describe('IdleTimer.reset() Behavior (MEN-120)', () => {
     const connectSpy = vi.spyOn(client.clientSocket, 'connect')
 
     // Call reset while connected
-    await client.idleTimer.reset()
+    await client.idleTimer!.reset()
 
     // Should not have tried to connect (socket was already active)
     expect(connectSpy).not.toHaveBeenCalled()
@@ -947,7 +947,7 @@ describe('IdleTimer.reset() Behavior (MEN-120)', () => {
 
     // Call reset while socket is not active
     // Don't await - we just want to verify connect is called
-    client.idleTimer.reset().catch(() => {
+    client.idleTimer!.reset().catch(() => {
       // Ignore timeout errors - we just care that connect was attempted
     })
 
@@ -959,7 +959,7 @@ describe('IdleTimer.reset() Behavior (MEN-120)', () => {
 
     // Clean up
     vi.restoreAllMocks()
-    client.idleTimer.destroy()
+    client.idleTimer!.destroy()
     await client.close()
   })
 })
@@ -1093,9 +1093,11 @@ describe('Subscription Timeout Resilience (Tab Sleep Fix)', () => {
     const originalLoggerSubscription = client.logger.subscription.bind(
       client.logger,
     )
-    client.logger.subscription = (...args: any[]) => {
-      if (args[0] === 'error' || args[1]?.includes('Failed')) {
-        subscriptionErrors.push(new Error(args[1]))
+    client.logger.subscription = (
+      ...args: Parameters<typeof originalLoggerSubscription>
+    ) => {
+      if (args[0] === LogLevel.ERROR || args[1].includes('Failed')) {
+        subscriptionErrors.push(new Error(args[1]!))
       }
       return originalLoggerSubscription(...args)
     }

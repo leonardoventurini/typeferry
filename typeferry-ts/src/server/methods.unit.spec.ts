@@ -337,7 +337,7 @@ describe('rpcLogout', () => {
       userId: '123',
     }
 
-    const result = await method.fn.call(client as any)
+    const result = await method.fn.call(client as any, undefined)
 
     expect(client.context).toBeNull()
     expect(client.authenticated).toBe(false)

@@ -31,7 +31,7 @@ describe('Unsubscribe', () => {
   it('should unsubscribe from channel', async () => {
     await test.server.addEvent('test:event')
 
-    await test.client.channel('test:channel').subscribe('test:event')
+    await test.client.channel('test:channel')!.subscribe('test:event')
 
     // Verify subscribed using isSubscribed helper
     const clientNode = test.server.allClients.get(test.client.uuid)!
@@ -40,7 +40,7 @@ describe('Unsubscribe', () => {
       .to.be.true
 
     const data = await test.client
-      .channel('test:channel')
+      .channel('test:channel')!
       .unsubscribe('test:event')
 
     expect(data).to.have.property('test:event').that.is.true

@@ -10,10 +10,10 @@ describe('Redis Pub/Sub', () => {
   const test2 = new TestUtility({ globalInstance: false, redis: true })
 
   afterEach(async () => {
-    const keys = await redis.pub.keys('typeferry:*')
+    const keys = await redis.pub!.keys('typeferry:*')
 
     for (const key of keys) {
-      await redis.pub.del(key)
+      await redis.pub!.del(key)
     }
   })
 

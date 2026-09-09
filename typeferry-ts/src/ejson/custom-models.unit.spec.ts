@@ -275,6 +275,10 @@ describe('CustomModels', () => {
       const parsed = EJSON.parse(str)
 
       expect(parsed).toBeInstanceOf(CustomModels.Address)
+      if (!(parsed instanceof CustomModels.Address)) {
+        throw new Error('Expected Address round trip')
+      }
+
       expect(parsed.city).toBe('Montreal')
       expect(parsed.state).toBe('Quebec')
     })
@@ -290,6 +294,10 @@ describe('CustomModels', () => {
       const parsed = EJSON.parse(str)
 
       expect(parsed).toBeInstanceOf(CustomModels.Person)
+      if (!(parsed instanceof CustomModels.Person)) {
+        throw new Error('Expected Person round trip')
+      }
+
       expect(parsed.name).toBe('Jane')
       expect(parsed.birthDate).toBeInstanceOf(Date)
       expect(parsed.birthDate.getTime()).toBe(date.getTime())
@@ -305,6 +313,10 @@ describe('CustomModels', () => {
       const parsed = EJSON.parse(str)
 
       expect(parsed).toBeInstanceOf(CustomModels.Holder)
+      if (!(parsed instanceof CustomModels.Holder)) {
+        throw new Error('Expected Holder round trip')
+      }
+
       expect(parsed.value).toEqual({ x: 1, y: 2 })
     })
 

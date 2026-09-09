@@ -59,7 +59,7 @@ export type ClientOptions = {
    * to `port`. Leave undefined in dev so HTTP goes through Vite's proxy
    * (same origin as page), ensuring HttpOnly cookies work correctly.
    */
-  httpPort?: number
+  httpPort?: number | undefined
   secure?: boolean
   ws?: WebSocketOptions
   errorHandler?: ErrorHandler
@@ -98,7 +98,7 @@ export class Client<
   clientSocket: ClientSocket
   clientHttp: ClientHttp
   contextManager: ContextManager
-  errorHandler: ErrorHandler | undefined
+  errorHandler: ErrorHandler | null | undefined
 
   channels: Map<string, ClientChannel> = new Map()
 

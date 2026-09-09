@@ -146,6 +146,8 @@ describe('ClientSocket', () => {
 
       // Last sent message should be a pong
       const lastSent = ws.sent[ws.sent.length - 1]
+      if (lastSent === undefined) throw new Error('Expected pong message')
+
       const decoded = Presentation.decode<{ t: string }>(lastSent)
       expect(decoded.t).toBe(MessageType.PONG)
     })

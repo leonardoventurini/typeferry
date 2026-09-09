@@ -7,12 +7,18 @@ import { Server } from '../server'
 import { ClientEvents, NO_CHANNEL, ServerEvents, sleep } from '../utils'
 
 export interface TestClientOptions extends ClientOptions {
-  context?: Record<string, any>
+  context?: Record<string, unknown>
+}
+
+interface TestUtilityOptions {
+  readonly debug?: boolean
+  readonly globalInstance?: boolean
+  readonly redis?: ServerOptions['redis']
 }
 
 export class TestUtility {
-  server: Server
-  client: Client
+  private currentServer: Server | undefined
+  private currentClient: Client | undefined
   host = '127.0.0.1'
 
   clients: Client[] = []
@@ -26,20 +32,20 @@ export class TestUtility {
     debug = false,
     globalInstance = false,
     redis = undefined,
-  } = {}) {
+  }: TestUtilityOptions = {}) {
     beforeEach(async () => {
       // Save original global state before test
       this.originalGlobalTypeFerry = global.TypeFerry
       this.createdGlobalInstance = globalInstance
 
-      this.server = await this.createSrv({
+      this.currentServer = await this.createSrv({
         debug,
         globalInstance,
         origins: ['http://localhost'],
-        redis,
+        ...(redis === undefined ? {} : { redis }),
       })
 
-      this.client = await this.createClient({
+      this.currentClient = await this.createClient({
         debug,
       })
     })
@@ -66,6 +72,18 @@ export class TestUtility {
 
       await sleep(100)
     })
+  }
+
+  get server(): Server {
+    if (!this.currentServer) throw new Error('Test server is not initialized')
+
+    return this.currentServer
+  }
+
+  get client(): Client {
+    if (!this.currentClient) throw new Error('Test client is not initialized')
+
+    return this.currentClient
   }
 
   get port() {
@@ -118,7 +136,7 @@ export class TestUtility {
          * connection — unlike Socket.IO's lazy auth callback, the token must
          * be available at socket creation time.
          */
-        initialContext: context,
+        ...(context === undefined ? {} : { initialContext: context }),
       })
 
       client.once(ClientEvents.INITIALIZED, () => {
@@ -152,7 +170,7 @@ export class TestUtility {
     await this.client.channel(channel)?.subscribe(event)
   }
 
-  async catchError(callback: Promise<any> | (() => Promise<any>)) {
+  async catchError(callback: Promise<unknown> | (() => Promise<unknown>)) {
     try {
       await (callback instanceof Promise ? callback : callback)
       return null

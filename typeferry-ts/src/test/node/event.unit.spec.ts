@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { NO_CHANNEL } from '../../utils'
+import type { ClientNode } from '../../server'
 import { TestUtility } from '../test-utility'
 
 describe('Events', () => {
@@ -91,7 +92,11 @@ describe('Events', () => {
   })
 
   it('should allow subscription based on condition', async () => {
-    let params = {
+    let params: {
+      client: ClientNode | null
+      event: string | null
+      channel: string | null
+    } = {
       client: null,
       event: null,
       channel: null,
@@ -127,7 +132,7 @@ describe('Events', () => {
       test.client.emit('test:event', 42)
     }, 0)
 
-    const values = []
+    const values: unknown[] = []
 
     const length = 200
 

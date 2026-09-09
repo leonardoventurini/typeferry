@@ -1,6 +1,6 @@
 import { RateLimiter } from 'limiter'
 
-import { MessageType, Presentation, ServerEvents } from '../utils'
+import { MessageType, NO_CHANNEL, Presentation, ServerEvents } from '../utils'
 import EventEmitter2 from '../utils/event-emitter'
 import type { TypeFerryRequest, TypeFerryResponse } from './request-types'
 import type { RateLimit, Server } from './server'
@@ -30,7 +30,7 @@ export class ClientNode extends EventEmitter2 {
   /** Framework-agnostic response exposed by the Hono adapter. */
   res: TypeFerryResponse | undefined
   isServer = false
-  limiter: RateLimiter | undefined
+  limiter: RateLimiter | null | undefined
   server: Server
   headers: Record<string, string> = {}
   remoteAddress: string | string[] = ''
@@ -137,7 +137,11 @@ export class ClientNode extends EventEmitter2 {
    * Sends a push event to the client.
    * Uses the wire protocol `{ t: "event", ... }` envelope.
    */
-  emitTypeFerryEvent(event: string, channel?: string, params?: unknown): void {
+  emitTypeFerryEvent(
+    event: string,
+    channel: string = NO_CHANNEL,
+    params?: unknown,
+  ): void {
     this.sendTypeFerryEvent(event, channel, params)
   }
 
@@ -149,7 +153,7 @@ export class ClientNode extends EventEmitter2 {
    */
   sendTypeFerryEvent(
     event: string,
-    channel?: string,
+    channel: string = NO_CHANNEL,
     params?: unknown
   ): TypeFerrySendState {
     if (!this.socket || this.socket.readyState !== SocketState.OPEN) {

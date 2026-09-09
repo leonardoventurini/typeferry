@@ -315,8 +315,8 @@ describe('cross-tab-sync', () => {
       expect(channel.close).toHaveBeenCalledOnce()
 
       // Verify ordering: postMessage was called before close
-      const postOrder = channel.postMessage.mock.invocationCallOrder[0]
-      const closeOrder = channel.close.mock.invocationCallOrder[0]
+      const postOrder = channel.postMessage.mock.invocationCallOrder[0]!
+      const closeOrder = channel.close.mock.invocationCallOrder[0]!
       if (postOrder === undefined || closeOrder === undefined) {
         throw new Error('Expected postMessage and close invocation order')
       }

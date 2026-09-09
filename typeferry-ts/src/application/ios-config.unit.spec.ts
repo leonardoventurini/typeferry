@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { parseCliArguments } from './cli-arguments'
-import { resolveApplicationConfig } from './config'
+import { defineConfig, resolveApplicationConfig } from './config'
 import { createViteConfig } from './vite-config'
 
 const ios = {
@@ -21,11 +21,11 @@ describe('iOS application target', () => {
 
   it('builds an isolated root entry and passes the target to extensions', () => {
     const targets: string[] = []
-    const config = resolveApplicationConfig('/app', {
+    const config = resolveApplicationConfig('/app', defineConfig({
       application,
       client: { targets: { ios } },
       extensions: { vite: (config, context) => { targets.push(context.target); return config } },
-    })
+    }))
     const native = createViteConfig(config, 'build', 'ios')
 
     expect(native.root).toBe('/app/client')
@@ -36,10 +36,10 @@ describe('iOS application target', () => {
   })
 
   it('does not allow an extension to redirect native output into server output', () => {
-    const config = resolveApplicationConfig('/app', {
+    const config = resolveApplicationConfig('/app', defineConfig({
       application, client: { targets: { ios } },
       extensions: { vite: config => ({ ...config, build: { ...config.build, outDir: '../dist/server' } }) },
-    })
+    }))
     expect(() => createViteConfig(config, 'build', 'ios')).toThrow(/output/i)
   })
 

@@ -13,7 +13,7 @@ type UseSubscribeParams = {
 
 export function useSubscribe<TArguments extends unknown[] = unknown[]>(
   { event, channel = NO_CHANNEL, active = true }: UseSubscribeParams,
-  callback?: (...args: TArguments) => unknown,
+  callback?: ((...args: TArguments) => unknown) | null,
   deps: readonly unknown[] = [],
 ): boolean {
   if (typeof event !== 'string') {

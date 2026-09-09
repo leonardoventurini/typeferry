@@ -437,7 +437,7 @@ describe('TypeFerry Decorators', () => {
       await wrappedFn.call(mockClient, { foo: 'bar' })
 
       expect(receivedClient).toHaveLength(1)
-      expect(receivedClient[0]).toBe(mockClient)
+      expect(receivedClient[0]!).toBe(mockClient)
     })
 
     it('should register multiple methods from one class', () => {
@@ -458,7 +458,7 @@ describe('TypeFerry Decorators', () => {
 
       expect(addMethodSpy).toHaveBeenCalledTimes(2)
 
-      const names = addMethodSpy.mock.calls.map((c: unknown[]) => c[0])
+      const names = addMethodSpy.mock.calls.map((c: unknown[]) => c[0]!)
       expect(names).toContain('multi.get')
       expect(names).toContain('multi.create')
     })
@@ -486,8 +486,8 @@ describe('TypeFerry Decorators', () => {
         unknown,
         Record<string, unknown>,
       ][]
-      const cachedOpts = calls.find(c => c[0] === 'cache.cached')?.[2]
-      const realtimeOpts = calls.find(c => c[0] === 'cache.realtime')?.[2]
+      const cachedOpts = calls.find(c => c[0]! === 'cache.cached')?.[2]
+      const realtimeOpts = calls.find(c => c[0]! === 'cache.realtime')?.[2]
 
       expect(cachedOpts?.cache).toBe(true)
       expect(cachedOpts?.maxAge).toBe(30_000)
@@ -516,7 +516,7 @@ describe('TypeFerry Decorators', () => {
 
       expect(addMethodSpy).toHaveBeenCalledTimes(2)
 
-      const names = addMethodSpy.mock.calls.map((c: unknown[]) => c[0])
+      const names = addMethodSpy.mock.calls.map((c: unknown[]) => c[0]!)
       expect(names).toContain('ns1.action1')
       expect(names).toContain('ns2.action2')
       expect(names).not.toContain('ns1.action2')

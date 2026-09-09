@@ -7,12 +7,12 @@ import type { MethodCaller } from './use-caller'
 
 type StartLoading = (() => void) & { cancel(): void }
 
-interface UseMethodRefreshOptions {
+export interface UseMethodRefreshOptions {
   readonly authenticated: boolean
-  readonly caller: MethodCaller | undefined
-  readonly client: Client | null
+  readonly caller: MethodCaller | null | undefined
+  readonly client: Pick<Client, 'authenticated'> | null
   readonly params: unknown
-  readonly method: string | undefined
+  readonly method: string | null | undefined
   readonly setError: Dispatch<SetStateAction<unknown>>
   readonly setLoading: Dispatch<SetStateAction<boolean>>
   readonly setResult: Dispatch<SetStateAction<unknown>>

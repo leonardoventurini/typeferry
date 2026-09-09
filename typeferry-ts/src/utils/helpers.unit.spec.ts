@@ -44,7 +44,7 @@ describe('Helpers', () => {
     it('copies functions from source to target', () => {
       const target: Record<string, any> = { name: 'target' }
       const source = {
-        greet() {
+        greet(this: { name: string }): string {
           return `Hello from ${this.name}`
         },
       }
@@ -57,7 +57,7 @@ describe('Helpers', () => {
     it('binds functions to the target object', () => {
       const target: Record<string, any> = { name: 'target' }
       const source = {
-        getName() {
+        getName(this: { name: string }): string {
           return this.name
         },
       }
@@ -70,10 +70,10 @@ describe('Helpers', () => {
     it('handles multiple functions in source', () => {
       const target: Record<string, any> = { value: 42 }
       const source = {
-        getValue() {
+        getValue(this: { value: number }): number {
           return this.value
         },
-        doubleValue() {
+        doubleValue(this: { value: number }): number {
           return this.value * 2
         },
       }
@@ -87,7 +87,7 @@ describe('Helpers', () => {
     it('binds remain stable even when detached from target', () => {
       const target: Record<string, any> = { x: 10 }
       const source = {
-        getX() {
+        getX(this: { x: number }): number {
           return this.x
         },
       }

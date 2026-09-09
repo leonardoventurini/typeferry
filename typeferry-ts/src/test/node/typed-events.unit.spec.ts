@@ -18,9 +18,7 @@ describe('Typed Events', () => {
       test.server.addEvent('typed:test-event')
       await test.client.subscribe('typed:test-event')
 
-      const eventPromise = new Promise<any>(resolve => {
-        test.client.once('typed:test-event', resolve)
-      })
+      const eventPromise = test.client.wait('typed:test-event')
 
       const clientNode = test.server.allClients.get(test.client.uuid)
       expect(clientNode).toBeDefined()
@@ -31,18 +29,20 @@ describe('Typed Events', () => {
 
       const result = await eventPromise
 
-      expect(result).toBeDefined()
-      expect(result.message).toBe('hello')
+      expect(result).toMatchObject({ message: 'hello' })
     })
 
     it('should receive channel event via typed event', async () => {
       const channelName = 'test-channel'
 
       test.server.addEvent('typed:channel-event')
-      await test.client.channel(channelName)?.subscribe('typed:channel-event')
+      const channel = test.client.channel(channelName)
+      if (!channel) throw new Error('Expected typed event channel')
 
-      const eventPromise = new Promise<any>(resolve => {
-        test.client.channel(channelName)?.once('typed:channel-event', resolve)
+      await channel.subscribe('typed:channel-event')
+
+      const eventPromise = new Promise<unknown>(resolve => {
+        channel.once('typed:channel-event', resolve)
       })
 
       const clientNode = test.server.allClients.get(test.client.uuid)
@@ -54,8 +54,7 @@ describe('Typed Events', () => {
 
       const result = await eventPromise
 
-      expect(result).toBeDefined()
-      expect(result.data).toBe(123)
+      expect(result).toMatchObject({ data: 123 })
     })
   })
 

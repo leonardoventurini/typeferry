@@ -59,8 +59,11 @@ describe('useCaller', () => {
       useCaller({ client, cache: true, maxAge: 60000 }),
     )
 
-    const first = await result.current('method', { id: 1 })
-    const second = await result.current('method', { id: 1 })
+    const caller = result.current
+    if (!caller) throw new Error('Expected memoized caller')
+
+    const first = await caller('method', { id: 1 })
+    const second = await caller('method', { id: 1 })
 
     expect(first).toBe('cached-result')
     expect(second).toBe('cached-result')

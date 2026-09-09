@@ -47,7 +47,7 @@ describe('Protected', () => {
       expect(PENDING_METHOD_UPDATES).toHaveLength(1)
 
       class Host {}
-      PENDING_METHOD_UPDATES[0](Host)
+      PENDING_METHOD_UPDATES[0]!(Host)
 
       const meta = getOrCreateMethodMeta(Host, 'secureMethod')
       expect(meta.protected).toBe(true)
@@ -68,7 +68,7 @@ describe('Protected', () => {
       )
 
       class Host2 {}
-      PENDING_METHOD_UPDATES[0](Host2)
+      PENDING_METHOD_UPDATES[0]!(Host2)
 
       const map = METHOD_META.get(Host2)
       expect(map!.get(String(sym))!.protected).toBe(true)
@@ -95,7 +95,7 @@ describe('Public', () => {
     const meta = getOrCreateMethodMeta(Host, 'openMethod')
     meta.protected = true
 
-    PENDING_METHOD_UPDATES[0](Host)
+    PENDING_METHOD_UPDATES[0]!(Host)
 
     expect(meta.protected).toBe(false)
   })
@@ -111,7 +111,7 @@ describe('Public', () => {
     Public()(fn, context)
 
     class Host2 {}
-    PENDING_METHOD_UPDATES[0](Host2)
+    PENDING_METHOD_UPDATES[0]!(Host2)
 
     const map = METHOD_META.get(Host2)
     expect(map!.get('publicMethod')!.protected).toBe(false)

@@ -21,7 +21,7 @@ describe('User Disconnect — userId Index', () => {
           ? { ...context, user: { _id: context.userId ?? 'user-1' } }
           : false
       },
-      async logIn({ email, password }) {
+      async logIn({ email, password }: { email: string; password: string }) {
         if (email === 'test@typeferry.test' && password === '123456') {
           return { token: 'test' }
         }

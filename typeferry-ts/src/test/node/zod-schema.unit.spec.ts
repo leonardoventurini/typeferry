@@ -148,7 +148,8 @@ describe('Zod Schema Validation', () => {
     it('validates array of objects', async () => {
       test.server.addMethod(
         'zod:array:objects',
-        ({ contacts }) => contacts.map(c => c.value),
+        ({ contacts }: { contacts: Array<{ value: string }> }) =>
+          contacts.map(c => c.value),
         {
           schema: z.object({
             contacts: z.array(
@@ -333,7 +334,7 @@ describe('Zod Schema Validation', () => {
 
   describe('email validation (common pattern in codebase)', () => {
     it('validates email fields', async () => {
-      test.server.addMethod('zod:email', ({ email }) => email.split('@')[1], {
+      test.server.addMethod('zod:email', ({ email }) => email.split('@')[1]!, {
         schema: z.object({
           email: z.string().email(),
         }),

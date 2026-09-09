@@ -296,11 +296,11 @@ describe('RoomRegistry', () => {
       for (const ws of sockets) registry.join(ws, 'room:1')
       expect(registry.getRoomSize('room:1')).toBe(5)
 
-      registry.leave(sockets[0], 'room:1')
-      registry.leave(sockets[1], 'room:1')
+      registry.leave(sockets[0]!, 'room:1')
+      registry.leave(sockets[1]!, 'room:1')
       expect(registry.getRoomSize('room:1')).toBe(3)
 
-      registry.leaveAll(sockets[2])
+      registry.leaveAll(sockets[2]!)
       expect(registry.getRoomSize('room:1')).toBe(2)
     })
   })

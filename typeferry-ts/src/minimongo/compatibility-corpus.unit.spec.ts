@@ -126,7 +126,7 @@ describe('Meteor 3.5.2 compatibility corpus', () => {
       .toEqual(['b', 'a', 'c'])
     expect([...documents].sort(new Sorter({ 'nested.name': 1 }, { locale: 'en', strength: 1 })
       .getComparator()).map(value => value._id)).toEqual(['b', 'c', 'a'])
-    expect([...documents].sort(new Sorter<typeof documents[number]>((left, right) =>
+    expect([...documents].sort(new Sorter<typeof documents[number]>((left: typeof documents[number], right: typeof documents[number]) =>
       right._id.localeCompare(left._id)).getComparator()).map(value => value._id)).toEqual(['c', 'b', 'a'])
 
     const correlated = [

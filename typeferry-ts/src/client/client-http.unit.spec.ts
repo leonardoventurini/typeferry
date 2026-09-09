@@ -179,7 +179,7 @@ describe('ClientHttp error handling', () => {
     )
 
     const fetchCall = vi.mocked(global.fetch).mock.calls[0]!
-    const headers = (fetchCall[1] as any).headers
+    const headers = (fetchCall[1]! as any).headers
     expect(headers['x-api-key']).toBeUndefined()
   })
 
@@ -238,11 +238,13 @@ describe('ClientHttp error handling', () => {
     )
 
     const fetchCall = vi.mocked(global.fetch).mock.calls[0]!
-    const body = (fetchCall[1] as any).body
+    const body = (fetchCall[1]! as any).body
     const parsed = EJSON.parse(body)
 
-    expect(parsed.context).not.toHaveProperty('refreshToken')
-    expect(parsed.context).toHaveProperty('token', 'access-tok')
+    expect(parsed).toMatchObject({
+      context: expect.objectContaining({ token: 'access-tok' }),
+    })
+    expect(EJSON.stringify(parsed)).not.toContain('refreshToken')
   })
 })
 
