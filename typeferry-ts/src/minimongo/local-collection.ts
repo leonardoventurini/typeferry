@@ -16,7 +16,7 @@ import type {
 } from './types'
 
 type Stored<TSchema extends object, TId extends MinimongoId> =
-  MaterializedDocument<TSchema, TId> & Record<string, unknown>
+  MaterializedDocument<TSchema, TId>
 
 type MutationCallback<TResult> = (error: Error | null, result?: TResult) => void
 

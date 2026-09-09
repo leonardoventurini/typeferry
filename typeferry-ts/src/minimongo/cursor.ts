@@ -12,7 +12,7 @@ import type {
   Selector,
 } from './types'
 
-export interface CursorCollection<TDocument extends Record<string, unknown>> {
+export interface CursorCollection<TDocument extends object> {
   readonly name: string | undefined
   readonly components: MinimongoComponents
   documents(): Iterable<TDocument>
@@ -40,7 +40,7 @@ function validateObserveCallbacks<TDocument>(callbacks: ObserveCallbacks<TDocume
 
 /** A lazily evaluated, observable query over one LocalCollection. */
 export class Cursor<
-  TDocument extends Record<string, unknown>,
+  TDocument extends object,
   TOutput = TDocument,
 > implements Iterable<TOutput>, AsyncIterable<TOutput> {
   readonly matcher: Matcher<TDocument>
@@ -247,9 +247,9 @@ export class Cursor<
     const suppressInitial = Boolean((callbacks as ObserveChangesCallbacks<TDocument> & { _suppress_initial?: boolean })._suppress_initial)
     if (!suppressInitial && !this.collection.isPaused()) {
       for (const document of initial) {
-        const id = document['_id'] as MinimongoId
+        const id = Reflect.get(document, '_id') as MinimongoId
         const fields = this.collection.components.values.clone(document)
-        delete fields['_id']
+        Reflect.deleteProperty(fields, '_id')
         if (ordered) queued.addedBefore?.(id, fields, null)
         else queued.added?.(id, fields)
       }
@@ -313,7 +313,7 @@ export class Cursor<
       const result = this.matcher.documentMatches(document)
       if (!result.result) continue
       documents.push(document)
-      if (result.distance !== undefined) distances.set(document['_id'], result.distance)
+      if (result.distance !== undefined) distances.set(Reflect.get(document, '_id'), result.distance)
     }
     if (this.sorter) documents.sort(this.sorter.getComparator({ distances }))
 
@@ -335,4 +335,4 @@ export type CollectionCursor<
   TSchema extends object,
   TId extends MinimongoId,
   TOutput = MaterializedDocument<TSchema, TId>,
-> = Cursor<MaterializedDocument<TSchema, TId> & Record<string, unknown>, TOutput>
+> = Cursor<MaterializedDocument<TSchema, TId>, TOutput>

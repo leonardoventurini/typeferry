@@ -88,12 +88,45 @@ export interface NumericSelector extends ComparisonSelector<number> {
   readonly $bitsAnySet?: number | readonly number[] | Uint8Array
 }
 
+export type BsonTypeAlias =
+  | 'double' | 'string' | 'object' | 'array' | 'binData' | 'undefined'
+  | 'objectId' | 'bool' | 'date' | 'null' | 'regex' | 'dbPointer'
+  | 'javascript' | 'symbol' | 'javascriptWithScope' | 'int' | 'timestamp'
+  | 'long' | 'decimal' | 'minKey' | 'maxKey'
+
+export type BsonTypeCode = -1 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10
+  | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 127
+
+export interface TypeSelector {
+  readonly $type?: BsonTypeAlias | BsonTypeCode
+}
+
+export type CoordinatePair = readonly [longitude: number, latitude: number]
+
+export interface GeoJsonPoint {
+  readonly type: 'Point'
+  readonly coordinates: CoordinatePair
+}
+
+export interface NearSelector {
+  readonly $near:
+    | CoordinatePair
+    | GeoJsonPoint
+    | {
+        readonly $geometry: GeoJsonPoint
+        readonly $maxDistance?: number
+      }
+  readonly $maxDistance?: number
+}
+
 export type SelectorValue<TValue> =
   | TValue
-  | ComparisonSelector<TValue>
+  | (ComparisonSelector<TValue> & TypeSelector)
   | (TValue extends string ? StringSelector | RegExp : never)
   | (TValue extends number ? NumericSelector : never)
   | (TValue extends readonly (infer TElement)[] ? ArraySelector<TElement> : never)
+  | TypeSelector
+  | NearSelector
 
 type FieldSelectorMap<TDocument extends object> = {
   readonly [TPath in FieldPath<TDocument>]?: SelectorValue<
@@ -160,6 +193,43 @@ type SetFieldMap<TDocument extends object> = {
   [TPath in FieldPath<TDocument>]?: ValueAtPath<TDocument, TPath>
 }
 
+type PushArgument<TElement> = TElement | {
+  readonly $each: readonly TElement[]
+  readonly $position?: number
+  readonly $slice?: number
+  readonly $sort?: TElement extends object ? SortSpecifier<TElement> : never
+}
+
+type PushFieldMap<TDocument extends object> = {
+  [TPath in FieldPath<TDocument>]?: NonNullable<ValueAtPath<TDocument, TPath>> extends readonly (infer TElement)[]
+    ? PushArgument<TElement>
+    : never
+}
+
+type PushAllFieldMap<TDocument extends object> = {
+  [TPath in FieldPath<TDocument>]?: NonNullable<ValueAtPath<TDocument, TPath>> extends readonly (infer TElement)[]
+    ? readonly TElement[]
+    : never
+}
+
+type AddToSetFieldMap<TDocument extends object> = {
+  [TPath in FieldPath<TDocument>]?: NonNullable<ValueAtPath<TDocument, TPath>> extends readonly (infer TElement)[]
+    ? TElement | { readonly $each: readonly TElement[] }
+    : never
+}
+
+type PopFieldMap<TDocument extends object> = {
+  [TPath in FieldPath<TDocument>]?: NonNullable<ValueAtPath<TDocument, TPath>> extends readonly unknown[]
+    ? number
+    : never
+}
+
+type PullFieldMap<TDocument extends object> = {
+  [TPath in FieldPath<TDocument>]?: NonNullable<ValueAtPath<TDocument, TPath>> extends readonly (infer TElement)[]
+    ? SelectorValue<TElement>
+    : never
+}
+
 export interface Modifier<TDocument extends object> {
   readonly $currentDate?: Partial<Record<FieldPath<TDocument>, true | { readonly $type: 'date' }>>
   readonly $inc?: NumericFieldMap<TDocument>
@@ -170,12 +240,12 @@ export interface Modifier<TDocument extends object> {
   readonly $set?: SetFieldMap<TDocument>
   readonly $setOnInsert?: SetFieldMap<TDocument>
   readonly $unset?: Partial<Record<FieldPath<TDocument>, unknown>>
-  readonly $push?: Partial<Record<FieldPath<TDocument>, unknown>>
-  readonly $pushAll?: Partial<Record<FieldPath<TDocument>, readonly unknown[]>>
-  readonly $addToSet?: Partial<Record<FieldPath<TDocument>, unknown>>
-  readonly $pop?: Partial<Record<FieldPath<TDocument>, number>>
-  readonly $pull?: Partial<Record<FieldPath<TDocument>, unknown>>
-  readonly $pullAll?: Partial<Record<FieldPath<TDocument>, readonly unknown[]>>
+  readonly $push?: PushFieldMap<TDocument>
+  readonly $pushAll?: PushAllFieldMap<TDocument>
+  readonly $addToSet?: AddToSetFieldMap<TDocument>
+  readonly $pop?: PopFieldMap<TDocument>
+  readonly $pull?: PullFieldMap<TDocument>
+  readonly $pullAll?: PushAllFieldMap<TDocument>
 }
 
 export interface UpdateOptions<TId extends MinimongoId = MinimongoId> {

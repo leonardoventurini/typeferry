@@ -48,6 +48,10 @@
       "types": "./dist/ejson/index.d.ts",
       "import": "./dist/ejson/index.js"
     },
+    "./minimongo": {
+      "types": "./dist/minimongo/index.d.ts",
+      "import": "./dist/minimongo/index.js"
+    },
     "./mongodb": {
       "types": "./dist/mongodb/index.d.ts",
       "import": "./dist/mongodb/index.js"

@@ -67,7 +67,7 @@ export interface MutationEngine {
 }
 
 export interface ObserverEngine {
-  diff<TDocument extends Record<string, unknown>>(
+  diff<TDocument extends object>(
     ordered: boolean,
     previous: readonly TDocument[],
     current: readonly TDocument[],
@@ -98,31 +98,49 @@ function randomId(): string {
   return Array.from(bytes, byte => alphabet[byte % alphabet.length]).join('')
 }
 
-const defaultQueryEngine: QueryEngine = {
-  matcher(selector, options) {
-    return new Matcher(
-      selector,
-      options?.isUpdate,
-      options?.collation,
-      meteorValueSemantics,
-      options?.allowJavascriptWhere,
-    )
-  },
-  sorter(sort, collation) {
-    return new Sorter(sort, collation, meteorValueSemantics)
-  },
-  projection(projection) {
-    return compileProjection(projection, meteorValueSemantics)
-  },
+function queryEngine(values: ValueSemantics): QueryEngine {
+  return {
+    matcher(selector, options) {
+      return new Matcher(
+        selector,
+        options?.isUpdate,
+        options?.collation,
+        values,
+        options?.allowJavascriptWhere,
+      )
+    },
+    sorter(sort, collation) {
+      return new Sorter(sort, collation, values)
+    },
+    projection(projection) {
+      return compileProjection(projection, values)
+    },
+  }
 }
 
-const defaultMutationEngine: MutationEngine = {
-  modify(document, modifier, options) {
-    modifyDocument(document, modifier, options, meteorValueSemantics)
-  },
-  createUpsert(selector, modifier) {
-    return createUpsertDocument(selector, modifier, meteorValueSemantics)
-  },
+function mutationEngine(values: ValueSemantics): MutationEngine {
+  return {
+    modify(document, modifier, options) {
+      modifyDocument(document, modifier, options, values)
+    },
+    createUpsert(selector, modifier) {
+      return createUpsertDocument(selector, modifier, values)
+    },
+  }
+}
+
+function documentStoreFactory(
+  identities: IdentityCodec<unknown>,
+  values: ValueSemantics,
+): DocumentStoreFactory {
+  return {
+    create<TId, TDocument>(): DocumentStore<TId, TDocument> {
+      return new MemoryDocumentStore(
+        identities as IdentityCodec<TId>,
+        values,
+      )
+    },
+  }
 }
 
 const defaultObserverEngine: ObserverEngine = {
@@ -135,16 +153,9 @@ const defaultObserverEngine: ObserverEngine = {
 export const meteor352Components: MinimongoComponents = {
   values: meteorValueSemantics,
   identities: meteorIdentityCodec,
-  documentStoreFactory: {
-    create<TId, TDocument>(): DocumentStore<TId, TDocument> {
-      return new MemoryDocumentStore(
-        meteorIdentityCodec as IdentityCodec<TId>,
-        meteorValueSemantics,
-      )
-    },
-  },
-  query: defaultQueryEngine,
-  mutations: defaultMutationEngine,
+  documentStoreFactory: documentStoreFactory(meteorIdentityCodec, meteorValueSemantics),
+  query: queryEngine(meteorValueSemantics),
+  mutations: mutationEngine(meteorValueSemantics),
   observers: defaultObserverEngine,
   scheduler: new SynchronousObserverScheduler(),
   randomId,
@@ -155,8 +166,17 @@ export const meteor352Components: MinimongoComponents = {
 export function minimongoComponents(
   overrides: Partial<MinimongoComponents> = {},
 ): MinimongoComponents {
+  const values = overrides.values ?? meteor352Components.values
+  const identities = overrides.identities ?? meteor352Components.identities
+
   return {
     ...meteor352Components,
+    values,
+    identities,
+    documentStoreFactory: overrides.documentStoreFactory
+      ?? documentStoreFactory(identities, values),
+    query: overrides.query ?? queryEngine(values),
+    mutations: overrides.mutations ?? mutationEngine(values),
     scheduler: new SynchronousObserverScheduler(),
     ...overrides,
   }

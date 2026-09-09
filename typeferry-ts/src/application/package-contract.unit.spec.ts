@@ -21,6 +21,7 @@ describe('application package contract', () => {
     expect(manifest.bin?.['typeferry']).toBe('dist/cli/index.js')
     expect(manifest.exports).toHaveProperty('./config')
     expect(manifest.exports).toHaveProperty('./test')
+    expect(manifest.exports).toHaveProperty('./minimongo')
   })
 
   it('mirrors the installed Vitest API', () => {
