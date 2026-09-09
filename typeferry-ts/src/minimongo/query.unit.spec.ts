@@ -73,4 +73,21 @@ describe('Sorter and projection', () => {
       'You cannot currently mix including and excluding fields.',
     )
   })
+
+  it('projects through nested arrays and rejects overlapping paths', () => {
+    const source = {
+      _id: 'one',
+      rows: [[{ kept: 1, dropped: 2 }], { kept: 3, dropped: 4 }],
+    }
+
+    expect(compileProjection({ 'rows.kept': 1, _id: 0 })(source)).toEqual({
+      rows: [[{ kept: 1 }], { kept: 3 }],
+    })
+    expect(compileProjection({ 'rows.kept': 0, _id: 0 })(source)).toEqual({
+      rows: [[{ dropped: 2 }], { dropped: 4 }],
+    })
+    expect(compileProjection({ _id: 1 })(source)).toEqual({ _id: 'one' })
+    expect(() => compileProjection({ rows: 1, 'rows.kept': 1 }))
+      .toThrow('using both of them may trigger unexpected behavior')
+  })
 })
