@@ -30,7 +30,7 @@ export function resolveSimulatorSettings(config: ResolvedApplicationConfig): Sim
     scheme: xcode?.scheme ?? 'App',
     configuration: xcode?.configuration ?? 'Debug',
     derivedDataPath: path.resolve(config.root, xcode?.derivedDataPath ?? 'ios/DerivedData/Simulator'),
-    device: ios.simulator?.device,
+    ...(ios.simulator?.device ? { device: ios.simulator.device } : {}),
   }
 }
 

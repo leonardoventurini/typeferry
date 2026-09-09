@@ -25,8 +25,8 @@ export const RedisKey = {
  */
 export class RedisTransport {
   opts: RedisClientOptions
-  pub: any
-  sub: any
+  pub: ReturnType<typeof createClient> | undefined
+  sub: ReturnType<typeof createClient> | undefined
 
   server: Server
 
@@ -48,10 +48,13 @@ export class RedisTransport {
     })
     this.sub = this.pub.duplicate()
 
-    await this.pub.connect()
-    await this.sub.connect()
+    const publisher = this.pub
+    const subscriber = this.sub
 
-    await this.sub.pSubscribe(RedisListeners.EVENTS, redisMessage => {
+    await publisher.connect()
+    await subscriber.connect()
+
+    await subscriber.pSubscribe(RedisListeners.EVENTS, (redisMessage: string) => {
       const { event, channel, message, excludeUuid } =
         Presentation.decode<RedisMessage>(redisMessage)
 
@@ -86,7 +89,7 @@ export class RedisTransport {
         event,
         channel,
         message,
-        excludeUuid,
+        ...(excludeUuid === undefined ? {} : { excludeUuid }),
       }),
     )
   }
@@ -107,7 +110,11 @@ export class RedisTransport {
   public async getStats() {
     let clientCount = 0
     let userCount = 0
-    const users = new Set()
+    const users = new Set<string>()
+
+    if (!this.pub) {
+      return { clientCount, userCount, users: [] }
+    }
 
     const servers = await this.pub.sMembers(`typeferry:servers`)
 

@@ -16,7 +16,7 @@ export async function runTests(
     'test',
     [...testArguments],
     {
-      project: project === undefined ? undefined : [project],
+      ...(project === undefined ? {} : { project: [project] }),
       root: config.root,
       run: !watch,
       watch,

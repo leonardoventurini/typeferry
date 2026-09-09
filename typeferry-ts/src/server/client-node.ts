@@ -7,26 +7,34 @@ import type { RateLimit, Server } from './server'
 import type { TypeFerrySendState, TypeFerrySocket } from './types'
 import { SocketState } from './types'
 
-export type ClientNodeContext = Record<string, any>
+export interface ClientNodeUser extends Record<string, unknown> {
+  _id?: unknown
+  email?: unknown
+}
+
+export interface ClientNodeContext extends Record<string, unknown> {
+  token?: string
+  user?: ClientNodeUser
+}
 
 export class ClientNode extends EventEmitter2 {
-  uuid: string
+  uuid = ''
   isAuthenticated = false
-  meta: Record<string, any> = {}
-  context: ClientNodeContext = {}
-  userId: any = null
-  user: Record<string, any> = null
-  socket?: TypeFerrySocket | null
+  meta: Record<string, unknown> = {}
+  context: ClientNodeContext | null = {}
+  userId: string | null = null
+  user: ClientNodeUser | null = null
+  socket: TypeFerrySocket | null | undefined
   /** Framework-agnostic request exposed by the Hono adapter. */
-  req?: TypeFerryRequest
+  req: TypeFerryRequest | undefined
   /** Framework-agnostic response exposed by the Hono adapter. */
-  res?: TypeFerryResponse
+  res: TypeFerryResponse | undefined
   isServer = false
-  limiter: RateLimiter
+  limiter: RateLimiter | undefined
   server: Server
   headers: Record<string, string> = {}
-  remoteAddress: string | string[]
-  userAgent: string
+  remoteAddress: string | string[] = ''
+  userAgent = ''
 
   constructor(
     server: Server,
@@ -73,7 +81,7 @@ export class ClientNode extends EventEmitter2 {
     this.uuid = uuid
   }
 
-  setContext(context: ClientNodeContext) {
+  setContext(context: ClientNodeContext | null) {
     this.context = this.authenticated ? context : {}
 
     this.setUserId()
@@ -88,10 +96,16 @@ export class ClientNode extends EventEmitter2 {
     ip?: string
     socket?: { remoteAddress?: string }
   }): void {
-    this.headers = (source.headers ?? {}) as Record<string, string>
-    this.userAgent = (source.headers?.['user-agent'] as string) ?? ''
+    this.headers = Object.fromEntries(
+      Object.entries(source.headers ?? {}).flatMap(([name, value]) =>
+        typeof value === 'string' ? [[name, value]] : [],
+      ),
+    )
+    const userAgent = source.headers?.['user-agent']
+    this.userAgent = typeof userAgent === 'string' ? userAgent : ''
+    const forwardedFor = source.headers?.['x-forwarded-for']
     this.remoteAddress =
-      (source.headers?.['x-forwarded-for'] as string) ??
+      (typeof forwardedFor === 'string' ? forwardedFor : undefined) ??
       source.socket?.remoteAddress ??
       source.ip ??
       ''
@@ -101,7 +115,8 @@ export class ClientNode extends EventEmitter2 {
   setUserId() {
     if (!this.authenticated) return
 
-    const userId = this.context?.user?._id
+    const user = this.context?.user
+    const userId = user?._id
 
     if (!userId) {
       throw new Error(
@@ -109,9 +124,9 @@ export class ClientNode extends EventEmitter2 {
       )
     }
 
-    this.userId = String(this.context.user._id)
-    this.user = this.context.user
-    this.server?.indexClientByUserId(this)
+    this.userId = String(userId)
+    this.user = user
+    this.server.indexClientByUserId(this)
   }
 
   // ─────────────────────────────────────────────────────────────────────────────

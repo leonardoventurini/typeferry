@@ -15,6 +15,7 @@ import {
   waitForAll,
 } from '../utils'
 import { ClientNode } from './client-node'
+import type { ClientNodeContext } from './client-node'
 import { createMethodProxy } from './create-method-proxy'
 import { DefaultMethods } from './default-methods'
 import type { Event } from './event'
@@ -28,7 +29,7 @@ import {
 } from './transports'
 
 declare global {
-  var TypeFerry: Server
+  var TypeFerry: Server | undefined
 }
 
 export type ChannelChecker = (
@@ -36,7 +37,10 @@ export type ChannelChecker = (
   channel: string,
 ) => Promise<boolean>
 
-export type AuthFunction = (this: ClientNode, context: any) => any
+export type AuthFunction = (
+  this: ClientNode,
+  context: ClientNodeContext,
+) => ClientNodeContext | false | Promise<ClientNodeContext | false>
 
 /**
  * Configuration for server authentication.
@@ -89,18 +93,18 @@ export class Server<
   uuid: string
   httpTransport: NodeHonoTransport
   webSocketTransport: WebSocketTransport
-  redisTransport: RedisTransport
+  redisTransport: RedisTransport | null
   host = 'localhost'
   port: number
-  requestListener: RequestListener
+  requestListener: RequestListener | undefined
   allowedContextKeys: string[]
   isAuthEnabled = false
-  auth: AuthFunction
+  auth: AuthFunction | undefined
   debug = false
   rateLimit: RateLimit
   maxRequestBodySize: number
 
-  methods: Map<string, Method<any, any>> = new Map()
+  methods: Map<string, Method<z.ZodType, unknown>> = new Map()
   allClients: Map<string, ClientNode> = new Map()
   /** Reverse index: userId → connected client nodes for efficient user-level operations */
   private clientsByUserId: Map<string, Set<ClientNode>> = new Map()
@@ -130,28 +134,13 @@ export class Server<
     }
   }
 
-  private initializeTransports(
-    origins: string[] | undefined,
-    ws: ServerOptions['ws'],
-    redis: ServerOptions['redis'],
-  ): void {
-    this.httpTransport = new NodeHonoTransport(
-      this,
-      origins,
-      this.rateLimit,
-      this.maxRequestBodySize
-    )
-    this.webSocketTransport = new WebSocketTransport(this, origins, ws)
-    this.redisTransport = redis ? new RedisTransport(this, redis) : null
-  }
-
   private setupHttpListening(): void {
     this.httpTransport.http?.on('error', error => {
       this.emit(Server.ERROR_EVENT, error)
     })
 
     this.httpTransport.listen(() => {
-      setTimeout(() => this.server.emit(ServerEvents.HTTP_LISTENING), 0)
+      setTimeout(() => this.emit(ServerEvents.HTTP_LISTENING), 0)
     })
   }
 
@@ -188,19 +177,23 @@ export class Server<
     this.maxRequestBodySize = maxRequestBodySize
     this.allowedContextKeys = allowedContextKeys
 
-    this.initializeTransports(origins, ws, redis)
+    this.httpTransport = new NodeHonoTransport(
+      this,
+      origins,
+      this.rateLimit,
+      this.maxRequestBodySize,
+    )
+    this.webSocketTransport = new WebSocketTransport(this, origins, ws)
+    this.redisTransport = redis ? new RedisTransport(this, redis) : null
     this.setupHttpListening()
 
     this.addEvent(TypeFerryEvents.METHOD_REFRESH)
     this.channels.set(NO_CHANNEL, this)
 
-    waitForAll(
-      this,
-      [
-        ServerEvents.HTTP_LISTENING,
-        this.redisTransport ? ServerEvents.REDIS_CONNECT : null,
-      ].filter(Boolean),
-    )
+    const readinessEvents = [ServerEvents.HTTP_LISTENING]
+    if (this.redisTransport) readinessEvents.push(ServerEvents.REDIS_CONNECT)
+
+    waitForAll(this, readinessEvents)
       .then(() => {
         this.ready = true
         this.emit(ServerEvents.READY, true)
@@ -260,7 +253,7 @@ export class Server<
     await this.webSocketTransport?.close()
     await this.httpTransport?.close()
 
-    delete global.TypeFerry
+    global.TypeFerry = undefined
 
     this.emit(ServerEvents.CLOSED)
 
@@ -282,6 +275,10 @@ export class Server<
     this.debugger(`[server] Calling ${method}`, parameters)
 
     const methodInstance = this.methods.get(method)
+
+    if (!methodInstance) {
+      throw new Error(`Method not found: ${method}`)
+    }
 
     const node = new ClientNode(this)
 
@@ -375,12 +372,12 @@ export class Server<
   addMethod<T = any, R = any, Schema extends z.ZodType = z.ZodType>(
     method: string,
     fn: MethodFunction<T, R>,
-    opts?: MethodOptions<Schema>,
+    opts: MethodOptions<Schema> = {},
   ) {
     this.methods.set(method, new Method(this, method, fn, opts))
   }
 
-  channel(name: string | object = NO_CHANNEL) {
+  channel(name: string | object = NO_CHANNEL): ServerChannel {
     if (
       name != null &&
       typeof name === 'object' &&
@@ -395,9 +392,11 @@ export class Server<
 
     const channelName = name as string
 
-    if (this.channels.has(channelName)) return this.channels.get(channelName)
+    const existingChannel = this.channels.get(channelName)
+    if (existingChannel) return existingChannel
+
     const channel = new ServerChannel(channelName)
-    channel.setServer(this.server)
+    channel.setServer(this)
     this.channels.set(channelName, channel)
     return channel
   }

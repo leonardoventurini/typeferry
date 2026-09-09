@@ -11,6 +11,7 @@ import {
   ServerEvents,
 } from '../../utils'
 import type { ClientNode } from '../client-node'
+import type { ClientNodeContext } from '../client-node'
 import { redactMethodTelemetry, type Method } from '../method'
 import type { Server } from '../server'
 import { SocketState } from '../types'
@@ -38,7 +39,7 @@ export interface WebSocketHandshake {
 export type WebSocketHandshakeAuthenticator = (
   node: ClientNode,
   handshake: WebSocketHandshake,
-) => unknown | Promise<unknown>
+) => ClientNodeContext | false | Promise<ClientNodeContext | false>
 
 // ---------------------------------------------------------------------------
 // RPC handling
@@ -201,15 +202,18 @@ export async function authenticateNode(
   }
 
   try {
-    const authPromise = handshakeAuthenticator
+    const auth = server.auth
+    const authPromise: Promise<ClientNodeContext | false> = handshakeAuthenticator
       ? Promise.resolve(
           handshakeAuthenticator(
             node,
             handshake ?? { path: '', headers: {}, query: {} },
           ),
         )
-      : server.auth.call(node, { token })
-    const timeoutPromise = new Promise((_, reject) =>
+      : auth
+        ? Promise.resolve(auth.call(node, token === undefined ? {} : { token }))
+        : Promise.resolve<ClientNodeContext | false>(false)
+    const timeoutPromise = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error('Auth timeout')), AUTH_TIMEOUT_MS)
     )
 

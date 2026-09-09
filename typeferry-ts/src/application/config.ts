@@ -16,8 +16,8 @@ export type ApplicationTestProjectConfiguration = TestProjectConfiguration;
 
 export interface DevelopmentProxyRoute {
   readonly pathPrefix: string;
-  readonly preserveHostHeader?: boolean;
-  readonly rewriteLocalhostCookies?: boolean;
+  readonly preserveHostHeader?: boolean | undefined;
+  readonly rewriteLocalhostCookies?: boolean | undefined;
 }
 
 export interface ResolvedDevelopmentProxyRoute {
@@ -33,29 +33,29 @@ export type ApplicationTarget = 'web' | 'ios';
  * select either a project or a workspace, never both.
  */
 export interface IosXcodeConfig {
-  readonly project?: string;
-  readonly workspace?: string;
-  readonly scheme?: string;
-  readonly configuration?: string;
-  readonly derivedDataPath?: string;
+  readonly project?: string | undefined;
+  readonly workspace?: string | undefined;
+  readonly scheme?: string | undefined;
+  readonly configuration?: string | undefined;
+  readonly derivedDataPath?: string | undefined;
 }
 
 /**
  * Default simulator selection, overridden by the CLI's explicit device.
  */
 export interface IosSimulatorConfig {
-  readonly device?: string;
+  readonly device?: string | undefined;
 }
 
 export interface IosApplicationTarget {
   readonly runtime: 'capacitor';
-  readonly xcode?: IosXcodeConfig;
-  readonly simulator?: IosSimulatorConfig;
+  readonly xcode?: IosXcodeConfig | undefined;
+  readonly simulator?: IosSimulatorConfig | undefined;
   readonly backend: { readonly origin: string };
   readonly permissions?: {
-    readonly camera?: { readonly purpose: string };
-    readonly microphone?: { readonly purpose: string };
-  };
+    readonly camera?: { readonly purpose: string } | undefined;
+    readonly microphone?: { readonly purpose: string } | undefined;
+  } | undefined;
 }
 
 export interface ApplicationIdentity {
@@ -64,40 +64,40 @@ export interface ApplicationIdentity {
 }
 
 export interface ApplicationToolingExtensions {
-  readonly vite?: (
+  readonly vite?: ((
     config: InlineConfig,
     context: { readonly command: "develop" | "build"; readonly target: ApplicationTarget },
-  ) => InlineConfig;
-  readonly serverBuild?: (options: BuildOptions) => BuildOptions;
-  readonly test?: (config: VitestConfig) => VitestConfig;
-  readonly afterBuild?: (context: { readonly target: ApplicationTarget }) => void | Promise<void>;
+  ) => InlineConfig) | undefined;
+  readonly serverBuild?: ((options: BuildOptions) => BuildOptions) | undefined;
+  readonly test?: ((config: VitestConfig) => VitestConfig) | undefined;
+  readonly afterBuild?: ((context: { readonly target: ApplicationTarget }) => void | Promise<void>) | undefined;
 }
 
 export interface TypeFerryConfig {
-  readonly application?: ApplicationIdentity;
-  readonly client?: { readonly targets?: { readonly ios?: IosApplicationTarget } };
-  readonly extensions?: ApplicationToolingExtensions;
+  readonly application?: ApplicationIdentity | undefined;
+  readonly client?: { readonly targets?: { readonly ios?: IosApplicationTarget | undefined } | undefined } | undefined;
+  readonly extensions?: ApplicationToolingExtensions | undefined;
   readonly development?: {
-    readonly clientPort?: number;
-    readonly serverPort?: number;
-    readonly serverEnvironmentFile?: string;
-    readonly proxyRoutes?: readonly DevelopmentProxyRoute[];
-  };
+    readonly clientPort?: number | undefined;
+    readonly serverPort?: number | undefined;
+    readonly serverEnvironmentFile?: string | undefined;
+    readonly proxyRoutes?: readonly DevelopmentProxyRoute[] | undefined;
+  } | undefined;
   readonly build?: {
-    readonly target?: string;
-    readonly sourceMaps?: boolean;
+    readonly target?: string | undefined;
+    readonly sourceMaps?: boolean | undefined;
     readonly server?: {
-      readonly external?: readonly string[];
-    };
-  };
+      readonly external?: readonly string[] | undefined;
+    } | undefined;
+  } | undefined;
   readonly test?: {
     readonly integration?: {
-      readonly timeout?: number;
-    };
+      readonly timeout?: number | undefined;
+    } | undefined;
     readonly browser?: {
-      readonly browser?: BrowserName;
-    };
-  };
+      readonly browser?: BrowserName | undefined;
+    } | undefined;
+  } | undefined;
 }
 
 export interface ResolvedApplicationConfig {
@@ -164,10 +164,18 @@ const proxyRouteSchema = z
   .strict();
 const extensionsSchema = z
   .object({
-    vite: z.function().optional(),
-    serverBuild: z.function().optional(),
-    test: z.function().optional(),
-    afterBuild: z.function().optional(),
+    vite: z.custom<NonNullable<ApplicationToolingExtensions['vite']>>(
+      value => typeof value === 'function',
+    ).optional(),
+    serverBuild: z.custom<NonNullable<ApplicationToolingExtensions['serverBuild']>>(
+      value => typeof value === 'function',
+    ).optional(),
+    test: z.custom<NonNullable<ApplicationToolingExtensions['test']>>(
+      value => typeof value === 'function',
+    ).optional(),
+    afterBuild: z.custom<NonNullable<ApplicationToolingExtensions['afterBuild']>>(
+      value => typeof value === 'function',
+    ).optional(),
   })
   .strict();
 const httpsOriginSchema = z.string().refine(value => {
@@ -298,7 +306,7 @@ export function resolveApplicationConfig(
   root: string,
   input: unknown = {},
 ): ResolvedApplicationConfig {
-  const config = configSchema.parse(input) as TypeFerryConfig;
+  const config = configSchema.parse(input);
   if (config.client?.targets?.ios && !config.application) {
     throw new Error('An iOS target requires application id and name');
   }
@@ -306,36 +314,53 @@ export function resolveApplicationConfig(
   return {
     root: path.resolve(root),
     ...(config.application ? { application: config.application } : {}),
-    client: { targets: config.client?.targets ?? {} },
+    client: {
+      targets: config.client?.targets?.ios
+        ? { ios: config.client.targets.ios }
+        : {},
+    },
     paths: DEFAULT_APPLICATION_CONFIG.paths,
     development: {
-      ...DEFAULT_APPLICATION_CONFIG.development,
-      ...config.development,
+      clientPort:
+        config.development?.clientPort ??
+        DEFAULT_APPLICATION_CONFIG.development.clientPort,
+      serverPort:
+        config.development?.serverPort ??
+        DEFAULT_APPLICATION_CONFIG.development.serverPort,
+      serverEnvironmentFile:
+        config.development?.serverEnvironmentFile ??
+        DEFAULT_APPLICATION_CONFIG.development.serverEnvironmentFile,
       proxyRoutes: [
         ...DEFAULT_APPLICATION_CONFIG.development.proxyRoutes,
         ...(config.development?.proxyRoutes ?? []).map((route) => ({
-          preserveHostHeader: false,
-          rewriteLocalhostCookies: false,
-          ...route,
+          pathPrefix: route.pathPrefix,
+          preserveHostHeader: route.preserveHostHeader ?? false,
+          rewriteLocalhostCookies: route.rewriteLocalhostCookies ?? false,
         })),
       ],
     },
     build: {
-      ...DEFAULT_APPLICATION_CONFIG.build,
-      ...config.build,
+      target: config.build?.target ?? DEFAULT_APPLICATION_CONFIG.build.target,
+      sourceMaps:
+        config.build?.sourceMaps ?? DEFAULT_APPLICATION_CONFIG.build.sourceMaps,
       server: {
-        ...DEFAULT_APPLICATION_CONFIG.build.server,
-        ...config.build?.server,
+        external:
+          config.build?.server?.external ??
+          DEFAULT_APPLICATION_CONFIG.build.server.external,
       },
     },
     test: {
       integration: {
         ...DEFAULT_APPLICATION_CONFIG.test.integration,
-        ...config.test?.integration,
+        timeout:
+          config.test?.integration?.timeout ??
+          DEFAULT_APPLICATION_CONFIG.test.integration.timeout,
       },
       browser: {
         ...DEFAULT_APPLICATION_CONFIG.test.browser,
-        ...config.test?.browser,
+        browser:
+          config.test?.browser?.browser ??
+          DEFAULT_APPLICATION_CONFIG.test.browser.browser,
       },
     },
     extensions: config.extensions ?? {},
@@ -358,7 +383,7 @@ export async function loadApplicationConfig(
     interopDefault: true,
   });
   const loaded: unknown = await jiti.import(configPath, { default: true });
-  const parsed = configSchema.parse(loaded) as TypeFerryConfig;
+  const parsed = configSchema.parse(loaded);
   const resolved = resolveApplicationConfig(root, withEnvironmentFile(parsed));
   await validateServerExternalDependencies(resolved);
   return resolved;

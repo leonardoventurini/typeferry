@@ -15,7 +15,7 @@ const SystemEvents: string[] = [
 
 export class ServerChannel extends EventEmitter2 {
   channelName: string
-  server: Server
+  server: Server | undefined
 
   constructor(channelName: string) {
     super({
@@ -26,22 +26,28 @@ export class ServerChannel extends EventEmitter2 {
 
     this.onAny((event, value) => {
       if (
+        this.server &&
         !this.server.events.has(event as string) &&
         !SystemEvents.includes(event as string)
       ) {
         console.warn('Event Not Registered:', event)
       }
 
-      if (this.server.events.has(event as string)) {
+      if (this.server?.events.has(event as string)) {
         const eventObject = this.server.events.get(event as string)
 
-        eventObject.handler(this, value)
+        eventObject?.handler(this, value)
       }
     })
   }
 
   setServer(server: Server) {
     this.server = server
+  }
+
+  private requireServer(): Server {
+    if (!this.server) throw new Error('Server channel is not attached to a server')
+    return this.server
   }
 
   /**
@@ -51,14 +57,15 @@ export class ServerChannel extends EventEmitter2 {
    * @param excludeUuid - Optional client uuid to exclude from receiving the event
    */
   propagate(event: string, payload: string, excludeUuid?: string): void {
-    const eventObject = this.server.events.get(event)
+    const server = this.requireServer()
+    const eventObject = server.events.get(event)
 
     if (!eventObject) {
       console.log('Event Not Registered:', event)
       return
     }
 
-    const transport = this.server.webSocketTransport
+    const transport = server.webSocketTransport
     if (!transport) {
       console.warn('[TypeFerry] WebSocket transport not available for propagate')
       return
@@ -67,8 +74,8 @@ export class ServerChannel extends EventEmitter2 {
     const roomName = getRoomName(this.channelName, event)
 
     if (excludeUuid) {
-      const excludeClient = this.server.allClients.get(excludeUuid)
-      transport.rooms.broadcast(roomName, payload, excludeClient?.socket)
+      const excludeClient = server.allClients.get(excludeUuid)
+      transport.rooms.broadcast(roomName, payload, excludeClient?.socket ?? undefined)
     } else {
       transport.rooms.broadcast(roomName, payload)
     }
@@ -87,33 +94,34 @@ export class ServerChannel extends EventEmitter2 {
 
   /** Declares a new event. */
   addEvent(name: string, opts?: EventOptions) {
-    if (this.server.events.has(name)) {
-      this.server.events.delete(name)
+    const server = this.requireServer()
+    if (server.events.has(name)) {
+      server.events.delete(name)
     }
 
-    const event = new Event(name, this.server, this, opts)
+    const event = new Event(name, server, this, opts)
 
-    this.server.events.set(name, event)
+    server.events.set(name, event)
   }
 
   get list() {
-    return Array.from(this.server.events.keys())
+    return Array.from(this.requireServer().events.keys())
   }
 
   get length() {
-    return this.server.events.size
+    return this.requireServer().events.size
   }
 
   get(event: string) {
-    return this.server.events.get(event)
+    return this.requireServer().events.get(event)
   }
 
   has(event: string) {
-    return this.server.events.has(event)
+    return this.requireServer().events.has(event)
   }
 
   delete(event: string) {
-    return this.server.events.delete(event)
+    return this.requireServer().events.delete(event)
   }
 
   /**
@@ -122,7 +130,8 @@ export class ServerChannel extends EventEmitter2 {
   isSubscribed(client: ClientNode, event: Event): boolean {
     if (!client.socket) return false
 
-    const rooms = this.server.webSocketTransport?.rooms
+    const server = this.requireServer()
+    const rooms = server.webSocketTransport?.rooms
     if (!rooms) return false
 
     const roomName = getRoomName(this.channelName, event.name)

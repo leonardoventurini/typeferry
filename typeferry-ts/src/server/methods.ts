@@ -3,6 +3,7 @@ import type { z } from 'zod'
 import { isEmpty } from '../utils/lodash'
 
 import { NO_CHANNEL, ServerEvents } from '../utils'
+import type { ClientNode } from './client-node'
 import { Method } from './method'
 import { Server } from './server'
 
@@ -23,6 +24,7 @@ export const rpcOff = (
     method,
     function ({ events, channel = NO_CHANNEL }) {
       if (!this.socket) return {}
+      const socket = this.socket
 
       const rooms = server.webSocketTransport?.rooms
       if (!rooms) return {}
@@ -37,7 +39,7 @@ export const rpcOff = (
           }
 
           const roomName = getRoomName(channel, eventName)
-          rooms.leave(this.socket, roomName)
+          rooms.leave(socket, roomName)
 
           return { ...acc, [eventName]: true }
         },
@@ -52,7 +54,7 @@ export const rpcOff = (
  */
 async function canSubscribeToEvent(
   server: Server,
-  client: any,
+  client: ClientNode,
   eventName: string,
   channel: string,
 ): Promise<boolean> {

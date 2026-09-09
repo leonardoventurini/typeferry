@@ -66,7 +66,7 @@ export class WebSocketTransport {
 
   private path: string
   private origins: Set<string> | null
-  private handshakeAuthenticator?: WebSocketHandshakeAuthenticator
+  private handshakeAuthenticator: WebSocketHandshakeAuthenticator | undefined
   private pingTimers = new Map<TypeFerrySocket, ReturnType<typeof setInterval>>()
   private pongReceived = new Map<TypeFerrySocket, boolean>()
 
@@ -160,7 +160,12 @@ export class WebSocketTransport {
 
     node.setId(uuid)
     node.meta = meta
-    node.setTrackingProperties(req)
+    node.setTrackingProperties({
+      headers: req.headers,
+      ...(req.socket?.remoteAddress === undefined
+        ? {}
+        : { socket: { remoteAddress: req.socket.remoteAddress } }),
+    })
 
     this.server.addClient(node)
     this.server.emit(ServerEvents.CONNECTION, node)

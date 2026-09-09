@@ -22,7 +22,7 @@ import type { Server } from './server'
  * @typeParam T - The type of the method parameters
  * @typeParam R - The return type of the method
  */
-export type MethodFunction<T = any, R = any> = (
+export type MethodFunction<T = unknown, R = unknown> = (
   this: ClientNode,
   parameters?: MethodParameters<T>
 ) => Promise<R> | R
@@ -83,15 +83,15 @@ interface MemoizeOptions {
   maxAge?: number
 }
 
-function customMemoize<T extends (...args: any[]) => any>(
-  fn: T,
+function customMemoize<TParameters, TResult>(
+  fn: MethodFunction<TParameters, TResult>,
   options: MemoizeOptions = {}
-): T {
-  const cache = new Map<string, { value: any; timestamp: number }>()
+): MethodFunction<TParameters, TResult> {
+  const cache = new Map<string, { value: Promise<TResult> | TResult; timestamp: number }>()
   const { maxAge = 60000 } = options
 
-  return function (this: any, ...args: Parameters<T>): ReturnType<T> {
-    const key = EJSON.stringify(args[0]) // Normalize first argument (params)
+  return function (this: ClientNode, parameters): Promise<TResult> | TResult {
+    const key = EJSON.stringify(parameters) // Normalize method params
     const now = Date.now()
     const cached = cache.get(key)
 
@@ -99,10 +99,10 @@ function customMemoize<T extends (...args: any[]) => any>(
       return cached.value
     }
 
-    const result = fn.apply(this, args)
+    const result = fn.call(this, parameters)
     cache.set(key, { value: result, timestamp: now })
     return result
-  } as T
+  }
 }
 
 /**
@@ -138,12 +138,12 @@ export class Method<Schema extends z.ZodType, Result> {
     this.server = server
     this.name = name
     this.uuid = Presentation.uuid()
-    this.isProtected = opts?.protected
+    this.isProtected = opts.protected ?? false
     this.isSensitive = opts?.sensitive ?? false
-    this.middleware = opts?.middleware
+    this.middleware = opts.middleware ?? []
     this.fn = cache ? customMemoize(fn, { maxAge }) : fn
 
-    this.schema = schema
+    this.schema = schema ?? null
   }
 
   /**
@@ -204,12 +204,16 @@ export class Method<Schema extends z.ZodType, Result> {
       cleanParameters = result.data
     }
 
-    const result = await TypeFerryAsyncLocalStorage.run(
+    if (!node) {
+      throw new Error(`Method "${this.name}" requires a client execution context`)
+    }
+
+    const result: Result = await TypeFerryAsyncLocalStorage.run(
       { executionId: Presentation.uuid(), context: node.context },
       async () => {
         const middlewareResult = await this.runMiddleware(cleanParameters, node)
 
-        return this.fn.call(node, middlewareResult)
+        return this.fn.call(node, middlewareResult) as Promise<Result> | Result
       }
     )
 

@@ -25,11 +25,11 @@ function buildOptions(nsMeta: NamespaceMeta, meta: MethodMeta): MethodOptions {
   const maxAge = meta.maxAge ?? (isCached ? nsMeta.maxAge : undefined)
 
   return {
-    protected: isProtected,
-    middleware: meta.middleware.length > 0 ? meta.middleware : undefined,
-    schema: meta.schema,
-    cache: isCached || undefined,
-    maxAge,
+    ...(isProtected === undefined ? {} : { protected: isProtected }),
+    ...(meta.middleware.length > 0 ? { middleware: meta.middleware } : {}),
+    ...(meta.schema === undefined ? {} : { schema: meta.schema }),
+    ...(isCached ? { cache: true } : {}),
+    ...(maxAge === undefined ? {} : { maxAge }),
   }
 }
 
@@ -82,6 +82,11 @@ export function registerNamespace(
     )
   }
 
+  const server = global.TypeFerry
+  if (!server) {
+    throw new Error('TypeFerry global server is not initialized')
+  }
+
   for (const [propertyKey, meta] of methodsMap) {
     const originalFn = instance[propertyKey] as (
       client: ClientNode,
@@ -94,7 +99,7 @@ export function registerNamespace(
       )
     }
 
-    global.TypeFerry.addMethod(
+    server.addMethod(
       buildFullName(nsMeta, meta),
       wrapMethod(originalFn.bind(instance)),
       buildOptions(nsMeta, meta),

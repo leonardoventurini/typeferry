@@ -26,6 +26,7 @@ import {
   TOKEN_HEADER_KEY,
 } from '../../utils'
 import { ClientNode } from '../client-node'
+import type { ClientNodeContext } from '../client-node'
 import { redactMethodTelemetry, type Method } from '../method'
 import type { TypeFerryRequest, TypeFerryResponse } from '../request-types'
 import type { RateLimit, Server } from '../server'
@@ -44,8 +45,8 @@ import {
 export class NodeHonoTransport {
   server: Server
   app: Hono
-  http?: NodeHttpServer
-  private httpRateLimiter?: DisposableRateLimiter
+  http: NodeHttpServer | undefined
+  private httpRateLimiter: DisposableRateLimiter | undefined
 
   constructor(
     server: Server,
@@ -83,7 +84,10 @@ export class NodeHonoTransport {
     const honoRequest = this.createRequestMirror(request)
     const observerRequest = this.createRequestMirror(request)
     void honoListener(honoRequest, response)
-    this.server.requestListener(observerRequest, response)
+    const requestListener = this.server.requestListener
+    if (!requestListener) return
+
+    requestListener(observerRequest, response)
 
     request.on('data', (chunk: Buffer) => {
       if (!honoRequest.write(chunk)) request.pause()
@@ -275,9 +279,11 @@ export class NodeHonoTransport {
   // ---------------------------------------------------------------------------
 
   private buildTypeFerryRequest(c: Context): TypeFerryRequest {
+    const ip = c.req.header('x-forwarded-for') ?? getConnInfo(c).remote.address
+
     return {
       headers: Object.fromEntries(c.req.raw.headers.entries()),
-      ip: c.req.header('x-forwarded-for') ?? getConnInfo(c).remote.address,
+      ...(ip === undefined ? {} : { ip }),
       path: c.req.path,
       get: (name: string) => c.req.header(name),
     }
@@ -311,15 +317,15 @@ export class NodeHonoTransport {
       node,
       (context ?? {}) as Record<string, unknown>,
     )
-    node.authenticated = Boolean(serverContext)
-    node.setContext(serverContext)
+    node.authenticated = serverContext !== false
+    node.setContext(serverContext === false ? null : serverContext)
     return node
   }
 
   private async getServerContext(
     clientNode: ClientNode,
     context: Record<string, unknown> = {},
-  ): Promise<unknown> {
+  ): Promise<ClientNodeContext | false> {
     const token = clientNode.req?.headers?.[TOKEN_HEADER_KEY] as
       string | undefined
 
@@ -328,7 +334,7 @@ export class NodeHonoTransport {
     }
 
     if (this.server.auth instanceof Function) {
-      let result = this.server.auth.call(clientNode, context ?? {})
+      let result = this.server.auth.call(clientNode, context)
       result = result instanceof Promise ? await result : result
       return result
     }
@@ -342,7 +348,18 @@ export class NodeHonoTransport {
   } {
     if (!body) return { context: null }
     try {
-      return EJSON.parse(body)
+      const decoded: unknown = EJSON.parse(body)
+      if (!decoded || typeof decoded !== 'object') return { context: null }
+
+      const transport = decoded as Record<string, unknown>
+      const payload = transport.payload
+
+      return {
+        ...(payload && typeof payload === 'object'
+          ? { payload: payload as Record<string, unknown> }
+          : {}),
+        context: transport.context,
+      }
     } catch {
       return { context: null }
     }
