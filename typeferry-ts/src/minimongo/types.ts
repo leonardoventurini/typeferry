@@ -197,31 +197,31 @@ export interface ObserveHandle {
   stop(): void
 }
 
-export interface ObserveCallbacks<TDocument extends object> {
-  readonly added?: (document: TDocument) => void
-  readonly addedAt?: (document: TDocument, atIndex: number, before: MinimongoId | null) => void
-  readonly changed?: (newDocument: TDocument, oldDocument: TDocument) => void
-  readonly changedAt?: (newDocument: TDocument, oldDocument: TDocument, atIndex: number) => void
-  readonly removed?: (oldDocument: TDocument) => void
-  readonly removedAt?: (oldDocument: TDocument, atIndex: number) => void
+export interface ObserveCallbacks<TDocument> {
+  readonly added?: (document: TDocument) => void | Promise<void>
+  readonly addedAt?: (document: TDocument, atIndex: number, before: MinimongoId | null) => void | Promise<void>
+  readonly changed?: (newDocument: TDocument, oldDocument: TDocument) => void | Promise<void>
+  readonly changedAt?: (newDocument: TDocument, oldDocument: TDocument, atIndex: number) => void | Promise<void>
+  readonly removed?: (oldDocument: TDocument) => void | Promise<void>
+  readonly removedAt?: (oldDocument: TDocument, atIndex: number) => void | Promise<void>
   readonly movedTo?: (
     document: TDocument,
     fromIndex: number,
     toIndex: number,
     before: MinimongoId | null,
-  ) => void
+  ) => void | Promise<void>
 }
 
 export interface ObserveChangesCallbacks<TDocument extends object> {
-  readonly added?: (id: MinimongoId, fields: Partial<Omit<TDocument, '_id'>>) => void
+  readonly added?: (id: MinimongoId, fields: Partial<Omit<TDocument, '_id'>>) => void | Promise<void>
   readonly addedBefore?: (
     id: MinimongoId,
     fields: Partial<Omit<TDocument, '_id'>>,
     before: MinimongoId | null,
-  ) => void
-  readonly changed?: (id: MinimongoId, fields: Partial<Omit<TDocument, '_id'>>) => void
-  readonly removed?: (id: MinimongoId) => void
-  readonly movedBefore?: (id: MinimongoId, before: MinimongoId | null) => void
+  ) => void | Promise<void>
+  readonly changed?: (id: MinimongoId, fields: Partial<Omit<TDocument, '_id'>>) => void | Promise<void>
+  readonly removed?: (id: MinimongoId) => void | Promise<void>
+  readonly movedBefore?: (id: MinimongoId, before: MinimongoId | null) => void | Promise<void>
 }
 
 /** Values used by a compiled matcher, including positional and geo metadata. */
