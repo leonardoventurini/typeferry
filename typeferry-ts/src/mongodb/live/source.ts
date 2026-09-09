@@ -4,6 +4,7 @@ import type {
   Collection,
   Document,
 } from 'mongodb'
+import { ObjectId } from 'mongodb'
 
 import {
   MONGO_LIVE_SOURCE_RETRY_MS,
@@ -49,7 +50,7 @@ export class MongoLiveCollectionSource implements MongoLiveChangeSource {
   private ready = false
   private readiness = createDeferred()
   private sequence = 0
-  private resumeToken: Document | null = null
+  private resumeToken: unknown = null
 
   /** Creates a source for one native MongoDB collection. */
   constructor(private readonly collection: Collection<Document>) {}
@@ -212,15 +213,21 @@ export class MongoLiveCollectionSource implements MongoLiveChangeSource {
 /** Validates a MongoDB source identifier for EJSON client materialization. */
 export function readLiveId(value: unknown): MongoLiveSourceId | null {
   if (typeof value === 'string' || typeof value === 'number') return value
-  if (
-    value &&
-    typeof value === 'object' &&
-    (value as { readonly _bsontype?: unknown })._bsontype === 'ObjectId' &&
-    typeof (value as { toHexString?: unknown }).toHexString === 'function'
-  ) {
-    return value as MongoLiveSourceId
-  }
+  if (isMongoObjectId(value)) return value
+
   return null
+}
+
+/** Accepts ObjectIds across duplicate BSON package instances. */
+function isMongoObjectId(value: unknown): value is ObjectId {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    '_bsontype' in value &&
+    value._bsontype === 'ObjectId' &&
+    'toHexString' in value &&
+    typeof value.toHexString === 'function'
+  )
 }
 
 function delay(milliseconds: number): Promise<void> {

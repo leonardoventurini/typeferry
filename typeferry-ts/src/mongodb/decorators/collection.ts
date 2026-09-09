@@ -56,7 +56,10 @@ export function MongoIndex(
     _context: ClassDecoratorContext<TClass>,
   ): TClass {
     const meta = getOrCreateMongoCollectionMeta(Class)
-    meta.indexes.push({ spec, options })
+    meta.indexes.push({
+      spec,
+      ...(options === undefined ? {} : { options }),
+    })
     return Class
   }
 }

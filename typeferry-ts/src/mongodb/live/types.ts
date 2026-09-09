@@ -168,7 +168,7 @@ export interface MongoLiveRuntimePublication {
     args: unknown,
   ): Promise<unknown>
   /** Builds the MongoDB selector from validated state. */
-  filter(scope: unknown, args: unknown): Filter<Document>
+  filter(scope: unknown, args: unknown): Document
   /** Builds the optional server-owned ordered window. */
   window?(scope: unknown, args: unknown): MongoLiveWindowInput | null
   /** Projects one stored document and injects no identity. */

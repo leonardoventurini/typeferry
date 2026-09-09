@@ -24,7 +24,7 @@ import type { Server } from './server'
  */
 export type MethodFunction<T = unknown, R = unknown> = (
   this: ClientNode,
-  parameters?: MethodParameters<T>
+  parameters: MethodParameters<T>
 ) => Promise<R> | R
 
 /**

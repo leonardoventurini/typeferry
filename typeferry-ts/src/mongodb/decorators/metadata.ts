@@ -55,7 +55,7 @@ export function getMongoCollectionMeta(
   return {
     Class,
     name: meta.name,
-    schema: meta.schema,
+    ...(meta.schema === undefined ? {} : { schema: meta.schema }),
     indexes: [...meta.indexes],
     watches: [...meta.watches],
   }

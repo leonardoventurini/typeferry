@@ -1,4 +1,4 @@
-import type { Collection, Document, Filter } from "mongodb";
+import type { Collection, Document } from "mongodb";
 import { z } from "zod";
 
 import { NO_CHANNEL, Presentation, ServerEvents } from "../../utils";
@@ -457,10 +457,7 @@ export class MongoLiveEngine {
       subscriptionId: input.id,
       generation,
       collection,
-      filter: input.publication.filter(
-        input.scope,
-        input.args,
-      ) as Filter<Document>,
+      filter: input.publication.filter(input.scope, input.args),
       window,
       typedObjectIds: input.supportsTypedObjectIds,
       project: (document) => input.publication.project(document, input.scope),

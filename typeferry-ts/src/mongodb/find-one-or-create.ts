@@ -4,6 +4,7 @@ import type {
   Filter,
   OptionalUnlessRequiredId,
   UpdateFilter,
+  WithId,
 } from 'mongodb'
 
 import type { MongoSessionOptions } from './types'
@@ -14,7 +15,7 @@ export async function findOneOrCreate<TDocument extends Document>(
   filter: Filter<TDocument>,
   create: OptionalUnlessRequiredId<TDocument>,
   options: MongoSessionOptions = {},
-): Promise<TDocument> {
+): Promise<WithId<TDocument>> {
   const update = {
     $setOnInsert: create,
   } as UpdateFilter<TDocument>
@@ -22,12 +23,12 @@ export async function findOneOrCreate<TDocument extends Document>(
   const document = await collection.findOneAndUpdate(filter, update, {
     upsert: true,
     returnDocument: 'after',
-    session: options.session,
+    ...(options.session === undefined ? {} : { session: options.session }),
   })
 
   if (!document) {
     throw new Error('findOneOrCreate failed to return an upserted document.')
   }
 
-  return document as TDocument
+  return document
 }

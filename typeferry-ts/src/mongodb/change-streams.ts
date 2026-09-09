@@ -47,25 +47,37 @@ export function startMongoWatch<TDocument extends Document>(
   options.server.addEvent(options.watch.event, options.watch.eventOptions)
 
   let closed = false
-  let activeStream: ChangeStream<TDocument> | null = null
+  let activeStream: ChangeStream<
+    TDocument,
+    ChangeStreamDocument<TDocument>
+  > | null = null
 
   const run = async (): Promise<void> => {
     while (!closed) {
       const streamOptions = {
-        fullDocument: options.watch.fullDocument ?? 'updateLookup',
-        fullDocumentBeforeChange: options.watch.fullDocumentBeforeChange,
         ...options.watch.options,
+        fullDocument: options.watch.fullDocument ?? 'updateLookup',
+        ...(options.watch.fullDocumentBeforeChange === undefined
+          ? {}
+          : {
+              fullDocumentBeforeChange:
+                options.watch.fullDocumentBeforeChange,
+            }),
       }
       const pipeline = options.watch.pipeline
         ? [...options.watch.pipeline]
         : undefined
-      activeStream = options.collection.watch<TDocument>(
+      const stream = options.collection.watch<
+        TDocument,
+        ChangeStreamDocument<TDocument>
+      >(
         pipeline,
         streamOptions,
       )
+      activeStream = stream
 
       try {
-        for await (const change of activeStream) {
+        for await (const change of stream) {
           if (closed) break
           await emitChange(options, change)
         }
@@ -74,8 +86,8 @@ export function startMongoWatch<TDocument extends Document>(
         if (closed) break
         await delay(options.reconnectDelayMs ?? DEFAULT_RECONNECT_DELAY_MS)
       } finally {
-        await activeStream.close().catch(() => undefined)
-        activeStream = null
+        await stream.close().catch(() => undefined)
+        if (activeStream === stream) activeStream = null
       }
     }
   }
@@ -128,7 +140,7 @@ export function shouldSkipMongoWatchChange<TDocument extends Document>(
   if (fields.length === 0) return false
 
   return fields.every(field => {
-    const root = field.split('.')[0]
+    const root = field.split('.')[0] ?? field
     return root === 'updatedAt' || Boolean(watch.excludeFields?.includes(root))
   })
 }
@@ -202,7 +214,7 @@ function changedFieldNames<TDocument extends Document>(
   ]
 }
 
-function stringifyResumeToken(token: Document): string {
+function stringifyResumeToken(token: unknown): string {
   return JSON.stringify(token)
 }
 
@@ -210,7 +222,7 @@ function isObjectId(value: unknown): value is ObjectId {
   return (
     Boolean(value) &&
     typeof value === 'object' &&
-    value.constructor.name === 'ObjectId' &&
+    Object.getPrototypeOf(value)?.constructor?.name === 'ObjectId' &&
     typeof (value as { toHexString?: unknown }).toHexString === 'function'
   )
 }
