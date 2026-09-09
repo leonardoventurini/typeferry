@@ -25,6 +25,7 @@ Use this page to choose the smallest guide that matches what you are building. [
 | Publish and consume events | [Events and channels](typescript/events-and-channels.md) |
 | Use typed MongoDB collections and live invalidation | [MongoDB](typescript/mongodb.md) |
 | Serialize extended values | [EJSON](typescript/ejson.md) |
+| Query and observe in-memory application data | [Minimongo](typescript/minimongo.md) |
 | Build and deploy a Node.js application | [Deployment](typescript/deployment.md) |
 
 ## Python

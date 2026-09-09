@@ -1,6 +1,7 @@
 import {
   access,
   chmod,
+  copyFile,
   readdir,
   readFile,
   stat,
@@ -19,6 +20,8 @@ const DYNAMIC_IMPORT_PATTERN = /(import\s*\(\s*['"])(\.\.?\/[^'"]+)(['"]\s*\))/g
  */
 async function main() {
   await rewriteDirectory(DIST_DIR)
+  await copyFile(new URL('../src/minimongo/README.md', import.meta.url), new URL('minimongo/README.md', DIST_DIR))
+  await copyFile(new URL('../src/minimongo/NOTICE.md', import.meta.url), new URL('minimongo/NOTICE.md', DIST_DIR))
   await chmod(new URL('cli/index.js', DIST_DIR), 0o755)
 }
 

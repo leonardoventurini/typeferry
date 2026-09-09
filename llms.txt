@@ -23,6 +23,7 @@ instructions are separate from application guidance.
 - [Events and channels](https://github.com/leonardoventurini/typeferry/blob/main/docs/typescript/events-and-channels.md): Real-time publication and invalidation patterns.
 - [MongoDB](https://github.com/leonardoventurini/typeferry/blob/main/docs/typescript/mongodb.md): Typed collections, schemas, and live invalidation.
 - [EJSON](https://github.com/leonardoventurini/typeferry/blob/main/docs/typescript/ejson.md): Extended wire-safe value serialization.
+- [Minimongo](https://github.com/leonardoventurini/typeferry/blob/main/docs/typescript/minimongo.md): Strict, modular in-memory Mongo-style collections.
 - [Deployment](https://github.com/leonardoventurini/typeferry/blob/main/docs/typescript/deployment.md): Production build and operational checklist.
 
 ## Contracts
