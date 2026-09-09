@@ -74,7 +74,7 @@ describe('ClientHttp error handling', () => {
     expect(reject).toHaveBeenCalledWith(expect.any(Error))
     expect(resolve).not.toHaveBeenCalled()
 
-    const error = reject.mock.calls[0][0] as Error
+    const error = reject.mock.calls[0]![0] as Error
     expect(error).toBeInstanceOf(ClientHttpResponseError)
     expect(error).toMatchObject({ status: 500 })
     expect(error.message).toContain('500')
@@ -178,7 +178,7 @@ describe('ClientHttp error handling', () => {
       () => undefined,
     )
 
-    const fetchCall = vi.mocked(global.fetch).mock.calls[0]
+    const fetchCall = vi.mocked(global.fetch).mock.calls[0]!
     const headers = (fetchCall[1] as any).headers
     expect(headers['x-api-key']).toBeUndefined()
   })
@@ -237,7 +237,7 @@ describe('ClientHttp error handling', () => {
       () => undefined,
     )
 
-    const fetchCall = vi.mocked(global.fetch).mock.calls[0]
+    const fetchCall = vi.mocked(global.fetch).mock.calls[0]!
     const body = (fetchCall[1] as any).body
     const parsed = EJSON.parse(body)
 

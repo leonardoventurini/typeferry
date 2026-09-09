@@ -273,7 +273,7 @@ describe('sendResponse', () => {
 
     expect(node.socket.send).toHaveBeenCalledOnce()
 
-    const sent = node.socket.send.mock.calls[0][0]
+    const sent = node.socket.send.mock.calls[0]![0]
     const decoded = Presentation.decode(sent) as any
 
     expect(decoded.t).toBe('rpc:res')
@@ -286,7 +286,7 @@ describe('sendResponse', () => {
     const node = createMockNode()
     sendResponse(node as any, 'req-2', undefined, 'Something went wrong')
 
-    const sent = node.socket.send.mock.calls[0][0]
+    const sent = node.socket.send.mock.calls[0]![0]
     const decoded = Presentation.decode(sent) as any
 
     expect(decoded.t).toBe('rpc:res')
@@ -302,7 +302,7 @@ describe('sendResponse', () => {
       'field2 must be a number',
     ])
 
-    const sent = node.socket.send.mock.calls[0][0]
+    const sent = node.socket.send.mock.calls[0]![0]
     const decoded = Presentation.decode(sent) as any
 
     expect(decoded.error).toBe('Validation failed')
@@ -316,7 +316,7 @@ describe('sendResponse', () => {
     const node = createMockNode()
     sendResponse(node as any, 'req-4', undefined)
 
-    const sent = node.socket.send.mock.calls[0][0]
+    const sent = node.socket.send.mock.calls[0]![0]
     const decoded = Presentation.decode(sent) as any
 
     expect(decoded.t).toBe('rpc:res')
@@ -350,7 +350,7 @@ describe('handleRpc', () => {
     await handleRpc(server as any, node as any, 'id-1', 'testMethod')
 
     const decoded = Presentation.decode(
-      node.socket.send.mock.calls[0][0]
+      node.socket.send.mock.calls[0]![0]
     ) as any
     expect(decoded.error).toBe(Errors.RATE_LIMIT_EXCEEDED)
   })
@@ -362,7 +362,7 @@ describe('handleRpc', () => {
     await handleRpc(server as any, node as any, 'id-1', 'testMethod')
 
     const decoded = Presentation.decode(
-      node.socket.send.mock.calls[0][0]
+      node.socket.send.mock.calls[0]![0]
     ) as any
     expect(decoded.result).toBe('result')
   })
@@ -376,7 +376,7 @@ describe('handleRpc', () => {
     await handleRpc(server as any, node as any, 'id-1', 'testMethod')
 
     const decoded = Presentation.decode(
-      node.socket.send.mock.calls[0][0]
+      node.socket.send.mock.calls[0]![0]
     ) as any
     expect(decoded.result).toBe('result')
   })
@@ -388,7 +388,7 @@ describe('handleRpc', () => {
     await handleRpc(server as any, node as any, 'id-2', 'nonExistentMethod')
 
     const decoded = Presentation.decode(
-      node.socket.send.mock.calls[0][0]
+      node.socket.send.mock.calls[0]![0]
     ) as any
     expect(decoded.error).toBe(Errors.METHOD_NOT_FOUND)
   })
@@ -403,7 +403,7 @@ describe('handleRpc', () => {
     await handleRpc(server as any, node as any, 'id-3', 'protectedMethod')
 
     const decoded = Presentation.decode(
-      node.socket.send.mock.calls[0][0]
+      node.socket.send.mock.calls[0]![0]
     ) as any
     expect(decoded.error).toBe(Errors.METHOD_FORBIDDEN)
   })
@@ -422,7 +422,7 @@ describe('handleRpc', () => {
     expect(method.exec).toHaveBeenCalledWith({ arg: 1 }, node)
 
     const decoded = Presentation.decode(
-      node.socket.send.mock.calls[0][0]
+      node.socket.send.mock.calls[0]![0]
     ) as any
     expect(decoded.result).toBe('result')
   })
@@ -450,7 +450,7 @@ describe('handleRpc', () => {
     await handleRpc(server as any, node as any, 'id-6', 'm')
 
     const decoded = Presentation.decode(
-      node.socket.send.mock.calls[0][0]
+      node.socket.send.mock.calls[0]![0]
     ) as any
     expect(decoded.result).toEqual({ hello: 'world' })
   })
@@ -467,7 +467,7 @@ describe('handleRpc', () => {
     await handleRpc(server as any, node as any, 'id-7', 'm')
 
     const decoded = Presentation.decode(
-      node.socket.send.mock.calls[0][0]
+      node.socket.send.mock.calls[0]![0]
     ) as any
     expect(decoded.error).toBe('User-facing error')
 
@@ -494,7 +494,7 @@ describe('handleRpc', () => {
     await handleRpc(server as any, node as any, 'id-8', 'm')
 
     const decoded = Presentation.decode(
-      node.socket.send.mock.calls[0][0]
+      node.socket.send.mock.calls[0]![0]
     ) as any
     expect(decoded.error).toBe('Validation failed')
     expect(decoded.errors).toEqual(['name is required', 'age must be positive'])
@@ -512,7 +512,7 @@ describe('handleRpc', () => {
     await handleRpc(server as any, node as any, 'id-9', 'm')
 
     const decoded = Presentation.decode(
-      node.socket.send.mock.calls[0][0]
+      node.socket.send.mock.calls[0]![0]
     ) as any
     expect(decoded.error).toBe(Errors.INTERNAL_ERROR)
   })

@@ -106,7 +106,7 @@ describe('typeferry token refresh', () => {
       }),
     )
     // _tokenReceivedAt is also set (timestamp)
-    const ctxArg = client.updateContext.mock.calls[0][0]
+    const ctxArg = client.updateContext.mock.calls[0]![0]
     expect(ctxArg._tokenReceivedAt).toBeTypeOf('number')
 
     expect(token).toBe('new-token')

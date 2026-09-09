@@ -40,6 +40,13 @@ class BroadcastChannelMock {
   }
 }
 
+function latestChannel(): BroadcastChannelMock {
+  const channel = BroadcastChannelMock.instances.at(-1)
+  if (!channel) throw new Error('Expected BroadcastChannel to be created')
+
+  return channel
+}
+
 // ---------------------------------------------------------------------------
 // Mock client
 // ---------------------------------------------------------------------------
@@ -90,14 +97,14 @@ describe('cross-tab-sync', () => {
       setupCrossTabSync(client as any, { channelName: 'my-app-tokens' })
 
       expect(BroadcastChannelMock.instances).toHaveLength(1)
-      expect(BroadcastChannelMock.instances[0].name).toBe('my-app-tokens')
+      expect(latestChannel().name).toBe('my-app-tokens')
     })
 
     it('registers a message event listener on the channel', () => {
       const client = createMockClient()
       setupCrossTabSync(client as any, { channelName: 'ch' })
 
-      const channel = BroadcastChannelMock.instances[0]
+      const channel = latestChannel()
       expect(channel.addEventListener).toHaveBeenCalledWith(
         'message',
         expect.any(Function),
@@ -108,7 +115,7 @@ describe('cross-tab-sync', () => {
       const client = createMockClient()
       setupCrossTabSync(client as any, { channelName: 'ch' })
 
-      const channel = BroadcastChannelMock.instances[0]
+      const channel = latestChannel()
       channel.simulateMessage({
         type: 'TOKEN_REFRESHED',
         token: 'new-jwt',
@@ -128,7 +135,7 @@ describe('cross-tab-sync', () => {
 
       setupCrossTabSync(client as any, { channelName: 'ch' })
 
-      const channel = BroadcastChannelMock.instances[0]
+      const channel = latestChannel()
       channel.simulateMessage({
         type: 'TOKEN_REFRESHED',
         token: 'jwt-with-iat',
@@ -150,7 +157,7 @@ describe('cross-tab-sync', () => {
       const client = createMockClient()
       setupCrossTabSync(client as any, { channelName: 'ch' })
 
-      const channel = BroadcastChannelMock.instances[0]
+      const channel = latestChannel()
       channel.simulateMessage({
         type: 'TOKEN_REFRESHED',
         token: 'tok',
@@ -171,7 +178,7 @@ describe('cross-tab-sync', () => {
         tokenRefreshedEvent: 'auth:token-refreshed',
       })
 
-      const channel = BroadcastChannelMock.instances[0]
+      const channel = latestChannel()
       channel.simulateMessage({
         type: 'TOKEN_REFRESHED',
         token: 'tok',
@@ -189,7 +196,7 @@ describe('cross-tab-sync', () => {
       const client = createMockClient()
       setupCrossTabSync(client as any, { channelName: 'ch' })
 
-      const channel = BroadcastChannelMock.instances[0]
+      const channel = latestChannel()
       channel.simulateMessage({
         type: 'TOKEN_REFRESHED',
         token: 'tok',
@@ -214,7 +221,7 @@ describe('cross-tab-sync', () => {
         const client = createMockClient()
         setupCrossTabSync(client as any, { channelName: 'ch' })
 
-        const channel = BroadcastChannelMock.instances[0]
+        const channel = latestChannel()
         channel.simulateMessage(data)
 
         expect(client.updateContext).not.toHaveBeenCalled()
@@ -226,7 +233,7 @@ describe('cross-tab-sync', () => {
       const client = createMockClient()
       const cleanup = setupCrossTabSync(client as any, { channelName: 'ch' })
 
-      const channel = BroadcastChannelMock.instances[0]
+      const channel = latestChannel()
 
       cleanup()
 
@@ -241,8 +248,8 @@ describe('cross-tab-sync', () => {
       const client = createMockClient()
       const cleanup = setupCrossTabSync(client as any, { channelName: 'ch' })
 
-      const channel = BroadcastChannelMock.instances[0]
-      const registeredHandler = channel.addEventListener.mock.calls[0][1]
+      const channel = latestChannel()
+      const registeredHandler = channel.addEventListener.mock.calls[0]![1]
 
       cleanup()
 
@@ -272,7 +279,7 @@ describe('cross-tab-sync', () => {
 
       expect(BroadcastChannelMock.instances).toHaveLength(1)
 
-      const channel = BroadcastChannelMock.instances[0]
+      const channel = latestChannel()
       expect(channel.name).toBe('sync-channel')
 
       expect(channel.postMessage).toHaveBeenCalledOnce()
@@ -289,7 +296,7 @@ describe('cross-tab-sync', () => {
     it('includes iat in the message when provided', () => {
       broadcastTokenRefresh('ch', 'tok', 2000, 1000)
 
-      const channel = BroadcastChannelMock.instances[0]
+      const channel = latestChannel()
 
       expect(channel.postMessage).toHaveBeenCalledWith({
         type: 'TOKEN_REFRESHED',
@@ -302,7 +309,7 @@ describe('cross-tab-sync', () => {
     it('closes the channel after posting the message', () => {
       broadcastTokenRefresh('ch', 'tok', 100)
 
-      const channel = BroadcastChannelMock.instances[0]
+      const channel = latestChannel()
 
       // Verify close was called
       expect(channel.close).toHaveBeenCalledOnce()
@@ -310,6 +317,10 @@ describe('cross-tab-sync', () => {
       // Verify ordering: postMessage was called before close
       const postOrder = channel.postMessage.mock.invocationCallOrder[0]
       const closeOrder = channel.close.mock.invocationCallOrder[0]
+      if (postOrder === undefined || closeOrder === undefined) {
+        throw new Error('Expected postMessage and close invocation order')
+      }
+
       expect(postOrder).toBeLessThan(closeOrder)
     })
   })

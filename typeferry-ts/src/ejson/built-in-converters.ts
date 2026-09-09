@@ -33,8 +33,7 @@ function requireString(value: unknown): string {
   return value
 }
 
-export const builtinConverters: readonly EJSONConverter[] = [
-  {
+export const dateConverter = {
     matchJSONValue: value =>
       isRecord(value) && hasOwn(value, '$date') && lengthOf(value) === 1,
     matchObject: value => value instanceof Date,
@@ -44,8 +43,9 @@ export const builtinConverters: readonly EJSONConverter[] = [
       return { $date: value.getTime() }
     },
     fromJSONValue: value => new Date(Number(requireRecord(value)['$date'])),
-  },
-  {
+} satisfies EJSONConverter
+
+export const regexpConverter = {
     matchJSONValue: value =>
       isRecord(value) &&
       hasOwn(value, '$regexp') &&
@@ -68,8 +68,9 @@ export const builtinConverters: readonly EJSONConverter[] = [
       // eslint-disable-next-line security/detect-non-literal-regexp -- intentional EJSON deserialization
       return new RegExp(pattern, flags)
     },
-  },
-  {
+} satisfies EJSONConverter
+
+export const infNaNConverter = {
     matchJSONValue: value =>
       isRecord(value) && hasOwn(value, '$InfNaN') && lengthOf(value) === 1,
     matchObject: isInfOrNaN,
@@ -77,8 +78,9 @@ export const builtinConverters: readonly EJSONConverter[] = [
       $InfNaN: Number.isNaN(value) ? 0 : value === Infinity ? 1 : -1,
     }),
     fromJSONValue: value => Number(requireRecord(value)['$InfNaN']) / 0,
-  },
-  {
+} satisfies EJSONConverter
+
+export const binaryConverter = {
     matchJSONValue: value =>
       isRecord(value) && hasOwn(value, '$binary') && lengthOf(value) === 1,
     matchObject: value => EJSON.isBinary(value),
@@ -89,8 +91,9 @@ export const builtinConverters: readonly EJSONConverter[] = [
     },
     fromJSONValue: value =>
       decodeBase64(requireString(requireRecord(value)['$binary'])),
-  },
-  {
+} satisfies EJSONConverter
+
+export const escapeConverter = {
     matchJSONValue: value =>
       isRecord(value) && hasOwn(value, '$escape') && lengthOf(value) === 1,
     matchObject: value => {
@@ -123,8 +126,9 @@ export const builtinConverters: readonly EJSONConverter[] = [
 
       return result
     },
-  },
-  {
+} satisfies EJSONConverter
+
+export const customConverter = {
     matchJSONValue: value =>
       isRecord(value) &&
       hasOwn(value, '$type') &&
@@ -145,5 +149,13 @@ export const builtinConverters: readonly EJSONConverter[] = [
 
       return factory(record['$value'])
     },
-  },
+} satisfies EJSONConverter
+
+export const builtinConverters: readonly EJSONConverter[] = [
+  dateConverter,
+  regexpConverter,
+  infNaNConverter,
+  binaryConverter,
+  escapeConverter,
+  customConverter,
 ]

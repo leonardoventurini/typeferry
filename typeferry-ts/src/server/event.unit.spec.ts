@@ -157,7 +157,7 @@ describe('Event', () => {
 
       expect(channel.propagate).toHaveBeenCalledTimes(1)
       const [name, payload, excludeUuid] =
-        channel.propagate.mock.calls[0]
+        channel.propagate.mock.calls[0]!
 
       expect(name).toBe('my-event')
       expect(typeof payload).toBe('string')
@@ -180,7 +180,7 @@ describe('Event', () => {
 
       event.handler(channel as any, { uuid: 'client-123', data: 'x' } as any)
 
-      const [, , excludeUuid] = channel.propagate.mock.calls[0]
+      const [, , excludeUuid] = channel.propagate.mock.calls[0]!
       expect(excludeUuid).toBe('client-123')
     })
 
@@ -194,7 +194,7 @@ describe('Event', () => {
 
       event.handler(channel as any, { uuid: 'client-123' } as any)
 
-      const [, , excludeUuid] = channel.propagate.mock.calls[0]
+      const [, , excludeUuid] = channel.propagate.mock.calls[0]!
       expect(excludeUuid).toBeUndefined()
     })
 
@@ -215,12 +215,12 @@ describe('Event', () => {
       event.handler(channel as any, { data: 'hello' } as any)
 
       expect(publishMock).toHaveBeenCalledTimes(1)
-      expect(publishMock.mock.calls[0][0]).toBe('ev')
-      expect(publishMock.mock.calls[0][1]).toBe('test-channel')
+      expect(publishMock.mock.calls[0]![0]).toBe('ev')
+      expect(publishMock.mock.calls[0]![1]).toBe('test-channel')
       // Third arg is the encoded payload string
-      expect(typeof publishMock.mock.calls[0][2]).toBe('string')
+      expect(typeof publishMock.mock.calls[0]![2]).toBe('string')
       // Fourth arg is excludeUuid
-      expect(publishMock.mock.calls[0][3]).toBeUndefined()
+      expect(publishMock.mock.calls[0]![3]).toBeUndefined()
       // Should NOT call channel.propagate when using redis
       expect(channel.propagate).not.toHaveBeenCalled()
     })
@@ -239,7 +239,7 @@ describe('Event', () => {
 
       event.handler(channel as any, { uuid: 'origin-uuid', data: 'x' } as any)
 
-      expect(publishMock.mock.calls[0][3]).toBe('origin-uuid')
+      expect(publishMock.mock.calls[0]![3]).toBe('origin-uuid')
       expect(channel.propagate).not.toHaveBeenCalled()
     })
 

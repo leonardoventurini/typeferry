@@ -207,7 +207,7 @@ describe('registerNamespace', () => {
     registerNamespace(WrapTest)
 
     // Get the wrapped function that was passed to addMethod
-    const wrappedFn = mockAddMethod.mock.calls[0][1]
+    const wrappedFn = mockAddMethod.mock.calls[0]![1]
 
     // Call it with a mock ClientNode as `this`
     const mockNode = { uuid: 'test-node' }

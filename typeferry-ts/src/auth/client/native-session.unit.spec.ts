@@ -33,8 +33,8 @@ describe('native browser authentication', () => {
     const { options, authenticate, httpFetch } = fixture()
 
     expect(await authenticateNativeSession(options)).toEqual({ token: 'access-token', exp: 2_000, iat: 1_000 })
-    const authorization = new URL(authenticate.mock.calls[0][0].url)
-    const body = JSON.parse(httpFetch.mock.calls[0][1].body as string) as { code: string; codeVerifier: string; redirectUri: string }
+    const authorization = new URL(authenticate.mock.calls[0]![0].url)
+    const body = JSON.parse(httpFetch.mock.calls[0]![1].body as string) as { code: string; codeVerifier: string; redirectUri: string }
 
     expect(authorization.searchParams.get('code_challenge_method')).toBe('S256')
     expect(authorization.searchParams.get('code_challenge')).toBe(createHash('sha256').update(body.codeVerifier).digest('base64url'))

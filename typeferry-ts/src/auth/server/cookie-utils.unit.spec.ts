@@ -39,7 +39,7 @@ describe('setRefreshTokenCookie', () => {
     setRefreshTokenCookie(res, 'my-token-value', options)
 
     expect(res.setHeader).toHaveBeenCalledOnce()
-    const [headerName, headerValue] = res.setHeader.mock.calls[0]
+    const [headerName, headerValue] = res.setHeader.mock.calls[0]!
     expect(headerName).toBe('Set-Cookie')
     expect(headerValue).toContain('refresh_token=my-token-value')
     expect(headerValue).toContain('HttpOnly')
@@ -52,7 +52,7 @@ describe('setRefreshTokenCookie', () => {
     const res = makeResponse()
     setRefreshTokenCookie(res, 'token', makeOptions())
 
-    const headerValue = res.setHeader.mock.calls[0][1]
+    const headerValue = res.setHeader.mock.calls[0]![1]
     expect(headerValue).toContain('SameSite=Lax')
   })
 
@@ -60,7 +60,7 @@ describe('setRefreshTokenCookie', () => {
     const res = makeResponse()
     setRefreshTokenCookie(res, 'token', makeOptions({ sameSite: 'Strict' }))
 
-    const headerValue = res.setHeader.mock.calls[0][1]
+    const headerValue = res.setHeader.mock.calls[0]![1]
     expect(headerValue).toContain('SameSite=Strict')
   })
 
@@ -68,7 +68,7 @@ describe('setRefreshTokenCookie', () => {
     const res = makeResponse()
     setRefreshTokenCookie(res, 'token', makeOptions({ path: '/api/auth' }))
 
-    const headerValue = res.setHeader.mock.calls[0][1]
+    const headerValue = res.setHeader.mock.calls[0]![1]
     expect(headerValue).toContain('Path=/api/auth')
   })
 
@@ -76,7 +76,7 @@ describe('setRefreshTokenCookie', () => {
     const res = makeResponse()
     setRefreshTokenCookie(res, 'token', makeOptions({ secure: true }))
 
-    const headerValue = res.setHeader.mock.calls[0][1]
+    const headerValue = res.setHeader.mock.calls[0]![1]
     expect(headerValue).toContain('Secure')
   })
 
@@ -84,7 +84,7 @@ describe('setRefreshTokenCookie', () => {
     const res = makeResponse()
     setRefreshTokenCookie(res, 'token', makeOptions({ secure: false }))
 
-    const headerValue = res.setHeader.mock.calls[0][1]
+    const headerValue = res.setHeader.mock.calls[0]![1]
     expect(headerValue).not.toContain('Secure')
   })
 
@@ -93,7 +93,7 @@ describe('setRefreshTokenCookie', () => {
     const res = makeResponse()
     setRefreshTokenCookie(res, 'token', makeOptions())
 
-    const headerValue = res.setHeader.mock.calls[0][1]
+    const headerValue = res.setHeader.mock.calls[0]![1]
     expect(headerValue).toContain('Secure')
   })
 
@@ -102,7 +102,7 @@ describe('setRefreshTokenCookie', () => {
     const res = makeResponse()
     setRefreshTokenCookie(res, 'token', makeOptions())
 
-    const headerValue = res.setHeader.mock.calls[0][1]
+    const headerValue = res.setHeader.mock.calls[0]![1]
     expect(headerValue).not.toContain('Secure')
   })
 
@@ -111,7 +111,7 @@ describe('setRefreshTokenCookie', () => {
     const tokenWithSpecials = 'token;with=special&chars'
     setRefreshTokenCookie(res, tokenWithSpecials, makeOptions())
 
-    const headerValue = res.setHeader.mock.calls[0][1] as string
+    const headerValue = res.setHeader.mock.calls[0]![1] as string
     expect(headerValue).toContain(
       `refresh_token=${encodeURIComponent(tokenWithSpecials)}`,
     )
@@ -123,7 +123,7 @@ describe('setRefreshTokenCookie', () => {
     const res = makeResponse()
     setRefreshTokenCookie(res, 'token', makeOptions({ maxAgeDays: 7 }))
 
-    const headerValue = res.setHeader.mock.calls[0][1]
+    const headerValue = res.setHeader.mock.calls[0]![1]
     expect(headerValue).toContain(`Max-Age=${7 * 24 * 60 * 60}`)
   })
 })
@@ -139,7 +139,7 @@ describe('clearRefreshTokenCookie', () => {
     const res = makeResponse()
     clearRefreshTokenCookie(res, { name: 'refresh_token' })
 
-    const [headerName, headerValue] = res.setHeader.mock.calls[0]
+    const [headerName, headerValue] = res.setHeader.mock.calls[0]!
     expect(headerName).toBe('Set-Cookie')
     expect(headerValue).toContain('Max-Age=0')
   })
@@ -148,7 +148,7 @@ describe('clearRefreshTokenCookie', () => {
     const res = makeResponse()
     clearRefreshTokenCookie(res, { name: 'refresh_token' })
 
-    const headerValue = res.setHeader.mock.calls[0][1]
+    const headerValue = res.setHeader.mock.calls[0]![1]
     expect(headerValue).toContain('refresh_token=;')
   })
 
@@ -156,7 +156,7 @@ describe('clearRefreshTokenCookie', () => {
     const res = makeResponse()
     clearRefreshTokenCookie(res, { name: 'refresh_token' })
 
-    const headerValue = res.setHeader.mock.calls[0][1]
+    const headerValue = res.setHeader.mock.calls[0]![1]
     expect(headerValue).toContain('HttpOnly')
     expect(headerValue).toContain('SameSite=Lax')
   })
@@ -168,7 +168,7 @@ describe('clearRefreshTokenCookie', () => {
       sameSite: 'Strict',
     })
 
-    const headerValue = res.setHeader.mock.calls[0][1]
+    const headerValue = res.setHeader.mock.calls[0]![1]
     expect(headerValue).toContain('SameSite=Strict')
   })
 
@@ -177,7 +177,7 @@ describe('clearRefreshTokenCookie', () => {
     const res = makeResponse()
     clearRefreshTokenCookie(res, { name: 'refresh_token' })
 
-    const headerValue = res.setHeader.mock.calls[0][1]
+    const headerValue = res.setHeader.mock.calls[0]![1]
     expect(headerValue).toContain('Secure')
   })
 
@@ -185,7 +185,7 @@ describe('clearRefreshTokenCookie', () => {
     const res = makeResponse()
     clearRefreshTokenCookie(res, { name: 'refresh_token', secure: false })
 
-    const headerValue = res.setHeader.mock.calls[0][1]
+    const headerValue = res.setHeader.mock.calls[0]![1]
     expect(headerValue).not.toContain('Secure')
   })
 
@@ -193,7 +193,7 @@ describe('clearRefreshTokenCookie', () => {
     const res = makeResponse()
     clearRefreshTokenCookie(res, { name: 'refresh_token' })
 
-    const headerValue = res.setHeader.mock.calls[0][1]
+    const headerValue = res.setHeader.mock.calls[0]![1]
     expect(headerValue).toContain('Path=/')
   })
 
@@ -201,7 +201,7 @@ describe('clearRefreshTokenCookie', () => {
     const res = makeResponse()
     clearRefreshTokenCookie(res, { name: 'refresh_token', path: '/auth' })
 
-    const headerValue = res.setHeader.mock.calls[0][1]
+    const headerValue = res.setHeader.mock.calls[0]![1]
     expect(headerValue).toContain('Path=/auth')
   })
 })

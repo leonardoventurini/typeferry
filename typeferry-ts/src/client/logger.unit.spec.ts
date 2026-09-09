@@ -107,7 +107,7 @@ describe('TypeFerryLogger', () => {
       log.log({ level: LogLevel.DEBUG, category: LogCategory.AUTH, message: 'ts' })
       const after = Date.now()
 
-      const entry = listener.mock.calls[0][0]
+      const entry = listener.mock.calls[0]![0]
       expect(entry.timestamp).toBeGreaterThanOrEqual(before)
       expect(entry.timestamp).toBeLessThanOrEqual(after)
     })

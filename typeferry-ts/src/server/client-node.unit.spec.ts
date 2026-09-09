@@ -242,7 +242,7 @@ describe('ClientNode', () => {
       node.emitTypeFerryEvent('test-event', 'my-channel', { key: 'val' })
 
       expect(socket.send).toHaveBeenCalledTimes(1)
-      const payload = Presentation.decode(socket.send.mock.calls[0][0])
+      const payload = Presentation.decode(socket.send.mock.calls[0]![0])
       expect(payload).toMatchObject({
         t: MessageType.EVENT,
         event: 'test-event',
@@ -312,7 +312,7 @@ describe('ClientNode', () => {
       node.emitError({ message: 'something failed', method: 'my-method' })
 
       expect(socket.send).toHaveBeenCalledTimes(1)
-      const payload = Presentation.decode(socket.send.mock.calls[0][0])
+      const payload = Presentation.decode(socket.send.mock.calls[0]![0])
       expect(payload).toMatchObject({
         message: 'something failed',
         method: 'my-method',
@@ -343,7 +343,7 @@ describe('ClientNode', () => {
       node.emitAuthResult(true)
 
       expect(socket.send).toHaveBeenCalledTimes(1)
-      const payload = Presentation.decode(socket.send.mock.calls[0][0])
+      const payload = Presentation.decode(socket.send.mock.calls[0]![0])
       expect(payload).toMatchObject({
         t: MessageType.AUTH,
         authenticated: true,
@@ -356,7 +356,7 @@ describe('ClientNode', () => {
 
       node.emitAuthResult(false)
 
-      const payload = Presentation.decode(socket.send.mock.calls[0][0])
+      const payload = Presentation.decode(socket.send.mock.calls[0]![0])
       expect(payload).toMatchObject({
         t: MessageType.AUTH,
         authenticated: false,

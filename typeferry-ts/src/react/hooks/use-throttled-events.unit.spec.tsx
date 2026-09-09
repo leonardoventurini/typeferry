@@ -71,13 +71,13 @@ describe('useThrottledEvents', () => {
     )
 
     expect(mocks.mockOnAllThrottled).toHaveBeenCalledTimes(1)
-    expect(mocks.mockOnAllThrottled.mock.calls[0][0]).toBe(emitter1)
+    expect(mocks.mockOnAllThrottled.mock.calls[0]![0]).toBe(emitter1)
 
     rerender({ emitter: emitter2 })
 
     // Previous cleanup should be called, new registration should happen
     expect(cleanup1).toHaveBeenCalledTimes(1)
     expect(mocks.mockOnAllThrottled).toHaveBeenCalledTimes(2)
-    expect(mocks.mockOnAllThrottled.mock.calls[1][0]).toBe(emitter2)
+    expect(mocks.mockOnAllThrottled.mock.calls[1]![0]).toBe(emitter2)
   })
 })

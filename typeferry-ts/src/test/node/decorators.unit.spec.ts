@@ -360,7 +360,7 @@ describe('TypeFerry Decorators', () => {
       registerNamespace(TestMethods)
 
       expect(addMethodSpy).toHaveBeenCalledOnce()
-      expect(addMethodSpy.mock.calls[0][0]).toBe('ai.test.run')
+      expect(addMethodSpy.mock.calls[0]![0]).toBe('ai.test.run')
     })
 
     it('should pass protected: true from class-level @Protected', () => {
@@ -375,7 +375,7 @@ describe('TypeFerry Decorators', () => {
 
       registerNamespace(SecureMethods)
 
-      const opts = addMethodSpy.mock.calls[0][2]
+      const opts = addMethodSpy.mock.calls[0]![2]
       expect(opts.protected).toBe(true)
     })
 
@@ -392,7 +392,7 @@ describe('TypeFerry Decorators', () => {
 
       registerNamespace(MixedMethods)
 
-      const opts = addMethodSpy.mock.calls[0][2]
+      const opts = addMethodSpy.mock.calls[0]![2]
       expect(opts.protected).toBe(false)
     })
 
@@ -412,7 +412,7 @@ describe('TypeFerry Decorators', () => {
 
       registerNamespace(TestMethods)
 
-      const opts = addMethodSpy.mock.calls[0][2]
+      const opts = addMethodSpy.mock.calls[0]![2]
       expect(opts.schema).toBe(schema)
       expect(opts.middleware).toEqual([mw])
     })
@@ -431,7 +431,7 @@ describe('TypeFerry Decorators', () => {
 
       registerNamespace(InjectMethods)
 
-      const wrappedFn = addMethodSpy.mock.calls[0][1]
+      const wrappedFn = addMethodSpy.mock.calls[0]![1]
       const mockClient = { userId: 'user-123' } as unknown as ClientNode
 
       await wrappedFn.call(mockClient, { foo: 'bar' })

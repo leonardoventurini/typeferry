@@ -1,15 +1,17 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 
-import { builtinConverters } from './built-in-converters'
+import {
+  binaryConverter,
+  customConverter,
+  dateConverter,
+  escapeConverter,
+  infNaNConverter,
+  regexpConverter,
+} from './built-in-converters'
 import { EJSON } from './index'
 
 describe('builtinConverters', () => {
-  // Helper to find a converter by what it matches
-  const findConverter = (matchFn: string, testObj: any) =>
-    builtinConverters.find((c) => c[matchFn](testObj))
-
   describe('Date converter', () => {
-    const dateConverter = builtinConverters[0]
 
     it('matchJSONValue matches {$date: ...}', () => {
       expect(dateConverter.matchJSONValue({ $date: 1234567890 })).toBe(true)
@@ -39,7 +41,6 @@ describe('builtinConverters', () => {
   })
 
   describe('RegExp converter', () => {
-    const regexpConverter = builtinConverters[1]
 
     it('matchJSONValue matches {$regexp: ..., $flags: ...}', () => {
       expect(
@@ -87,7 +88,6 @@ describe('builtinConverters', () => {
   })
 
   describe('InfNaN converter', () => {
-    const infNaNConverter = builtinConverters[2]
 
     it('matchJSONValue matches {$InfNaN: ...}', () => {
       expect(infNaNConverter.matchJSONValue({ $InfNaN: 0 })).toBe(true)
@@ -135,7 +135,6 @@ describe('builtinConverters', () => {
   })
 
   describe('Binary converter', () => {
-    const binaryConverter = builtinConverters[3]
 
     it('matchJSONValue matches {$binary: ...}', () => {
       expect(binaryConverter.matchJSONValue({ $binary: 'AAAA' })).toBe(true)
@@ -171,7 +170,6 @@ describe('builtinConverters', () => {
   })
 
   describe('Escape converter', () => {
-    const escapeConverter = builtinConverters[4]
 
     it('matchJSONValue matches {$escape: ...}', () => {
       expect(escapeConverter.matchJSONValue({ $escape: {} })).toBe(true)
@@ -206,7 +204,6 @@ describe('builtinConverters', () => {
   })
 
   describe('Custom type converter', () => {
-    const customConverter = builtinConverters[5]
 
     afterEach(() => {
       const types = EJSON._getTypes(true) as Map<string, any>
@@ -260,7 +257,7 @@ describe('builtinConverters', () => {
       })
 
       expect(factory).toHaveBeenCalledWith({ data: 'hello' })
-      expect(result.restored).toBe(true)
+      expect(result).toMatchObject({ restored: true })
     })
 
     it('throws when deserializing an unregistered custom type', () => {

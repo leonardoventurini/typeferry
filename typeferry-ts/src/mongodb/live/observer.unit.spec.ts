@@ -104,7 +104,9 @@ describe('MongoLiveObserver', () => {
       ],
     ])
     const source = new FakeSource()
-    let releaseProjection: (() => void) | null = null
+    let releaseProjection = (): void => {
+      throw new Error('Projection gate was not initialized')
+    }
     const projectionGate = new Promise<void>(resolve => {
       releaseProjection = resolve
     })
@@ -139,7 +141,7 @@ describe('MongoLiveObserver', () => {
       id: inserted,
       deleted: false,
     })
-    releaseProjection?.()
+    releaseProjection()
 
     const snapshot = await starting
     expect(
@@ -162,7 +164,9 @@ describe('MongoLiveObserver', () => {
       ],
     ])
     const source = new FakeSource()
-    let releaseProjection: (() => void) | null = null
+    let releaseProjection = (): void => {
+      throw new Error('Projection gate was not initialized')
+    }
     const projectionGate = new Promise<void>(resolve => {
       releaseProjection = resolve
     })
@@ -188,7 +192,7 @@ describe('MongoLiveObserver', () => {
       sequence: 1,
       reason: 'resume-failed',
     })
-    releaseProjection?.()
+    releaseProjection()
 
     await expect(starting).rejects.toThrow(
       'source reset while the initial snapshot was being built',
@@ -238,7 +242,9 @@ describe('MongoLiveObserver', () => {
     await source.emit({ type: 'change', sequence: 3, id, deleted: false })
     await waitFor(() => deltas.length === 3)
 
-    expect(deltas.map(delta => delta.operations[0].type)).toEqual([
+    expect(
+      deltas.map(delta => required(delta.operations[0], 'delta operation').type),
+    ).toEqual([
       'added',
       'changed',
       'removed',
@@ -297,8 +303,9 @@ describe('MongoLiveObserver', () => {
     ])
     let clientDocuments = [...snapshot.documents]
 
-    documents.set(ids[6].toHexString(), {
-      _id: ids[6],
+    const insertedId = required(ids[6], 'inserted id')
+    documents.set(insertedId.toHexString(), {
+      _id: insertedId,
       owner: 'owner-1',
       name: 'X',
       score: 5,
@@ -306,11 +313,14 @@ describe('MongoLiveObserver', () => {
     await source.emit({
       type: 'change',
       sequence: 1,
-      id: ids[6],
+      id: insertedId,
       deleted: false,
     })
     await waitFor(() => deltas.length === 1)
-    const inserted = deltas[0].operations[0]
+    const inserted = required(
+      required(deltas[0], 'insert delta').operations[0],
+      'insert operation',
+    )
     expect(inserted.type).toBe('window-splice')
     if (inserted.type === 'window-splice') {
       clientDocuments = [
@@ -323,11 +333,12 @@ describe('MongoLiveObserver', () => {
       'D',
     ])
 
-    documents.delete(ids[3].toHexString())
+    const removedId = required(ids[3], 'removed id')
+    documents.delete(removedId.toHexString())
     await source.emit({
       type: 'change',
       sequence: 2,
-      id: ids[3],
+      id: removedId,
       deleted: true,
     })
     await waitFor(() => deltas.length === 2)
@@ -335,7 +346,7 @@ describe('MongoLiveObserver', () => {
       document =>
         !(
           typeof document._id === 'object' &&
-          document._id.$objectId === ids[3].toHexString()
+          document._id.$objectId === removedId.toHexString()
         ),
     )
     expect(readNames(targetedDeleteWithoutBoundaryRefill)).not.toEqual([
@@ -343,7 +354,10 @@ describe('MongoLiveObserver', () => {
       'C',
       'E',
     ])
-    const removed = deltas[1].operations[0]
+    const removed = required(
+      required(deltas[1], 'remove delta').operations[0],
+      'remove operation',
+    )
     if (removed.type === 'window-splice') {
       clientDocuments = [
         ...(applyMongoLiveWindowSplice(clientDocuments, removed) ?? []),
@@ -374,8 +388,12 @@ describe('MongoLiveObserver', () => {
     )
     let reads = 0
     let blockReads = false
-    let releaseRead: (() => void) | null = null
-    let signalRead: (() => void) | null = null
+    let releaseRead = (): void => {
+      throw new Error('Read gate was not initialized')
+    }
+    let signalRead = (): void => {
+      throw new Error('Read signal was not initialized')
+    }
     const readGate = new Promise<void>(resolve => {
       releaseRead = resolve
     })
@@ -414,8 +432,9 @@ describe('MongoLiveObserver', () => {
     })
     await observer.start()
     blockReads = true
-    documents.set(ids[3].toHexString(), {
-      _id: ids[3],
+    const changedId = required(ids[3], 'changed id')
+    documents.set(changedId.toHexString(), {
+      _id: changedId,
       owner: 'owner-1',
       name: 'X',
       score: 5,
@@ -424,7 +443,7 @@ describe('MongoLiveObserver', () => {
     await source.emit({
       type: 'change',
       sequence: 1,
-      id: ids[3],
+      id: changedId,
       deleted: false,
     })
     await readStarted
@@ -432,12 +451,12 @@ describe('MongoLiveObserver', () => {
       await source.emit({
         type: 'change',
         sequence,
-        id: ids[3],
+        id: changedId,
         deleted: false,
       })
     }
     blockReads = false
-    releaseRead?.()
+    releaseRead()
     await waitFor(() => reads >= 3)
     await new Promise(resolve => setTimeout(resolve, 5))
 
@@ -459,8 +478,12 @@ describe('MongoLiveObserver', () => {
       ],
     ])
     let blockReads = false
-    let releaseRead: (() => void) | null = null
-    let signalRead: (() => void) | null = null
+    let releaseRead = (): void => {
+      throw new Error('Read gate was not initialized')
+    }
+    let signalRead = (): void => {
+      throw new Error('Read signal was not initialized')
+    }
     const readGate = new Promise<void>(resolve => {
       releaseRead = resolve
     })
@@ -474,7 +497,7 @@ describe('MongoLiveObserver', () => {
       generation: 'generation-1',
       collection: createOrderedCollection(documents, async () => {
         if (blockReads) {
-          signalRead?.()
+          signalRead()
           await readGate
         }
       }),
@@ -509,7 +532,7 @@ describe('MongoLiveObserver', () => {
     expect(staleCount).toBe(1)
 
     blockReads = false
-    releaseRead?.()
+    releaseRead()
     await observer.stop()
   })
 })
@@ -520,6 +543,14 @@ async function waitFor(predicate: () => boolean): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 1))
   }
   throw new Error('timed out waiting for observer')
+}
+
+function required<T>(value: T | null | undefined, label: string): T {
+  if (value === null || value === undefined) {
+    throw new Error(`Expected ${label}`)
+  }
+
+  return value
 }
 
 function readNames(
