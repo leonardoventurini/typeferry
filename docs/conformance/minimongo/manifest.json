@@ -1,0 +1,7 @@
+{
+  "meteorRelease": "3.5.2",
+  "minimongoPackageVersion": "2.2.0",
+  "meteorCommit": "4e310085974a245837eefec3326e9012edc20309",
+  "scope": "documented-public-behavior",
+  "source": "https://github.com/meteor/meteor/tree/4e310085974a245837eefec3326e9012edc20309/packages/minimongo"
+}
