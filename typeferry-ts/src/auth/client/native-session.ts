@@ -42,12 +42,14 @@ function readCallback(value: string, expected: URL, state: string): string {
   const callback = new URL(value)
   const codes = callback.searchParams.getAll('code')
   const states = callback.searchParams.getAll('state')
+  const code = codes[0]
+  const callbackState = states[0]
 
-  if (callback.protocol !== expected.protocol || callback.host !== expected.host || callback.pathname !== expected.pathname || callback.username || callback.password || callback.hash || codes.length !== 1 || states.length !== 1 || states[0] !== state || !/^[A-Za-z0-9_-]{43}$/.test(codes[0]) || callback.searchParams.has('error')) {
+  if (callback.protocol !== expected.protocol || callback.host !== expected.host || callback.pathname !== expected.pathname || callback.username || callback.password || callback.hash || codes.length !== 1 || states.length !== 1 || callbackState !== state || code === undefined || !/^[A-Za-z0-9_-]{43}$/.test(code) || callback.searchParams.has('error')) {
     throw new Error('Invalid native authentication callback')
   }
 
-  return codes[0]
+  return code
 }
 
 function isAccessSession(value: unknown): value is NativeAccessSession {

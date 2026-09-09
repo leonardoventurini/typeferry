@@ -10,7 +10,7 @@ import type { Client } from './client'
 import { LogLevel } from './logger'
 import { resolveBackendOrigins } from './backend-origin'
 
-type Resolve<T = unknown> = (value: T) => void
+type Resolve<T> = (value: T | PromiseLike<T>) => void
 type Reject = (reason?: unknown) => void
 
 /**
@@ -77,9 +77,9 @@ export class ClientHttp {
     return safe
   }
 
-  async request(
-    payload: Record<string, any>,
-    resolve: Resolve,
+  async request<TResult = unknown>(
+    payload: Record<string, unknown>,
+    resolve: Resolve<TResult> | null,
     reject: Reject,
   ) {
     try {
@@ -130,7 +130,9 @@ export class ClientHttp {
 
       const response = await data.text()
 
-      const decoded = Presentation.decode(response)
+      const decoded = Presentation.decode<
+        Presentation.Payload & { result: TResult }
+      >(response)
 
       this.client.emit(ClientEvents.INBOUND_MESSAGE, decoded)
 

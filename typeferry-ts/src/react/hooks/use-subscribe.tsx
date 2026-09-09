@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 
-import type { AnyFunction } from '../../utils'
 import { NO_CHANNEL } from '../../utils'
+import type { EventListener } from '../../utils/event-emitter'
 import { useClient } from './use-client'
 import { useCreation } from './use-creation'
 
@@ -11,11 +11,11 @@ type UseSubscribeParams = {
   active?: boolean
 }
 
-export function useSubscribe(
+export function useSubscribe<TArguments extends unknown[] = unknown[]>(
   { event, channel = NO_CHANNEL, active = true }: UseSubscribeParams,
-  callback: AnyFunction = null,
-  deps: any[] = [],
-) {
+  callback?: (...args: TArguments) => unknown,
+  deps: readonly unknown[] = [],
+): boolean {
   if (typeof event !== 'string') {
     throw new Error('event name is required')
   }
@@ -27,29 +27,31 @@ export function useSubscribe(
   const client = useClient()
   const [ready, setReady] = useState(false)
 
-  const _channel = useCreation(() => client.channel(channel), [client, channel])
+  const _channel = useCreation(
+    () => client?.channel(channel) ?? null,
+    [client, channel],
+  )
 
   useEffect(() => {
-    if (!callback) return
-    if (!active) return
+    if (!callback || !active || !_channel) return
 
-    const events = _channel._events?.[event] as AnyFunction[] | AnyFunction
+    const events = _channel._events[event]
 
     const isAlreadyRegistered =
       events === callback ||
       (Array.isArray(events) && events.includes(callback))
 
     if (!isAlreadyRegistered) {
-      _channel.on(event, callback)
+      _channel.on(event, callback as EventListener)
     }
 
     return () => {
-      _channel.off(event, callback)
+      _channel.off(event, callback as EventListener)
     }
-  }, [event, channel, callback, active].concat(deps))
+  }, [event, channel, callback, active, ...deps])
 
   useEffect(() => {
-    if (!active) return
+    if (!active || !_channel) return
 
     _channel
       .subscribe(event)
@@ -60,7 +62,12 @@ export function useSubscribe(
       // Prevent unsubscribing too early due to simple re-rendering
       setTimeout(() => {
         // Only unsubscribe if there are no other listeners
-        if (!_channel._events[event]?.length) {
+        const listeners = _channel._events[event]
+        const hasListeners = Array.isArray(listeners)
+          ? listeners.length > 0
+          : listeners !== undefined
+
+        if (!hasListeners) {
           _channel.unsubscribe(event).catch(console.error)
         }
       }, 1000)

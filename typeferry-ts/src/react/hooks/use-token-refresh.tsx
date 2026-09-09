@@ -31,7 +31,7 @@ export function useTokenRefresh(config?: Partial<TokenRefreshConfig>): void {
   }, [config])
 
   useEffect(() => {
-    if (!authenticated) {
+    if (!authenticated || !client) {
       return
     }
 

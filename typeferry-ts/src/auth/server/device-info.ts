@@ -30,21 +30,21 @@ export function parseDeviceInfo(req: RequestLike): DeviceInfo {
   const ip = getIpFromRequest(req)
 
   if (!uaString) {
-    return { ip }
+    return ip === undefined ? {} : { ip }
   }
 
   const parser = new UAParser(uaString)
   const result = parser.getResult()
 
   return {
-    ip,
+    ...(ip === undefined ? {} : { ip }),
     userAgent: uaString,
-    browser: result.browser.name
-      ? `${result.browser.name} ${result.browser.version || ''}`.trim()
-      : undefined,
-    os: result.os.name
-      ? `${result.os.name} ${result.os.version || ''}`.trim()
-      : undefined,
+    ...(result.browser.name
+      ? { browser: `${result.browser.name} ${result.browser.version || ''}`.trim() }
+      : {}),
+    ...(result.os.name
+      ? { os: `${result.os.name} ${result.os.version || ''}`.trim() }
+      : {}),
     deviceType: mapDeviceType(result.device.type),
   }
 }
@@ -61,7 +61,9 @@ function getIpFromRequest(req: RequestLike): string | undefined {
 /**
  * Map UA parser device type to our DeviceInfo type.
  */
-function mapDeviceType(type?: string): DeviceInfo['deviceType'] {
+function mapDeviceType(
+  type?: string,
+): NonNullable<DeviceInfo['deviceType']> {
   if (!type) return 'desktop'
   if (type === 'mobile') return 'mobile'
   if (type === 'tablet') return 'tablet'

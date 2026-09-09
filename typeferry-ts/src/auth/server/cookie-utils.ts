@@ -116,15 +116,17 @@ export function getRefreshTokenFromRequest(
     new RegExp(`(?:^|;\\s*)${escapedName}=([^;]*)`),
   )
 
-  if (!match) {
+  const value = match?.[1]
+
+  if (value === undefined) {
     return undefined
   }
 
   // URL-decode the cookie value (matches our encoding in setRefreshTokenCookie)
   try {
-    return decodeURIComponent(match[1])
+    return decodeURIComponent(value)
   } catch {
     // If decode fails, return raw value (backwards compatibility)
-    return match[1]
+    return value
   }
 }

@@ -15,10 +15,10 @@ export type UseEventParams =
  * Supports both string shorthand (`"eventName"`) and object config.
  * The `active` flag (default `true`) controls whether the subscription is live.
  */
-export function useLocalEvent(
+export function useLocalEvent<TArguments extends unknown[] = unknown[]>(
   params: UseEventParams,
-  fn: (...args: unknown[]) => void,
-  deps: unknown[] = [],
+  fn: (...args: TArguments) => void,
+  deps: readonly unknown[] = [],
 ): void {
   const {
     event,
@@ -30,12 +30,12 @@ export function useLocalEvent(
   const client = useClient()
 
   const ch = useCreation(
-    () => (typeof channel === 'string' ? client.channel(channel) : client),
-    [channel],
+    () => (client && typeof channel === 'string' ? client.channel(channel) : client),
+    [channel, client],
   )
 
   useEffect(() => {
-    if (!active) return
+    if (!active || !ch) return
 
     ch.on(event, callback)
 
@@ -45,14 +45,14 @@ export function useLocalEvent(
   }, [event, active, callback, ch])
 }
 
-export function useRemoteEvent(
+export function useRemoteEvent<TArguments extends unknown[] = unknown[]>(
   {
     event,
     channel = NO_CHANNEL,
     active = true,
   }: Exclude<UseEventParams, string>,
-  fn: (...args: unknown[]) => void,
-  deps: unknown[] = [],
+  fn: (...args: TArguments) => void,
+  deps: readonly unknown[] = [],
 ): boolean {
   return useSubscribe(
     {

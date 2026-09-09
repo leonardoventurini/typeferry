@@ -1,17 +1,39 @@
 import memoizee from 'memoizee'
-import { useCallback } from 'react'
+import { useMemo } from 'react'
 
+import type { Client } from '../../client'
 import { EJSON } from '../../ejson'
+import type { CallOptions } from '../../utils'
 
-export const useCaller = ({ client, cache, maxAge }) => {
-  return useCallback(
-    cache
-      ? memoizee(client?.call, {
-          maxAge,
-          promise: true,
-          normalizer: p => EJSON.stringify(p),
-        })
-      : client?.call,
-    [cache, client],
-  )
+export interface MethodCaller {
+  call(
+    thisArgument: Client,
+    method: string,
+    params?: unknown,
+    options?: CallOptions,
+  ): Promise<unknown>
+}
+
+interface UseCallerOptions {
+  readonly client: Client | null
+  readonly cache: boolean
+  readonly maxAge: number
+}
+
+export function useCaller({
+  client,
+  cache,
+  maxAge,
+}: UseCallerOptions): MethodCaller | undefined {
+  return useMemo(() => {
+    if (!client) return undefined
+
+    if (!cache) return client.call
+
+    return memoizee(client.call, {
+      maxAge,
+      promise: true,
+      normalizer: (parameters: unknown[]) => EJSON.stringify(parameters),
+    })
+  }, [cache, client, maxAge])
 }

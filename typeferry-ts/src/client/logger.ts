@@ -121,13 +121,7 @@ export class TypeFerryLogger {
     context?: Record<string, unknown>,
     error?: Error,
   ): void {
-    this.log({
-      level,
-      category: LogCategory.CONNECTION,
-      message,
-      context,
-      error,
-    })
+    this.logCategory(LogCategory.CONNECTION, level, message, context, error)
   }
 
   auth(
@@ -136,7 +130,7 @@ export class TypeFerryLogger {
     context?: Record<string, unknown>,
     error?: Error,
   ): void {
-    this.log({ level, category: LogCategory.AUTH, message, context, error })
+    this.logCategory(LogCategory.AUTH, level, message, context, error)
   }
 
   method(
@@ -145,7 +139,7 @@ export class TypeFerryLogger {
     context?: Record<string, unknown>,
     error?: Error,
   ): void {
-    this.log({ level, category: LogCategory.METHOD, message, context, error })
+    this.logCategory(LogCategory.METHOD, level, message, context, error)
   }
 
   subscription(
@@ -154,13 +148,7 @@ export class TypeFerryLogger {
     context?: Record<string, unknown>,
     error?: Error,
   ): void {
-    this.log({
-      level,
-      category: LogCategory.SUBSCRIPTION,
-      message,
-      context,
-      error,
-    })
+    this.logCategory(LogCategory.SUBSCRIPTION, level, message, context, error)
   }
 
   channel(
@@ -169,7 +157,23 @@ export class TypeFerryLogger {
     context?: Record<string, unknown>,
     error?: Error,
   ): void {
-    this.log({ level, category: LogCategory.CHANNEL, message, context, error })
+    this.logCategory(LogCategory.CHANNEL, level, message, context, error)
+  }
+
+  private logCategory(
+    category: LogCategory,
+    level: LogLevel,
+    message: string,
+    context: Record<string, unknown> | undefined,
+    error: Error | undefined,
+  ): void {
+    this.log({
+      level,
+      category,
+      message,
+      ...(context === undefined ? {} : { context }),
+      ...(error === undefined ? {} : { error }),
+    })
   }
 }
 

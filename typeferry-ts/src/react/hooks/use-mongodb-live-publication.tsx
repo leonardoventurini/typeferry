@@ -45,6 +45,9 @@ export function useMongoLivePublication<
   readonly resync: () => Promise<void>
 } {
   const client = useClient()
+
+  if (!client) throw new Error('Client Not Found')
+
   const argsKey = EJSON.stringify(options.args, { canonical: true })
   const view = useMemo(
     () =>

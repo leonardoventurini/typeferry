@@ -10,10 +10,14 @@ import { useThrottledEvents } from './use-throttled-events'
  */
 export function useAuth() {
   const client = useClient()
-  const [authenticated, setAuthenticated] = useState(() => client.authenticated)
-  const [context, setContext] = useState(() => client.context)
+  const [authenticated, setAuthenticated] = useState(
+    () => client?.authenticated ?? false,
+  )
+  const [context, setContext] = useState(() => client?.context ?? {})
 
   const updateState = useCallback(() => {
+    if (!client) return
+
     setAuthenticated(client.authenticated)
     setContext(client.context)
   }, [client])

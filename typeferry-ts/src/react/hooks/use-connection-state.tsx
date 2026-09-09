@@ -20,6 +20,8 @@ export function useConnectionState() {
   const [isReconnecting, setReconnecting] = useState(false)
 
   const updateConnectionState = useCallback(() => {
+    if (!client) return
+
     setOffline(client.isOffline)
     setOnline(client.isOnline)
     setConnecting(client.isConnecting)

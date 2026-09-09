@@ -5,12 +5,12 @@ import type { ClientOptions } from '../../client'
 import { Client } from '../../client'
 import { useCreation } from '../hooks/use-creation'
 
-export const ClientContext = React.createContext(undefined)
+export const ClientContext = React.createContext<Client | undefined>(undefined)
 
 ClientContext.displayName = 'TypeFerryClientContext'
 
 export const ClientProvider = ({
-  clientInstance = null,
+  clientInstance,
   clientOptions,
   children,
 }: PropsWithChildren<{

@@ -45,7 +45,7 @@ export class InMemorySessionManager implements SessionManager {
       familyId,
       token,
       expiration,
-      deviceInfo,
+      ...(deviceInfo === undefined ? {} : { deviceInfo }),
     }
 
     this.sessions.set(token, session)
@@ -178,7 +178,7 @@ export class InMemorySessionManager implements SessionManager {
       familyId: session.familyId,
       token: newToken,
       expiration,
-      deviceInfo,
+      ...(deviceInfo === undefined ? {} : { deviceInfo }),
     }
 
     // Mark old token as replaced and record when

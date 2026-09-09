@@ -2,6 +2,7 @@ import { useGoogleLogin } from '@react-oauth/google'
 import { useCallback } from 'react'
 
 import { useClient } from '../../../react/hooks/use-client'
+import type { NativeAccessSession } from '../native-session'
 
 export interface UseGoogleLoginOptions {
   /**
@@ -62,6 +63,8 @@ export function useTypeFerryGoogleLogin(
   const login = useGoogleLogin({
     onSuccess: async ({ code }) => {
       try {
+        if (!client) throw new Error('Client Not Found')
+
         let extraParams: Record<string, unknown> = {}
 
         if (beforeServerCall) {
@@ -70,7 +73,10 @@ export function useTypeFerryGoogleLogin(
           extraParams = result
         }
 
-        const { token, exp, iat } = await client.call(
+        const { token, exp, iat } = await client.call<
+          Record<string, unknown>,
+          NativeAccessSession
+        >(
           method,
           { code, ...extraParams },
           { http: true },

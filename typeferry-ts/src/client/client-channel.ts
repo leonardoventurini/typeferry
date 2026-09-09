@@ -1,18 +1,14 @@
 import { isEmpty } from '../utils/lodash'
 import EventEmitter2 from '../utils/event-emitter'
 
-import type { AnyFunction } from '../utils'
 import { TypeFerryEvents, createIterator, Methods } from '../utils'
 import type { Client } from './client'
 import { LogLevel } from './logger'
 
 export class ClientChannel extends EventEmitter2 {
-  client: Client
+  client: Client | undefined
   name: string
   events: Set<string> = new Set()
-
-  // Built-in from EventEmitter2
-  declare _events?: Record<string, AnyFunction | AnyFunction[]>
 
   constructor(name: string) {
     super({
@@ -37,6 +33,7 @@ export class ClientChannel extends EventEmitter2 {
    * lookups don't crash with "Cannot read properties of null".
    */
   async commitPendingSubscriptions(): Promise<void> {
+    const client = this.requireClient()
     const channel = this.name
     const allEvents = Array.from(this.pendingSubscriptions)
     this.pendingSubscriptions.clear()
@@ -45,7 +42,7 @@ export class ClientChannel extends EventEmitter2 {
       let result: Record<string, boolean> = {}
       try {
         result =
-          (await this.client.call(Methods.RPC_ON, {
+          (await client.call(Methods.RPC_ON, {
             events: allEvents,
             channel,
           })) ?? {}
@@ -84,7 +81,7 @@ export class ClientChannel extends EventEmitter2 {
 
       return result
     } catch (error) {
-      this.client.logger.subscription(
+      this.requireClient().logger.subscription(
         LogLevel.ERROR,
         'Failed to commit subscriptions',
         { channel: this.name, events: Array.from(this.events) },
@@ -98,6 +95,7 @@ export class ClientChannel extends EventEmitter2 {
   private unsubscribeDebounceTimeout?: NodeJS.Timeout
 
   async commitPendingUnsubscriptions() {
+    const client = this.requireClient()
     const channel = this.name
     const allEvents = Array.from(this.pendingUnsubscriptions)
     this.pendingUnsubscriptions.clear()
@@ -106,7 +104,7 @@ export class ClientChannel extends EventEmitter2 {
       let result = null
 
       try {
-        result = await this.client.call(Methods.RPC_OFF, {
+        result = await client.call(Methods.RPC_OFF, {
           events: allEvents,
           channel,
         })
@@ -146,7 +144,7 @@ export class ClientChannel extends EventEmitter2 {
 
       return result
     } catch (error) {
-      this.client.logger.subscription(
+      this.requireClient().logger.subscription(
         LogLevel.ERROR,
         'Failed to commit unsubscriptions',
         { channel: this.name, events: Array.from(this.events) },
@@ -195,5 +193,11 @@ export class ClientChannel extends EventEmitter2 {
 
   iterator(event: string) {
     return createIterator(this, event)
+  }
+
+  private requireClient(): Client {
+    if (!this.client) throw new Error('the channel needs an attached client')
+
+    return this.client
   }
 }

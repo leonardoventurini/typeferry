@@ -28,7 +28,7 @@ import { logger, LogLevel } from './logger'
 import { VisibilityManager } from './visibility-manager'
 type Timeout = ReturnType<typeof setTimeout>
 
-export type ErrorHandler = (error: Record<string, any>) => any
+export type ErrorHandler = (error: unknown) => unknown
 
 export type WebSocketOptions = {
   path?: string
@@ -40,8 +40,7 @@ export type WebSocketOptions = {
 }
 
 export type WebSocketRequestParams = {
-  [x: string]: any
-  [x: number]: any
+  [key: string]: unknown
 }
 
 export type ClientOptions = {
@@ -69,7 +68,7 @@ export type ClientOptions = {
   /** Log level for the client (default: WARN) */
   logLevel?: LogLevel
   allowedContextKeys?: string[]
-  meta?: Record<string, any>
+  meta?: Record<string, unknown>
   idlenessTimeout?: number
   /**
    * Initial context to set before the first WebSocket connection.
@@ -80,8 +79,8 @@ export type ClientOptions = {
 }
 
 export type ProxyMethodCall = { [key: string]: ProxyMethodCall } & (<
-  T = any,
-  R = any,
+  T = unknown,
+  R = unknown,
 >(
   params?: MethodParams<T>,
   options?: CallOptions,
@@ -99,7 +98,7 @@ export class Client<
   clientSocket: ClientSocket
   clientHttp: ClientHttp
   contextManager: ContextManager
-  errorHandler: ErrorHandler
+  errorHandler: ErrorHandler | undefined
 
   channels: Map<string, ClientChannel> = new Map()
 
@@ -112,7 +111,6 @@ export class Client<
   options: ClientOptions = {
     host: 'localhost',
     secure: false,
-    errorHandler: null,
     debug: false,
     logLevel: LogLevel.WARN,
     allowedContextKeys: [],
@@ -122,7 +120,7 @@ export class Client<
   /** Logger instance for this client */
   logger: TypeFerryLogger = logger
 
-  initializing: boolean
+  initializing = false
 
   visibilityManager: VisibilityManager
   idleTimer: IdleTimer | null = null
@@ -149,6 +147,7 @@ export class Client<
     this.setClient(this)
 
     this.options = merge(this.options, options)
+    this.errorHandler = this.options.errorHandler
 
     const storage =
       typeof localStorage !== 'undefined' ? localStorage : undefined
@@ -374,7 +373,7 @@ export class Client<
   /**
    * Calls a method without expecting a return value (fire-and-forget).
    */
-  void<T = any>(
+  void<T = unknown>(
     method: string,
     params?: MethodParams<T>,
     { http, httpFallback = true }: CallOptions = {},
@@ -420,7 +419,7 @@ export class Client<
    */
   private async executeCall<R>(
     method: string,
-    params: any,
+    params: unknown,
     http: boolean,
     httpFallback: boolean,
     timeout: number,
@@ -432,7 +431,7 @@ export class Client<
       return new Promise((resolve, reject) => {
         const uuid = Presentation.uuid()
         const payload = { uuid, type: PayloadType.METHOD, method, params }
-        this.clientHttp.request(payload, resolve, reject)
+        this.clientHttp.request<R>(payload, resolve, reject)
       })
     }
 
@@ -446,7 +445,7 @@ export class Client<
     } catch (error) {
       // Pass through errorHandler if configured
       if (this.errorHandler) {
-        this.errorHandler(error as Error)
+        this.errorHandler(error)
       }
       throw error
     }
@@ -454,7 +453,7 @@ export class Client<
 
   private static readonly DEFAULT_CALL_OPTIONS = {
     timeout: 20000,
-    http: undefined as boolean | undefined,
+    http: false,
     httpFallback: true,
     ignoreInit: false,
     maxRetries: 0,
@@ -467,10 +466,10 @@ export class Client<
 
   private async retryCall<R>(
     method: string,
-    params: any,
+    params: unknown,
     opts: ReturnType<typeof this.normalizeCallOptions>,
   ): Promise<R> {
-    let lastError: any
+    let lastError: unknown
 
     for (let attempt = 0; attempt <= opts.maxRetries; attempt++) {
       try {
@@ -497,9 +496,11 @@ export class Client<
         )
       }
     }
+
+    throw lastError ?? new Error('TypeFerry method call did not execute')
   }
 
-  async call<P = Record<string, any>, R = any>(
+  async call<P = Record<string, unknown>, R = unknown>(
     method: string,
     params?: P,
     options?: CallOptions,
@@ -522,24 +523,35 @@ export class Client<
 
   /** Handles subscription events from the server. */
   handleEvent(payload: Presentation.Payload) {
+    if (typeof payload.channel !== 'string' || typeof payload.event !== 'string') {
+      throw new TypeError('Invalid event payload')
+    }
+
     this.emit(ClientEvents.INBOUND_MESSAGE, payload)
     this.logger.channel(LogLevel.DEBUG, 'Event received', {
       channel: payload.channel,
       event: payload.event,
     })
-    return this.channel(payload.channel).emit(payload.event, payload.params)
+    const channel = this.channel(payload.channel)
+
+    if (!channel) throw new TypeError('Invalid event channel')
+
+    return channel.emit(payload.event, payload.params)
   }
 
   /**
    * Generates a URL path from string parts. The last argument can be a query
    * string object definition.
    */
-  href(...path: (string | Record<string, any>)[]) {
+  href(...path: (string | Parameters<typeof qs.stringify>[0])[]) {
     let queryString = ''
 
     if (isPlainObject(path.at(-1))) {
       const params = path.pop()
-      queryString = '?'.concat(qs.stringify(params as any))
+
+      if (params !== undefined && typeof params !== 'string') {
+        queryString = '?'.concat(qs.stringify(params))
+      }
     }
 
     if (path.some(isPlainObject))
@@ -565,7 +577,8 @@ export class Client<
 
     const channelName = name as string
 
-    if (this.channels.has(channelName)) return this.channels.get(channelName)
+    const existing = this.channels.get(channelName)
+    if (existing) return existing
 
     const channel = new ClientChannel(channelName)
     channel.setClient(this)
@@ -583,13 +596,17 @@ export class Client<
     })
   }
 
-  fetch(url: string, options: Record<string, unknown> = {}): Promise<Response> {
+  fetch(url: string, options: RequestInit = {}): Promise<Response> {
+    const optionHeaders = new Headers(options.headers)
+    const headers = Object.fromEntries(optionHeaders.entries())
+    const token = this.context.token
+
+    if (typeof token === 'string') headers[TOKEN_HEADER_KEY] = token
+
     return fetch(url, {
-      credentials: 'include' as const,
-      headers: {
-        [TOKEN_HEADER_KEY]: this.context.token,
-      },
       ...options,
+      credentials: 'include',
+      headers,
     })
   }
 }

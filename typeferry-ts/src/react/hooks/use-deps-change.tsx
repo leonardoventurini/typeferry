@@ -1,7 +1,10 @@
 import { useRef } from 'react'
 
-export function useDepsChange(deps, data = {}) {
-  const prevDeps = useRef([])
+export function useDepsChange(
+  deps: readonly unknown[],
+  data: unknown = {},
+): void {
+  const prevDeps = useRef<readonly unknown[]>([])
 
   deps.forEach((value, index) => {
     if (prevDeps.current[index] !== value) {

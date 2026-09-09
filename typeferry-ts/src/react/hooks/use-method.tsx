@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useDebouncedCallback } from 'use-debounce'
 
 import type { CallOptions } from '../../utils'
+import type { Client } from '../../client'
 import { TypeFerryEvents, ClientEvents, NO_CHANNEL } from '../../utils'
 import { useCaller } from './use-caller'
 import { useCircuitBreaker } from './use-circuit-breaker'
@@ -12,27 +13,30 @@ import { useMethodRefresh } from './use-method-refresh'
 // eslint-disable-next-line @typescript-eslint/no-empty-function
 const noop = (): void => {}
 
-export type UseMethodParams = {
+export type UseMethodParams<TParams = unknown, TResult = unknown> = {
   method?: string
-  params?: any
+  params?: TParams
   event?: string
   channel?: string
-  defaultValue?: any
+  defaultValue?: TResult
   cache?: boolean
   maxAge?: number
   timeout?: number
-  deps?: any[]
+  deps?: readonly unknown[]
   authenticated?: boolean
   debounced?: number
   lazy?: boolean
   http?: boolean
-  parse?(params: any): any
+  parse?(params: TParams): TResult | undefined
   required?: string[]
 } & CallOptions
 
-function useOptimistic(result: any, setResult: (value: any) => void) {
+function useOptimistic(
+  result: unknown,
+  setResult: (value: unknown) => void,
+) {
   return useCallback(
-    cb => {
+    (cb: (current: unknown) => unknown) => {
       if (typeof cb !== 'function') throw new Error('Function Expected')
       const simulatedResult = cb(result)
       setResult(simulatedResult)
@@ -79,11 +83,15 @@ function useLogoutHandler(authenticated: boolean, refreshCallback: () => void) {
 
 function useMethodRefreshEvent(
   channel: string,
-  method: string,
+  method: string | undefined,
   refreshCallback: () => void,
 ) {
   useRemoteEvent(
-    { event: TypeFerryEvents.METHOD_REFRESH, channel },
+    {
+      event: TypeFerryEvents.METHOD_REFRESH,
+      channel,
+      active: method !== undefined,
+    },
     (refreshMethod: string) => {
       if (refreshMethod === method) refreshCallback()
     },
@@ -92,11 +100,11 @@ function useMethodRefreshEvent(
 }
 
 function useAutoRefresh(
-  method: string,
-  client: any,
+  method: string | undefined,
+  client: Client | null,
   lazy: boolean,
   refreshCallback: () => void,
-  params: any,
+  params: unknown,
   debounced: number | null,
 ) {
   useEffect(() => {
@@ -118,21 +126,25 @@ function useEventSubscriptions(
   authenticated: boolean,
   setLoading: (v: boolean) => void,
   refreshCallback: () => void,
-  event: string | null,
+  event: string | undefined,
   channel: string,
-  method: string,
+  method: string | undefined,
 ) {
   useInitializingHandler(authenticated, setLoading)
   useInitializedHandler(authenticated, refreshCallback)
   useLogoutHandler(authenticated, refreshCallback)
-  useLocalEvent({ event, channel }, refreshCallback, [refreshCallback])
+  useLocalEvent(
+    { event: event ?? '', channel, active: event !== undefined },
+    refreshCallback,
+    [refreshCallback],
+  )
   useMethodRefreshEvent(channel, method, refreshCallback)
 }
 
 const DEFAULT_OPTIONS = {
-  method: null,
+  method: undefined,
   params: undefined,
-  event: null,
+  event: undefined,
   channel: NO_CHANNEL,
   defaultValue: null,
   cache: false,
@@ -150,8 +162,8 @@ function normalizeOptions(options: UseMethodParams) {
 }
 
 function useMethodState(lazy: boolean) {
-  const [error, setError] = useState(null)
-  const [result, setResult] = useState(null)
+  const [error, setError] = useState<unknown>(null)
+  const [result, setResult] = useState<unknown>(null)
   const [loading, setLoading] = useState(!lazy)
   return { error, setError, result, setResult, loading, setLoading }
 }

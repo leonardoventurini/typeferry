@@ -1,6 +1,29 @@
+import type { Dispatch, SetStateAction } from 'react'
 import { useCallback } from 'react'
 
-export const useMethodRefresh = ({
+import type { Client } from '../../client'
+import type { CallOptions } from '../../utils'
+import type { MethodCaller } from './use-caller'
+
+type StartLoading = (() => void) & { cancel(): void }
+
+interface UseMethodRefreshOptions {
+  readonly authenticated: boolean
+  readonly caller: MethodCaller | undefined
+  readonly client: Client | null
+  readonly params: unknown
+  readonly method: string | undefined
+  readonly setError: Dispatch<SetStateAction<unknown>>
+  readonly setLoading: Dispatch<SetStateAction<boolean>>
+  readonly setResult: Dispatch<SetStateAction<unknown>>
+  readonly shouldCall: boolean
+  readonly startLoading: StartLoading
+  readonly methodOptions: CallOptions
+  readonly defaultValue: unknown
+  readonly deps: readonly unknown[]
+}
+
+export function useMethodRefresh({
   authenticated,
   caller,
   client,
@@ -14,12 +37,10 @@ export const useMethodRefresh = ({
   methodOptions,
   defaultValue,
   deps,
-}) => {
+}: UseMethodRefreshOptions): (callback?: () => void) => void {
   return useCallback(
-    (callback?) => {
-      if (!method) return
-      if (!shouldCall) return
-      if (!caller) return
+    (callback?: () => void) => {
+      if (!method || !shouldCall || !caller || !client) return
 
       if (authenticated && !client.authenticated) {
         setLoading(false)
@@ -29,18 +50,14 @@ export const useMethodRefresh = ({
 
       startLoading()
 
-      let successful = false
-
-      caller
-        .call(client, method, params, methodOptions)
-        .then(_result => {
-          setResult(_result)
+      caller.call(client, method, params, methodOptions)
+        .then(result => {
+          setResult(result)
           setError(undefined)
-          successful = true
         })
-        .catch(e => {
-          console.error(e)
-          setError(e)
+        .catch((error: unknown) => {
+          console.error(error)
+          setError(error)
           setResult(undefined)
         })
         .finally(() => {
@@ -50,16 +67,19 @@ export const useMethodRefresh = ({
         })
     },
     [
+      authenticated,
+      caller,
       client,
-      method,
-      params,
-      setResult,
-      setLoading,
-      setError,
-      client?.authenticated,
       defaultValue,
-      ...Object.values(methodOptions),
-      ...deps,
+      deps,
+      method,
+      methodOptions,
+      params,
+      setError,
+      setLoading,
+      setResult,
+      shouldCall,
+      startLoading,
     ],
   )
 }

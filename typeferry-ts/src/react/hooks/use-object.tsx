@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import { useCreation } from './use-creation'
 
-export function useLastChangedTimestamp(obj) {
+export function useLastChangedTimestamp(obj: unknown): number {
   const [timestamp, setTimestamp] = useState(() => Date.now())
 
   const previousObj = useRef(obj)
@@ -21,7 +21,7 @@ export function useLastChangedTimestamp(obj) {
   return timestamp
 }
 
-export function useObject(currentObject: Record<string, any>) {
+export function useObject<T extends object>(currentObject: T): T {
   const timestamp = useLastChangedTimestamp(currentObject)
 
   return useCreation(() => currentObject, [timestamp])

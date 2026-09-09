@@ -42,19 +42,23 @@ export class GoogleOAuthProvider implements OAuthProvider {
   async exchangeCode(code: string): Promise<OAuthUserProfile> {
     const { tokens } = await this.client.getToken(code)
 
-    const ticket = await this.client.verifyIdToken({
-      idToken: tokens.id_token!,
-    })
+    if (!tokens.id_token) throw new Error('Google did not return an ID token')
 
-    const payload = ticket.getPayload()!
+    const ticket = await this.client.verifyIdToken({ idToken: tokens.id_token })
+
+    const payload = ticket.getPayload()
+
+    if (!payload?.sub) throw new Error('Google ID token has no subject')
 
     return {
       providerId: payload.sub,
       provider: this.name,
-      email: payload.email,
-      emailVerified: payload.email_verified,
-      name: payload.name,
-      picture: payload.picture,
+      ...(payload.email === undefined ? {} : { email: payload.email }),
+      ...(payload.email_verified === undefined
+        ? {}
+        : { emailVerified: payload.email_verified }),
+      ...(payload.name === undefined ? {} : { name: payload.name }),
+      ...(payload.picture === undefined ? {} : { picture: payload.picture }),
       raw: payload as unknown as Record<string, unknown>,
     }
   }

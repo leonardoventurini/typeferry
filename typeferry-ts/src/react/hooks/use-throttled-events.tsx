@@ -10,10 +10,10 @@ type ThrottleOptions = {
 }
 
 export function useThrottledEvents(
-  emitter: EventEmitter2,
-  events: string[],
-  callback: (...args: any[]) => void,
-  deps: any[] = [],
+  emitter: EventEmitter2 | null,
+  events: readonly string[],
+  callback: (...args: unknown[]) => void,
+  deps: readonly unknown[] = [],
   throttleMs = 1000,
   throttleOptions?: ThrottleOptions,
 ) {
@@ -21,6 +21,8 @@ export function useThrottledEvents(
   const _callback = useCreation(() => callback, deps)
 
   useEffect(() => {
+    if (!emitter) return
+
     return onAllThrottled(
       emitter,
       _events,
