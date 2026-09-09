@@ -2,6 +2,7 @@ import type { MinimongoComponents } from './components'
 import type { ChangeCallbacks } from './diff'
 import { Matcher } from './matcher'
 import type { Sorter } from './sorter'
+import { wrapTransform } from './transform'
 import type {
   FindOptions,
   MaterializedDocument,
@@ -10,6 +11,7 @@ import type {
   ObserveChangesCallbacks,
   ObserveHandle,
   Selector,
+  TransformedDocument,
 } from './types'
 
 export interface CursorCollection<TDocument extends object> {
@@ -41,11 +43,11 @@ function validateObserveCallbacks<TDocument>(callbacks: ObserveCallbacks<TDocume
 /** A lazily evaluated, observable query over one LocalCollection. */
 export class Cursor<
   TDocument extends object,
-  TOutput = TDocument,
-> implements Iterable<TOutput>, AsyncIterable<TOutput> {
+  TOutput extends object = TDocument,
+> implements Iterable<TransformedDocument<TDocument, TOutput>>, AsyncIterable<TransformedDocument<TDocument, TOutput>> {
   readonly matcher: Matcher<TDocument>
   private readonly projection: (document: TDocument) => TDocument
-  private readonly transform: ((document: TDocument) => TOutput) | undefined
+  private readonly transform: ((document: TDocument) => TransformedDocument<TDocument, TOutput>) | undefined
   private readonly sorter: Sorter<TDocument> | undefined
   private readonly skip: number
   private readonly limit: number | undefined
@@ -65,7 +67,7 @@ export class Cursor<
         ? collection.components.query.sorter([], options.collation)
         : undefined
     this.projection = collection.components.query.projection(options.projection ?? options.fields)
-    this.transform = options.transform ?? undefined
+    this.transform = wrapTransform(options.transform, collection.components.values)
     this.skip = options.skip ?? 0
     this.limit = options.limit
   }
@@ -78,20 +80,20 @@ export class Cursor<
     return Promise.resolve(this.count())
   }
 
-  fetch(): TOutput[] {
+  fetch(): TransformedDocument<TDocument, TOutput>[] {
     return this.rawDocuments().map(document => this.outputDocument(document))
   }
 
-  fetchAsync(): Promise<TOutput[]> {
+  fetchAsync(): Promise<TransformedDocument<TDocument, TOutput>[]> {
     return Promise.resolve(this.fetch())
   }
 
-  forEach(callback: (document: TOutput, index: number, cursor: this) => void, thisArg?: unknown): void {
+  forEach(callback: (document: TransformedDocument<TDocument, TOutput>, index: number, cursor: this) => void, thisArg?: unknown): void {
     this.fetch().forEach((document, index) => callback.call(thisArg, document, index, this))
   }
 
   async forEachAsync(
-    callback: (document: TOutput, index: number, cursor: this) => void | Promise<void>,
+    callback: (document: TransformedDocument<TDocument, TOutput>, index: number, cursor: this) => void | Promise<void>,
     thisArg?: unknown,
   ): Promise<void> {
     let index = 0
@@ -101,12 +103,12 @@ export class Cursor<
     }
   }
 
-  map<TResult>(callback: (document: TOutput, index: number, cursor: this) => TResult, thisArg?: unknown): TResult[] {
+  map<TResult>(callback: (document: TransformedDocument<TDocument, TOutput>, index: number, cursor: this) => TResult, thisArg?: unknown): TResult[] {
     return this.fetch().map((document, index) => callback.call(thisArg, document, index, this))
   }
 
   async mapAsync<TResult>(
-    callback: (document: TOutput, index: number, cursor: this) => TResult | Promise<TResult>,
+    callback: (document: TransformedDocument<TDocument, TOutput>, index: number, cursor: this) => TResult | Promise<TResult>,
     thisArg?: unknown,
   ): Promise<TResult[]> {
     const result: TResult[] = []
@@ -117,18 +119,20 @@ export class Cursor<
     return result
   }
 
-  getTransform(): ((document: TDocument) => TOutput) | undefined {
+  getTransform(): ((document: TDocument) => TransformedDocument<TDocument, TOutput>) | undefined {
     return this.transform
   }
 
-  observe(callbacks: ObserveCallbacks<TOutput>): ObserveHandle {
+  observe(callbacks: ObserveCallbacks<TransformedDocument<TDocument, TOutput>>): ObserveHandle {
     const ordered = validateObserveCallbacks(callbacks)
     const documents = new Map<string, TDocument>()
     const order: MinimongoId[] = []
     const codec = this.collection.components.identities
     const values = this.collection.components.values
-    const transformed = (document: TDocument): TOutput =>
-      this.transform ? this.transform(values.clone(document)) : values.clone(document) as unknown as TOutput
+    const transformed = (document: TDocument): TransformedDocument<TDocument, TOutput> =>
+      this.transform
+        ? this.transform(values.clone(document))
+        : values.clone(document) as unknown as TransformedDocument<TDocument, TOutput>
     const materialized = (
       id: MinimongoId,
       fields: Partial<Omit<TDocument, '_id'>>,
@@ -215,7 +219,7 @@ export class Cursor<
     return this.observeChanges(changeCallbacks)
   }
 
-  observeAsync(callbacks: ObserveCallbacks<TOutput>): Promise<ObserveHandle> {
+  observeAsync(callbacks: ObserveCallbacks<TransformedDocument<TDocument, TOutput>>): Promise<ObserveHandle> {
     return Promise.resolve(this.observe(callbacks))
   }
 
@@ -294,11 +298,11 @@ export class Cursor<
     return handle
   }
 
-  [Symbol.iterator](): Iterator<TOutput> {
+  [Symbol.iterator](): Iterator<TransformedDocument<TDocument, TOutput>> {
     return this.fetch()[Symbol.iterator]()
   }
 
-  [Symbol.asyncIterator](): AsyncIterator<TOutput> {
+  [Symbol.asyncIterator](): AsyncIterator<TransformedDocument<TDocument, TOutput>> {
     const iterator = this[Symbol.iterator]()
 
     return {
@@ -324,15 +328,17 @@ export class Cursor<
     return this.rawDocuments().map(document => this.projection(document))
   }
 
-  private outputDocument(document: TDocument): TOutput {
+  private outputDocument(document: TDocument): TransformedDocument<TDocument, TOutput> {
     const projected = this.projection(document)
 
-    return this.transform ? this.transform(projected) : projected as unknown as TOutput
+    return this.transform
+      ? this.transform(projected)
+      : projected as unknown as TransformedDocument<TDocument, TOutput>
   }
 }
 
 export type CollectionCursor<
   TSchema extends object,
   TId extends MinimongoId,
-  TOutput = MaterializedDocument<TSchema, TId>,
+  TOutput extends object = MaterializedDocument<TSchema, TId>,
 > = Cursor<MaterializedDocument<TSchema, TId>, TOutput>

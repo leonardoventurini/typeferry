@@ -35,6 +35,7 @@ const transformed = tasks.find({}, {
   transform: document => ({ id: document._id, label: document.title }),
 }).fetch()
 const transformedId: string = transformed[0]!.id
+const restoredId: string = transformed[0]!._id
 
 tasks.find().observeChanges({
   added(id, fields) {
@@ -58,3 +59,4 @@ tasks.find({}, { projection: { title: 2 } })
 
 void task
 void transformedId
+void restoredId

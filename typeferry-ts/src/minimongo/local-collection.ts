@@ -61,7 +61,7 @@ export class LocalCollection<
     return this.paused
   }
 
-  find<TOutput = Stored<TSchema, TId>>(
+  find<TOutput extends object = Stored<TSchema, TId>>(
     selector?: Selector<Stored<TSchema, TId>>,
     options: FindOptions<Stored<TSchema, TId>, TOutput> = {},
   ): Cursor<Stored<TSchema, TId>, TOutput> {
@@ -70,7 +70,7 @@ export class LocalCollection<
     return new Cursor(this, effectiveSelector, options)
   }
 
-  findOne<TOutput = Stored<TSchema, TId>>(
+  findOne<TOutput extends object = Stored<TSchema, TId>>(
     selector?: Selector<Stored<TSchema, TId>>,
     options: FindOptions<Stored<TSchema, TId>, TOutput> = {},
   ): TOutput | undefined {
@@ -79,7 +79,7 @@ export class LocalCollection<
     return this.find(effectiveSelector, { ...options, limit: 1 }).fetch()[0]
   }
 
-  findOneAsync<TOutput = Stored<TSchema, TId>>(
+  findOneAsync<TOutput extends object = Stored<TSchema, TId>>(
     selector?: Selector<Stored<TSchema, TId>>,
     options: FindOptions<Stored<TSchema, TId>, TOutput> = {},
   ): Promise<TOutput | undefined> {

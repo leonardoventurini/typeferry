@@ -38,13 +38,13 @@ describe('LocalCollection and Cursor', () => {
         skip: 1,
         limit: 1,
         projection: { title: 1 },
-        transform: document => document.title.toUpperCase(),
+        transform: document => ({ label: document.title.toUpperCase() }),
       },
     )
 
-    expect(cursor.fetch()).toEqual(['THIRD'])
-    expect([...cursor]).toEqual(['THIRD'])
-    expect(await cursor.mapAsync(value => value.length)).toEqual([5])
+    expect(cursor.fetch()).toEqual([{ _id: 'c', label: 'THIRD' }])
+    expect([...cursor]).toEqual([{ _id: 'c', label: 'THIRD' }])
+    expect(await cursor.mapAsync(value => value.label.length)).toEqual([5])
     expect(await collection.countDocuments({ done: false })).toBe(2)
   })
 
@@ -99,8 +99,8 @@ describe('LocalCollection and Cursor', () => {
     collection.update('a', { $set: { title: 'Changed' } })
 
     expect(events).toEqual([
-      ['added', { label: 'FIRST' }],
-      ['changed', { label: 'CHANGED' }, { label: 'FIRST' }],
+      ['added', { _id: 'a', label: 'FIRST' }],
+      ['changed', { _id: 'a', label: 'CHANGED' }, { _id: 'a', label: 'FIRST' }],
     ])
   })
 

@@ -3,6 +3,7 @@ export { Cursor, type CollectionCursor, type CursorCollection } from './cursor'
 export { Matcher, isIdSelector } from './matcher'
 export { Sorter } from './sorter'
 export { ObjectID, looksLikeObjectID } from './object-id'
+export { wrapTransform } from './transform'
 export { MiniMongoQueryError, MinimongoError } from './errors'
 export { MemoryDocumentStore, type DocumentStore, type DocumentStoreFactory } from './document-store'
 export { meteorIdentityCodec, type IdentityCodec } from './identity'
@@ -41,6 +42,7 @@ export type {
   SortDirection,
   SortSpecifier,
   StringSelector,
+  TransformedDocument,
   UpdateOptions,
   UpsertResult,
   ValueAtPath,

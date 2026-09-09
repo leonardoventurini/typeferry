@@ -7,6 +7,12 @@ export type MaterializedDocument<
   TId extends MinimongoId = MinimongoId,
 > = Omit<TSchema, '_id'> & { _id: TId }
 
+/** Result of a transform after Minimongo restores the source identity. */
+export type TransformedDocument<TDocument extends object, TOutput extends object> =
+  TOutput & {
+    _id: TDocument extends { _id: infer TId } ? TId : unknown
+  }
+
 /** Input accepted when inserting a document. */
 export type InsertDocument<
   TSchema extends object,
@@ -172,7 +178,7 @@ export interface CollationOptions {
   readonly backwards?: boolean
 }
 
-export interface FindOptions<TDocument extends object, TOutput = TDocument> {
+export interface FindOptions<TDocument extends object, TOutput extends object = TDocument> {
   readonly sort?: SortSpecifier<TDocument>
   readonly skip?: number
   readonly limit?: number

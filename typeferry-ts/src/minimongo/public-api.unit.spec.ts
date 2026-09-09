@@ -37,4 +37,18 @@ describe('Minimongo public API', () => {
 
     expect(diff).toHaveBeenCalledOnce()
   })
+
+  it('enforces identity-preserving object transforms', () => {
+    const collection = new LocalCollection<{ value: number }, string>()
+    collection.insert({ _id: 'one', value: 1 })
+
+    expect(collection.find({}, { transform: () => ({ label: 'ok' }) }).fetch())
+      .toEqual([{ _id: 'one', label: 'ok' }])
+    expect(() => collection.find({}, {
+      transform: () => ({ _id: 'other', label: 'bad' }),
+    }).fetch()).toThrow('transformed document can\'t have different _id')
+    expect(() => collection.find({}, {
+      transform: (() => 'bad') as never,
+    }).fetch()).toThrow('transform must return object')
+  })
 })
