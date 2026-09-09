@@ -128,6 +128,19 @@ describe('Meteor 3.5.2 compatibility corpus', () => {
       .getComparator()).map(value => value._id)).toEqual(['b', 'c', 'a'])
     expect([...documents].sort(new Sorter<typeof documents[number]>((left, right) =>
       right._id.localeCompare(left._id)).getComparator()).map(value => value._id)).toEqual(['c', 'b', 'a'])
+
+    const correlated = [
+      { _id: 'one', rows: [{ x: 0, y: 5 }, { x: 1, y: 3 }] },
+      { _id: 'two', rows: [{ x: 0, y: 4 }] },
+    ]
+    expect([...correlated].sort(new Sorter({ 'rows.x': 1, 'rows.y': 1 })
+      .getComparator()).map(value => value._id)).toEqual(['two', 'one'])
+    expect(() => new Sorter({ first: 1, second: 1 }).getComparator()(
+      { first: [1, 2], second: [2] },
+      { first: [2], second: [1] },
+    )).toThrow('cannot index parallel arrays')
+    expect(() => new Sorter({ '': 1 })).toThrow('sort keys must be non-empty')
+    expect(() => new Sorter({ $natural: 1 })).toThrow('unsupported sort key: $natural')
   })
 
   it('covers every supported mutation operator in deterministic batches', () => {
