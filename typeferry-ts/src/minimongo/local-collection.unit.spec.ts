@@ -166,8 +166,57 @@ describe('LocalCollection and Cursor', () => {
       title: 'Invalid',
       done: false,
       rank: 1,
-      nested: { 'bad.key': true },
-    } as never)).toThrow("Key bad.key must not contain '.'")
+      nested: { '.bad': true },
+    } as never)).toThrow("Key .bad must not start or end with '.'")
+  })
+
+  it('tracks async observer readiness and awaits callbacks for async mutations', async () => {
+    const collection = new LocalCollection<Task, string>()
+    collection.insert({ _id: 'a', title: 'First', done: false, rank: 1 })
+    const deliveries: string[] = []
+    let releaseInitial: (() => void) | undefined
+
+    const handle = collection.find().observeChanges({
+      added: async id => {
+        deliveries.push(`start:${String(id)}`)
+        await new Promise<void>(resolve => {
+          releaseInitial = resolve
+        })
+        deliveries.push(`end:${String(id)}`)
+      },
+    })
+    expect(handle.isReady).toBe(false)
+    releaseInitial?.()
+    await handle.isReadyPromise
+    expect(handle.isReady).toBe(true)
+
+    const insertion = collection.insertAsync({ _id: 'b', title: 'Second', done: false, rank: 2 })
+    await Promise.resolve()
+    expect(deliveries).toContain('start:b')
+    releaseInitial?.()
+    await insertion
+    expect(deliveries).toContain('end:b')
+  })
+
+  it('suppresses projected-out changes and supports mutations from callbacks', () => {
+    const collection = new LocalCollection<Task, string>()
+    const events: string[] = []
+    collection.insert({ _id: 'a', title: 'First', done: false, rank: 1 })
+
+    collection.find({}, { projection: { title: 1 } }).observeChanges({
+      added: id => {
+        events.push(`added:${String(id)}`)
+        if (id === 'b') {
+          collection.insert({ _id: 'c', title: 'Third', done: false, rank: 3 })
+        }
+      },
+      changed: id => events.push(`changed:${String(id)}`),
+    })
+    events.length = 0
+    collection.update('a', { $set: { rank: 2 } })
+    collection.insert({ _id: 'b', title: 'Second', done: false, rank: 2 })
+
+    expect(events).toEqual(['added:b', 'added:c'])
   })
 })
 

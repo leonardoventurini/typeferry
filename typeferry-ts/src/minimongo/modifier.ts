@@ -12,6 +12,22 @@ export interface ModifyOptions {
   readonly now?: () => Date
 }
 
+const INVALID_FIELD_NAME_MESSAGES = {
+  dollar: "start with '$'",
+  dot: "start or end with '.'",
+  doubleDot: 'contain consecutive dots',
+  nullByte: 'contain null bytes',
+} as const
+
+function invalidFieldNameReason(key: string): string | undefined {
+  if (key.startsWith('$')) return INVALID_FIELD_NAME_MESSAGES.dollar
+  if (key.startsWith('.') || key.endsWith('.')) return INVALID_FIELD_NAME_MESSAGES.dot
+  if (key.includes('..')) return INVALID_FIELD_NAME_MESSAGES.doubleDot
+  if (key.includes('\0')) return INVALID_FIELD_NAME_MESSAGES.nullByte
+
+  return undefined
+}
+
 export function assertValidFieldNames(value: unknown): void {
   if (Array.isArray(value)) {
     value.forEach(assertValidFieldNames)
@@ -21,9 +37,8 @@ export function assertValidFieldNames(value: unknown): void {
   if (!isPlainObject(value)) return
 
   for (const [key, child] of Object.entries(value)) {
-    if (key.startsWith('$')) throw new MinimongoError(`Key ${key} must not start with '$'`)
-    if (key.includes('\0')) throw new MinimongoError(`Key ${key} must not contain an embedded null byte`)
-    if (key.includes('.')) throw new MinimongoError(`Key ${key} must not contain '.'`)
+    const reason = invalidFieldNameReason(key)
+    if (reason) throw new MinimongoError(`Key ${key} must not ${reason}`)
     assertValidFieldNames(child)
   }
 }

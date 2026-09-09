@@ -112,6 +112,18 @@ function distance(left: readonly [number, number], right: readonly [number, numb
   return Math.hypot(left[0] - right[0], left[1] - right[1])
 }
 
+function geoJsonDistance(left: readonly [number, number], right: readonly [number, number]): number {
+  const radians = (degrees: number): number => degrees * Math.PI / 180
+  const latitude = radians(right[1] - left[1])
+  const longitude = radians(right[0] - left[0])
+  const haversine = Math.sin(latitude / 2) ** 2
+    + Math.cos(radians(left[1])) * Math.cos(radians(right[1]))
+    * Math.sin(longitude / 2) ** 2
+  const arc = 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine))
+
+  return 6_371_000 * arc
+}
+
 /** Compiles and evaluates Meteor-compatible Minimongo selectors. */
 export class Matcher<TDocument extends object = Record<string, unknown>> {
   private readonly paths = new Set<string>()
@@ -424,7 +436,8 @@ export class Matcher<TDocument extends object = Record<string, unknown>> {
     if (operator === '$near') {
       if (!isRoot) throw new MiniMongoQueryError('$near can\'t be inside another $ operator')
       this.geoQuery = true
-      const geometry = isPlainObject(operand) && Object.hasOwn(operand, '$geometry')
+      const isGeoJson = isPlainObject(operand) && Object.hasOwn(operand, '$geometry')
+      const geometry = isGeoJson
         ? operand.$geometry
         : operand
       const origin = point(geometry)
@@ -441,7 +454,11 @@ export class Matcher<TDocument extends object = Record<string, unknown>> {
         for (const branch of expandArrays(branches)) {
           const candidate = point(branch.value)
           if (!candidate) continue
-          const current = this.isUpdate ? undefined : distance(origin, candidate)
+          const current = this.isUpdate
+            ? undefined
+            : isGeoJson
+              ? geoJsonDistance(origin, candidate)
+              : distance(origin, candidate)
           if (this.isUpdate || (current !== undefined && current <= maxDistance && (nearest === undefined || current < nearest))) {
             nearest = current
             indices = branch.arrayIndices

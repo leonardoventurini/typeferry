@@ -73,6 +73,17 @@ describe('Meteor 3.5.2 compatibility corpus', () => {
       arrayIndices: [1],
     })
     expect(near.documentMatches({ location: [4, 0] }).result).toBe(false)
+
+    const geoJson = new Matcher({
+      location: {
+        $near: {
+          $geometry: { type: 'Point', coordinates: [0, 0] },
+          $maxDistance: 120_000,
+        },
+      },
+    }).documentMatches({ location: { type: 'Point', coordinates: [0, 1] } })
+    expect(geoJson.result).toBe(true)
+    expect(geoJson.distance).toBeCloseTo(111_194.9266, 3)
   })
 
   it('matches exact rejection behavior for malformed selector operands', () => {
