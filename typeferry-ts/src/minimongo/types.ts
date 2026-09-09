@@ -228,6 +228,5 @@ export interface ObserveChangesCallbacks<TDocument extends object> {
 export interface MatchResult {
   readonly result: boolean
   readonly distance?: number
-  readonly arrayIndices?: readonly number[]
+  readonly arrayIndices?: readonly (number | 'x')[]
 }
-

@@ -80,7 +80,8 @@ function equalValues(
 }
 
 const TYPE_ORDER = new Map<string, number>([
-  ['undefined', 0],
+  ['undefined', -1],
+  ['null', 0],
   ['number', 1],
   ['string', 2],
   ['object', 3],
@@ -89,8 +90,7 @@ const TYPE_ORDER = new Map<string, number>([
   ['objectId', 6],
   ['boolean', 7],
   ['date', 8],
-  ['null', 9],
-  ['regexp', 10],
+  ['regexp', 9],
 ])
 
 function valueType(value: unknown): string {
