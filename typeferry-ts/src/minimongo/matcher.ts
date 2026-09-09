@@ -125,7 +125,7 @@ function geoJsonDistance(left: readonly [number, number], right: readonly [numbe
 }
 
 /** Compiles and evaluates Meteor-compatible Minimongo selectors. */
-export class Matcher<TDocument extends object = Record<string, unknown>> {
+export class Matcher<TDocument extends object = object> {
   private readonly paths = new Set<string>()
   private readonly documentMatcher: DocumentMatcher
   private readonly collator: Intl.Collator | undefined

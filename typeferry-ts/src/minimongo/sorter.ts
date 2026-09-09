@@ -53,7 +53,7 @@ function createCollator(options?: CollationOptions): Intl.Collator | undefined {
 }
 
 /** Compiles Meteor-compatible sort specifications into document comparators. */
-export class Sorter<TDocument extends object = Record<string, unknown>> {
+export class Sorter<TDocument extends object = object> {
   private readonly parts: readonly SortPart[]
   private readonly functionComparator: ((left: TDocument, right: TDocument) => number) | undefined
   private readonly collator: Intl.Collator | undefined

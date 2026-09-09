@@ -22,7 +22,7 @@ export class MemoryDocumentStore<TId, TDocument> implements DocumentStore<TId, T
   private readonly identities = new Map<string, TId>()
 
   constructor(
-    private readonly codec: IdentityCodec<TId>,
+    private readonly codec: IdentityCodec<unknown>,
     private readonly values: ValueSemantics,
   ) {}
 
@@ -72,4 +72,3 @@ export class MemoryDocumentStore<TId, TDocument> implements DocumentStore<TId, T
     return result
   }
 }
-

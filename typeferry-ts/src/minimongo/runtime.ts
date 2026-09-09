@@ -33,7 +33,7 @@ export function createMinimongo(
     }
   }
 
-  class RuntimeMatcher<TDocument extends object = Record<string, unknown>>
+  class RuntimeMatcher<TDocument extends object = object>
     extends Matcher<TDocument> {
     constructor(
       selector: Selector<TDocument> | unknown,
@@ -50,7 +50,7 @@ export function createMinimongo(
     }
   }
 
-  class RuntimeSorter<TDocument extends object = Record<string, unknown>>
+  class RuntimeSorter<TDocument extends object = object>
     extends Sorter<TDocument> {
     constructor(
       sort: SortSpecifier<TDocument> | unknown,

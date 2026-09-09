@@ -13,6 +13,10 @@ const PACKAGE_DIR = path.join(ROOT_DIR, "typeferry-ts");
 const SOURCE_DIR = path.join(PACKAGE_DIR, "src");
 const PACKAGE_JSON_PATH = path.join(PACKAGE_DIR, "package.json");
 const ALLOWED_ROOT_FILES = new Set(["README.md", "package.json"]);
+const REQUIRED_DIST_ASSETS = new Set([
+  "dist/minimongo/NOTICE.md",
+  "dist/minimongo/README.md",
+]);
 const ALLOWED_DIST_FILE = /^dist\/.+\.(?:d\.ts|js|js\.map)$/;
 const RETIRED_PATH_PREFIX = "dist/lit/";
 
@@ -118,6 +122,7 @@ async function validatePackageFiles(manifest, fileEntries) {
   for (const packagePath of packageFiles) {
     const isAllowed =
       ALLOWED_ROOT_FILES.has(packagePath) ||
+      REQUIRED_DIST_ASSETS.has(packagePath) ||
       ALLOWED_DIST_FILE.test(packagePath);
 
     assert(isAllowed, `unexpected package file: ${packagePath}`);
@@ -179,7 +184,10 @@ async function validatePackageFiles(manifest, fileEntries) {
 }
 
 async function collectExpectedPackageFiles() {
-  const expectedFiles = new Set(ALLOWED_ROOT_FILES);
+  const expectedFiles = new Set([
+    ...ALLOWED_ROOT_FILES,
+    ...REQUIRED_DIST_ASSETS,
+  ]);
   const sourcePaths = await readdir(SOURCE_DIR, { recursive: true });
 
   for (const sourcePath of sourcePaths) {

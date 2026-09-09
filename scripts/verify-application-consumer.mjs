@@ -66,7 +66,7 @@ async function writeFixture(applicationRoot, packageFile) {
             build: 'typeferry build',
             test: 'typeferry test unit',
             'runtime-smoke':
-              'node -e "Promise.all([import(\'typeferry/client\'), import(\'typeferry/server\'), import(\'typeferry/ejson\')])"',
+              'node -e "Promise.all([import(\'typeferry/client\'), import(\'typeferry/server\'), import(\'typeferry/ejson\'), import(\'typeferry/minimongo\')])"',
           },
           dependencies: {
             [EXTERNAL_PACKAGE]: '^3.1.3',
@@ -92,7 +92,7 @@ async function writeFixture(applicationRoot, packageFile) {
     ],
     [
       'test/application.unit.spec.ts',
-      "import { expect, it } from 'typeferry/test'\n\nit('runs', () => expect(true).toBe(true))\n",
+      "import { LocalCollection } from 'typeferry/minimongo'\nimport { expect, it } from 'typeferry/test'\n\nit('runs the packaged Minimongo export', () => {\n  const collection = new LocalCollection<{ name: string }>()\n  collection.insert({ name: 'TypeFerry' })\n\n  expect(collection.findOne({ name: 'TypeFerry' })?.name).toBe('TypeFerry')\n})\n",
     ],
   ])
 
