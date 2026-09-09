@@ -3,6 +3,7 @@ import { Cursor, type CursorCollection } from './cursor'
 import type { DocumentStore } from './document-store'
 import { MinimongoError } from './errors'
 import { assertMinimongoId } from './identity'
+import { assertValidFieldNames } from './modifier'
 import { ObjectID } from './object-id'
 import type {
   FindOptions,
@@ -148,13 +149,15 @@ export class LocalCollection<
   update(
     selector: Selector<Stored<TSchema, TId>>,
     modifier: Modifier<Stored<TSchema, TId>> | Partial<Stored<TSchema, TId>>,
-    options: UpdateOptions<TId> = {},
+    options: UpdateOptions<TId> | MutationCallback<number | UpsertResult<TId>> = {},
     callback?: MutationCallback<number | UpsertResult<TId>>,
   ): number | UpsertResult<TId> {
-    const result = this.applyUpdate(selector, modifier, options)
+    const updateOptions = typeof options === 'function' ? {} : options
+    const updateCallback = typeof options === 'function' ? options : callback
+    const result = this.applyUpdate(selector, modifier, updateOptions)
 
     this.notifyObservers()
-    this.deferCallback(callback, result)
+    this.deferCallback(updateCallback, result)
 
     return result
   }
@@ -162,13 +165,15 @@ export class LocalCollection<
   async updateAsync(
     selector: Selector<Stored<TSchema, TId>>,
     modifier: Modifier<Stored<TSchema, TId>> | Partial<Stored<TSchema, TId>>,
-    options: UpdateOptions<TId> = {},
+    options: UpdateOptions<TId> | MutationCallback<number | UpsertResult<TId>> = {},
     callback?: MutationCallback<number | UpsertResult<TId>>,
   ): Promise<number | UpsertResult<TId>> {
-    const result = this.applyUpdate(selector, modifier, options)
+    const updateOptions = typeof options === 'function' ? {} : options
+    const updateCallback = typeof options === 'function' ? options : callback
+    const result = this.applyUpdate(selector, modifier, updateOptions)
 
     await this.notifyObserversAsync()
-    this.deferCallback(callback, result)
+    this.deferCallback(updateCallback, result)
 
     return result
   }
@@ -236,6 +241,7 @@ export class LocalCollection<
   }
 
   private prepareInsert(document: Record<string, unknown>): TId {
+    assertValidFieldNames(document)
     if (!Object.hasOwn(document, '_id')) {
       document['_id'] = LocalCollection._useOID
         ? new ObjectID()

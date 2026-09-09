@@ -154,6 +154,21 @@ describe('LocalCollection and Cursor', () => {
     await Promise.resolve()
     expect(callback).toHaveBeenCalledWith(null, 1)
   })
+
+  it('accepts callback-only updates and validates inserted field names', async () => {
+    const collection = createTasks()
+    const callback = vi.fn()
+
+    expect(collection.update('a', { $set: { title: 'Changed' } }, callback)).toBe(1)
+    await Promise.resolve()
+    expect(callback).toHaveBeenCalledWith(null, 1)
+    expect(() => collection.insert({
+      title: 'Invalid',
+      done: false,
+      rank: 1,
+      nested: { 'bad.key': true },
+    } as never)).toThrow("Key bad.key must not contain '.'")
+  })
 })
 
 function createTasks(): LocalCollection<Task, string> {

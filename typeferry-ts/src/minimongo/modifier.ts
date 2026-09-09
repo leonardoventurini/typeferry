@@ -1,5 +1,6 @@
 import { MinimongoError } from './errors'
 import { Matcher } from './matcher'
+import { ObjectID } from './object-id'
 import { isNumericKey, isOperatorObject, isPlainObject, setPath } from './path'
 import { Sorter } from './sorter'
 import type { Modifier } from './types'
@@ -11,7 +12,7 @@ export interface ModifyOptions {
   readonly now?: () => Date
 }
 
-function assertValidFieldNames(value: unknown): void {
+export function assertValidFieldNames(value: unknown): void {
   if (Array.isArray(value)) {
     value.forEach(assertValidFieldNames)
 
@@ -286,12 +287,17 @@ export function createUpsertDocument<TDocument extends Record<string, unknown>>(
   values: ValueSemantics = meteorValueSemantics,
 ): TDocument {
   const document: Record<string, unknown> = {}
-  if (typeof selector === 'string' || typeof selector === 'number') document._id = selector
+  if (typeof selector === 'string' || typeof selector === 'number' || selector instanceof ObjectID) {
+    document._id = selector
+  }
   else if (isPlainObject(selector)) {
     const populate = (value: Record<string, unknown>): void => {
       for (const [path, fieldValue] of Object.entries(value)) {
         if (path === '$and' && Array.isArray(fieldValue)) {
           for (const entry of fieldValue) if (isPlainObject(entry)) populate(entry)
+        } else if (path === '$or' && Array.isArray(fieldValue) && fieldValue.length === 1) {
+          const [entry] = fieldValue
+          if (isPlainObject(entry)) populate(entry)
         } else if (!path.startsWith('$')) {
           if (isPlainObject(fieldValue) && Object.hasOwn(fieldValue, '$eq')) setPath(document, path, values.clone(fieldValue.$eq))
           else if (!isOperatorObject(fieldValue)) setPath(document, path, values.clone(fieldValue))
