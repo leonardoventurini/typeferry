@@ -20,8 +20,9 @@ configuration containing only emission and production-file selection options.
   `useUnknownInCatchVariables`.
 - `typeferry-ts/tsconfig.minimongo.json` enables that strict profile only for
   `src/minimongo`.
-- Applying the profile to the package currently reports 387 errors across 92
-  files: 111 errors in production source and 276 in tests.
+- Applying the complete profile explicitly (including `noImplicitAny`, which
+  the current base config overrides) reports 527 errors across 119 files: 209
+  errors in production source and 318 in tests.
 - The standalone `template/` project already has its own strict configuration
   and must remain independently usable outside this repository.
 
