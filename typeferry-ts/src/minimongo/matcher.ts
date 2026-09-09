@@ -55,6 +55,7 @@ function createCollator(options?: CollationOptions | Intl.Collator): Intl.Collat
 }
 
 function regexMatches(regex: RegExp, value: unknown): boolean {
+  if (value instanceof RegExp) return value.toString() === regex.toString()
   if (typeof value !== 'string') return false
   regex.lastIndex = 0
 
@@ -62,7 +63,7 @@ function regexMatches(regex: RegExp, value: unknown): boolean {
 }
 
 function bitMask(operand: unknown, operator: string): Uint8Array {
-  if (Number.isInteger(operand) && Number(operand) >= 0) {
+  if (Number.isInteger(operand) && Number(operand) >= 0 && Number(operand) <= 0x7fffffff) {
     return new Uint8Array(new Int32Array([Number(operand)]).buffer)
   }
   if (operand instanceof Uint8Array) return operand
@@ -226,14 +227,37 @@ export class Matcher<TDocument extends object = Record<string, unknown>> {
       return document => ({ result: Boolean(predicate.call(document, document)) })
     }
     if (operator === '$comment') return () => ({ result: true })
-    if (!Array.isArray(operand)) throw new MiniMongoQueryError(`${operator} must be an array`)
+    if (!Array.isArray(operand) || operand.length === 0) {
+      throw new MiniMongoQueryError('$and/$or/$nor must be nonempty array')
+    }
     const entries = operand.map(value => {
       if (!isPlainObject(value)) throw new MiniMongoQueryError('$or/$and/$nor entries need to be full objects')
 
       return this.compileDocument(value, false)
     })
-    if (operator === '$and') return document => ({ result: entries.every(matcher => matcher(document).result) })
-    if (operator === '$or') return document => ({ result: entries.some(matcher => matcher(document).result) })
+    if (operator === '$and') {
+      return document => {
+        let distance: number | undefined
+        let arrayIndices: readonly (number | 'x')[] | undefined
+        for (const matcher of entries) {
+          const result = matcher(document)
+          if (!result.result) return { result: false }
+          if (distance === undefined && result.distance !== undefined) distance = result.distance
+          if (result.arrayIndices) arrayIndices = result.arrayIndices
+        }
+
+        return {
+          result: true,
+          ...(distance !== undefined ? { distance } : {}),
+          ...(arrayIndices ? { arrayIndices } : {}),
+        }
+      }
+    }
+    if (operator === '$or') {
+      if (entries.length === 1) return entries[0]!
+
+      return document => ({ result: entries.some(matcher => matcher(document).result) })
+    }
     if (operator === '$nor') return document => ({ result: entries.every(matcher => !matcher(document).result) })
 
     throw new MiniMongoQueryError(`Unrecognized logical operator: ${operator}`)
@@ -312,8 +336,11 @@ export class Matcher<TDocument extends object = Record<string, unknown>> {
       }
       const source = operand instanceof RegExp ? operand.source : operand
       const inheritedFlags = operand instanceof RegExp ? operand.flags : ''
-      const flags = typeof selector.$options === 'string' ? selector.$options : inheritedFlags
-      const regex = new RegExp(source, flags.replace(/[sx]/g, ''))
+      const flags = selector.$options === undefined ? inheritedFlags : String(selector.$options)
+      if (/[^gim]/.test(flags)) {
+        throw new MiniMongoQueryError('Only the i, m, and g regexp options are supported')
+      }
+      const regex = new RegExp(source, flags)
 
       return this.elementMatcher(value => regexMatches(regex, value))
     }
@@ -335,6 +362,8 @@ export class Matcher<TDocument extends object = Record<string, unknown>> {
       })
     }
     if (operator === '$elemMatch') {
+      if (!isPlainObject(operand)) throw new MiniMongoQueryError('$elemMatch need an object')
+
       return branches => {
         for (const branch of branches) {
           if (!Array.isArray(branch.value)) continue
@@ -362,8 +391,11 @@ export class Matcher<TDocument extends object = Record<string, unknown>> {
       const expected = typeof operand === 'string' ? TYPE_ALIASES.get(operand) : operand
       if (expected === undefined) throw new MiniMongoQueryError(`unknown string alias for $type: ${String(operand)}`)
       if (typeof expected !== 'number') throw new MiniMongoQueryError('argument to $type is not a number or a string')
+      if (expected === 0 || expected < -1 || (expected > 19 && expected !== 127)) {
+        throw new MiniMongoQueryError(`Invalid numerical $type code: ${expected}`)
+      }
 
-      return this.elementMatcher(value => value !== undefined && minimongoType(value) === expected, true)
+      return this.elementMatcher(value => value !== undefined && minimongoType(value) === expected, true, true)
     }
     if (operator.startsWith('$bits')) {
       const mask = bitMask(operand, operator)
@@ -371,12 +403,17 @@ export class Matcher<TDocument extends object = Record<string, unknown>> {
       return this.elementMatcher(value => {
         const candidate = valueMask(value, mask.length)
         if (!candidate) return false
-        const states = [...mask].map((byte, index) => ((candidate[index] ?? 0) & byte) === byte)
-        if (operator === '$bitsAllSet') return states.every(Boolean)
-        if (operator === '$bitsAnySet') return states.some(Boolean)
-        if (operator === '$bitsAllClear') return states.every(state => !state)
+        if (operator === '$bitsAllSet') {
+          return [...mask].every((byte, index) => ((candidate[index] ?? 0) & byte) === byte)
+        }
+        if (operator === '$bitsAnySet') {
+          return [...mask].some((byte, index) => ((candidate[index] ?? 0) & byte) !== 0)
+        }
+        if (operator === '$bitsAllClear') {
+          return [...mask].every((byte, index) => ((candidate[index] ?? 0) & byte) === 0)
+        }
 
-        return states.some(state => !state)
+        return [...mask].some((byte, index) => ((candidate[index] ?? 0) & byte) !== byte)
       })
     }
     if (operator === '$maxDistance') {
@@ -428,9 +465,10 @@ export class Matcher<TDocument extends object = Record<string, unknown>> {
   private elementMatcher(
     predicate: (value: unknown) => boolean,
     expand = true,
+    skipArrays = false,
   ): BranchMatcher {
     return branches => {
-      const candidates = expand ? expandArrays(branches) : branches
+      const candidates = expand ? expandArrays(branches, { skipArrays }) : branches
       const matched = candidates.find(branch => predicate(branch.value))
 
       return matched

@@ -61,6 +61,7 @@ describe('Meteor 3.5.2 compatibility corpus', () => {
     expect(matches({ value: { $type: 'double' } }, { value: 3 })).toBe(true)
     expect(matches({ value: { $type: 2 } }, { value: 'three' })).toBe(true)
     expect(matches({ value: { $bitsAllSet: [0, 2] } }, { value: 5 })).toBe(true)
+    expect(matches({ value: { $bitsAnySet: [0, 1] } }, { value: 1 })).toBe(true)
     expect(matches({ value: { $bitsAllClear: [1, 3] } }, { value: 5 })).toBe(true)
     expect(new Matcher({ name: 'ALPHA' }, false, { locale: 'en', strength: 1 })
       .documentMatches({ name: 'alpha' }).result).toBe(true)
@@ -72,6 +73,33 @@ describe('Meteor 3.5.2 compatibility corpus', () => {
       arrayIndices: [1],
     })
     expect(near.documentMatches({ location: [4, 0] }).result).toBe(false)
+  })
+
+  it('matches exact rejection behavior for malformed selector operands', () => {
+    for (const selector of [
+      { $and: [] },
+      { $or: 'invalid' },
+      { value: { $type: 0 } },
+      { value: { $type: 20 } },
+      { value: { $elemMatch: 1 } },
+      { value: { $regex: /x/, $options: 's' } },
+      { value: { $bitsAllSet: 0x80000000 } },
+    ]) {
+      expect(() => new Matcher(selector), JSON.stringify(selector)).toThrow()
+    }
+    expect(matches({ value: /x/ }, { value: /x/ })).toBe(true)
+    expect(matches({ value: /x/ }, { value: /x/i })).toBe(false)
+    expect(matches({ value: { $type: 4 } }, { value: [[]] })).toBe(true)
+    expect(matches({ value: { $type: 4 } }, { value: [] })).toBe(false)
+  })
+
+  it('preserves positional metadata through single-or and conjunction selectors', () => {
+    const document = { rows: [{ score: 1 }, { score: 5 }] }
+
+    expect(new Matcher({ $or: [{ rows: { $elemMatch: { score: 5 } } }] })
+      .documentMatches(document).arrayIndices).toEqual([1])
+    expect(new Matcher({ $and: [{ rows: { $elemMatch: { score: 5 } } }, { rows: { $exists: true } }] })
+      .documentMatches(document).arrayIndices).toEqual([1])
   })
 
   it('sorts scalar, array, nested, function, and collated values', () => {
