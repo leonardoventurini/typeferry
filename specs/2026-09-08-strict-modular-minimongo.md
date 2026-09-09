@@ -148,28 +148,28 @@ intermediate changes.
 
 Testing precedes each implementation slice.
 
-- [ ] A compatibility manifest pins Meteor 3.5.2, minimongo 2.2.0, and commit
+- [x] A compatibility manifest pins Meteor 3.5.2, minimongo 2.2.0, and commit
       `4e310085974a245837eefec3326e9012edc20309`.
-- [ ] Type-contract tests prove selector field/path inference, insertion with
+- [x] Type-contract tests prove selector field/path inference, insertion with
       optional `_id`, retrieved `_id`, projection and transform inference,
       observer payloads, and rejection of invalid field/operator values.
-- [ ] Procedurally generated, repository-owned fixtures cover scalar, nested,
+- [x] Procedurally generated, repository-owned fixtures cover scalar, nested,
       array, identity, selector, modifier, projection, sorting, and operation
       sequence behavior.
-- [ ] Runtime tests cover exact error names/messages and thrown-versus-rejected
+- [x] Runtime tests cover exact error names/messages and thrown-versus-rejected
       behavior.
-- [ ] Observer tests cover initial delivery, ordered moves, projected changes,
+- [x] Observer tests cover initial delivery, ordered moves, projected changes,
       pause/resume coalescing, callback ordering, readiness, stopping, and
       mutation from callbacks.
-- [ ] Port-contract tests run against the compatibility defaults and test
+- [x] Port-contract tests run against the compatibility defaults and test
       replacements.
-- [ ] Unit tests, browser tests, typecheck, lint, build, and consumer package
+- [x] Unit tests, browser tests, typecheck, lint, build, and consumer package
       verification pass.
-- [ ] `typeferry/minimongo` imports without MongoDB, React, or transport code.
-- [ ] Existing MongoDB live-view tests remain unchanged and pass.
-- [ ] The README publishes the compatibility baseline, supported matrix,
+- [x] `typeferry/minimongo` imports without MongoDB, React, or transport code.
+- [x] Existing MongoDB live-view tests remain unchanged and pass.
+- [x] The README publishes the compatibility baseline, supported matrix,
       upstream limitations, `$where` security option, and extension rules.
-- [ ] Derived code and documentation retain required MIT attribution.
+- [x] Derived code and documentation retain required MIT attribution.
 
 The repository's tests may not execute or copy another repository's test
 suite. Differential fixtures, if automated, must be owned and tracked here and
@@ -205,3 +205,29 @@ may invoke only a pinned Meteor runtime as an oracle.
 The feature ships as a new opt-in subpath. Existing imports and runtime paths
 do not change. Live-view integration remains a later independently specified
 rollout.
+
+## Verification record
+
+Executed on 2026-09-09:
+
+- The full TypeScript unit suite passed: 138 files and 1,678 tests.
+- The full browser suite passed: 3 files and 10 tests.
+- The focused Minimongo suites passed: 7 unit files with 41 tests and one
+  browser smoke test.
+- The repository TypeScript check, dedicated strict Minimongo type-contract
+  check, and ESLint check passed.
+- The production build, declaration/runtime export smoke check, and dependency
+  boundary scan passed. Generated Minimongo declarations contain no `any`, and
+  the subpath imports no MongoDB, React, or transport modules.
+- Package verification passed with 565 allowlisted files. A temporary consumer
+  installed the packed artifact, compiled and tested a typed `LocalCollection`,
+  built its application, and imported `typeferry/minimongo` at runtime.
+- The unchanged MongoDB live-view integration suite passed 4 tests against a
+  temporary local replica set. Redis integration also passed 4 tests against a
+  temporary local service. Both verification containers were removed.
+
+An initial unprovisioned run of the entire integration suite failed during
+environment setup because MongoDB and Redis were absent and the existing Python
+conformance server exited early. The task does not change protocol or
+cross-language behavior; the affected MongoDB live-view and Redis surfaces were
+rerun successfully with their required services.
