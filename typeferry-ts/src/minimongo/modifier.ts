@@ -205,10 +205,11 @@ function applyModifierOperator(
     if (current !== undefined && typeof current !== 'number') {
       throw new MinimongoError(`Cannot apply ${actualOperator} modifier to non-number`, { field: path })
     }
-    if (actualOperator === '$inc') writeField(target, current === undefined ? argument : current + argument)
-    if (actualOperator === '$mul') writeField(target, current === undefined ? 0 : current * argument)
-    if (actualOperator === '$min' && (current === undefined || current > argument)) writeField(target, argument)
-    if (actualOperator === '$max' && (current === undefined || current < argument)) writeField(target, argument)
+    const numericCurrent = current as number | undefined
+    if (actualOperator === '$inc') writeField(target, numericCurrent === undefined ? argument : numericCurrent + argument)
+    if (actualOperator === '$mul') writeField(target, numericCurrent === undefined ? 0 : numericCurrent * argument)
+    if (actualOperator === '$min' && (numericCurrent === undefined || numericCurrent > argument)) writeField(target, argument)
+    if (actualOperator === '$max' && (numericCurrent === undefined || numericCurrent < argument)) writeField(target, argument)
   } else if (actualOperator === '$currentDate') {
     if (argument !== true && (!isPlainObject(argument) || argument.$type !== 'date')) {
       throw new MinimongoError('Invalid $currentDate modifier', { field: path })
