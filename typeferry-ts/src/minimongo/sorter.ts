@@ -89,7 +89,10 @@ export class Sorter<TDocument extends object = Record<string, unknown>> {
   }
 
   private minKey(document: TDocument, path: string, isAscending: boolean): unknown {
-    const branches = expandArrays(lookupBranches(document, path, { forSort: true }))
+    const branches = expandArrays(
+      lookupBranches(document, path, { forSort: true }),
+      { skipArrays: true },
+    )
     if (branches.length === 0) return undefined
 
     return branches.slice(1).reduce(

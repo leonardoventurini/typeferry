@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { LocalCollection, Matcher, Minimongo, createMinimongo } from './index'
+import { LocalCollection, Matcher, Minimongo, ObjectID, createMinimongo } from './index'
 import { meteorValueSemantics } from './value-semantics'
 
 describe('Minimongo public API', () => {
@@ -49,6 +49,9 @@ describe('Minimongo public API', () => {
     }).fetch()).toThrow('transformed document can\'t have different _id')
     expect(() => collection.find({}, {
       transform: (() => 'bad') as never,
+    }).fetch()).toThrow('transform must return object')
+    expect(() => collection.find({}, {
+      transform: (() => new ObjectID()) as never,
     }).fetch()).toThrow('transform must return object')
   })
 })

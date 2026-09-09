@@ -6,10 +6,9 @@ export interface ValueBranch {
 
 export function isPlainObject(value: unknown): value is Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
+  const prototype = Object.getPrototypeOf(value) as object | null
 
-  return !(value instanceof Date)
-    && !(value instanceof RegExp)
-    && !(value instanceof Uint8Array)
+  return prototype === Object.prototype || prototype === null
 }
 
 export function isNumericKey(value: string): boolean {
