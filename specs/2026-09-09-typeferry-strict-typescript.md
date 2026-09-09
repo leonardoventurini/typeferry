@@ -85,20 +85,20 @@ then verified with its narrow runtime suite and a fresh strict diagnostic. New
 or corrected public declarations receive positive and negative compile-time
 contract cases before or alongside implementation changes.
 
-- [ ] Strict diagnostics are reduced to zero without forbidden suppressions or
+- [x] Strict diagnostics are reduced to zero without forbidden suppressions or
       newly introduced explicit `any`.
-- [ ] Public type corrections have compile-time contract coverage.
-- [ ] `tsconfig.json` owns the complete strict profile for all package source
+- [x] Public type corrections have compile-time contract coverage.
+- [x] `tsconfig.json` owns the complete strict profile for all package source
       and tests.
-- [ ] `tsconfig.minimongo.json` and `typecheck:minimongo` are removed.
-- [ ] `tsconfig.build.json` contains only build-specific differences and inherits
+- [x] `tsconfig.minimongo.json` and `typecheck:minimongo` are removed.
+- [x] `tsconfig.build.json` contains only build-specific differences and inherits
       all strictness options.
-- [ ] Existing runtime behavior remains covered by the affected unit suites.
-- [ ] Full unit, integration, and browser suites pass when their external
+- [x] Existing runtime behavior remains covered by the affected unit suites.
+- [x] Full unit, integration, and browser suites pass when their external
       prerequisites are available.
-- [ ] Lint, unified typecheck, production build, package verification, and
+- [x] Lint, unified typecheck, production build, package verification, and
       packed-consumer verification pass.
-- [ ] Documentation no longer describes Minimongo as having a separate compiler
+- [x] Documentation no longer describes Minimongo as having a separate compiler
       strictness tier.
 
 ## Implementation checklist
@@ -138,5 +138,27 @@ repository gate in the same commit that removes the redundant Minimongo config.
 
 ## Verification record
 
-To be completed after implementation with executed commands, skipped checks,
-environmental limitations, and residual uncertainty.
+Executed on 2026-09-09 with Node.js 24.19.0 and npm 11.17.0:
+
+- `npm run typecheck` passed against the single strict `tsconfig.json` with all
+  package source and tests included.
+- `npm run lint` passed.
+- The full unit suite passed: 138 files and 1,678 tests.
+- The full integration suite passed: 11 files and 51 tests, including MongoDB,
+  Redis, and Python cross-language coverage.
+- The browser suite passed: 3 files and 10 tests.
+- The production build passed while inheriting strictness from the base config.
+- Packed-consumer verification passed its application build, unit test, and
+  runtime import smoke test.
+- Package verification passed with 568 allowlisted files and a 292,626-byte
+  packed artifact.
+
+The first release-gate run found a stale Python virtual environment without the
+editable `typeferry-py` package. After installing the repository-declared
+`.[dev,all]` environment, the same gate passed completely. No checks were
+skipped.
+
+`npm audit --audit-level=low` remains non-green because the existing Hono
+version has three moderate advisories. Dependency remediation is outside this
+strictness change and requires a separately reviewed production-dependency
+update.
