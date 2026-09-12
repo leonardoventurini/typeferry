@@ -1,0 +1,3 @@
+module TypeFerry
+  VERSION: String
+end
