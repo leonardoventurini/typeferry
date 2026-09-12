@@ -227,6 +227,9 @@ module Base64
 end
 
 module JSON
+  class ParserError < StandardError
+  end
+
   class State
     def initialize: (**untyped) -> void
   end
@@ -242,4 +245,45 @@ end
 
 module SecureRandom
   def self.uuid: () -> String
+end
+
+module Rack
+  class Request
+    def self.new: (Hash[String, untyped]) -> Request
+    def path: () -> String
+    def post?: () -> bool
+    def ip: () -> String
+    def body: () -> IO
+    def get_header: (String name) -> untyped
+  end
+end
+
+module TypeFerry
+  module Transports
+    class RateLimit
+      attr_reader max: Integer
+      attr_reader window_ms: Integer
+      def initialize: (?Integer max, ?Integer window_ms) -> void
+    end
+
+    class SlidingWindowLimiter
+      @entries: Hash[String, Array[Integer]]
+
+      def initialize: (RateLimit limit, ?clock: Proc?) -> void
+      def consume: (String key) -> [bool, Integer, Integer]
+    end
+
+    class RackHTTP
+      CONTENT_TYPE: String
+      def initialize: (Server server, ?origins: Array[String]?, ?rate_limit: RateLimit?) -> void
+      def call: (Hash[String, untyped] environment) -> [Integer, Hash[String, String], Array[String]]
+      private
+      def dispatch: (untyped request) -> [Integer, Hash[String, String], Array[String]]
+      def decode: (String body) -> untyped
+      def build_node: (untyped request, untyped context) -> ClientNode
+      def error: (String message, ?uuid: String?, ?method: String?, ?errors: Array[String]?, ?void: bool) -> [Integer, Hash[String, String], Array[String]]
+      def response: (Integer status, String body, ?Array[[String, String]] headers) -> [Integer, Hash[String, String], Array[String]]
+      def rate_headers: (Integer remaining, Integer reset_ms) -> Array[[String, String]]
+    end
+  end
 end
