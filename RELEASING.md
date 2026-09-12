@@ -1,6 +1,6 @@
 # TypeFerry Release Status
 
-The TypeScript implementation is configured for operator-controlled publication to the public npm registry. Python and Rust publication remains disabled until their registry identities and workflows are approved separately.
+The TypeScript implementation is configured for operator-controlled publication to the public npm registry. Python, Rust, and Ruby publication remains disabled until their registry identities and workflows are approved separately.
 
 ## Registry Identities
 
@@ -9,6 +9,7 @@ The TypeScript implementation is configured for operator-controlled publication 
 | TypeScript     | `typeferry`                   | `0.12.0` | Unpublished candidate                    |
 | Python         | `typeferry-py`                |  `0.2.0` | Temporary identity; publication disabled |
 | Rust           | `typeferry` and `typeferry-*` |  `0.2.0` | Workspace publication disabled           |
+| Ruby           | `typeferry-rb`                |  `0.1.0` | Temporary identity; publication disabled |
 
 TypeFerry is published publicly on npm at `0.11.0`. The repository prepares
 `0.12.0` as an unpublished candidate adding generic iOS simulator discovery,
@@ -82,6 +83,7 @@ An npm version cannot be reused after publication. If a release is incorrect, de
 
 - `typeferry-py/pyproject.toml` retains a temporary distribution identity and has no publication workflow.
 - `typeferry-rs/Cargo.toml` keeps workspace publication set to `false`.
+- `typeferry-rb/` builds a local gem for verification but has no RubyGems publication workflow.
 - No GitHub workflow uploads packages or contains registry credentials.
 
 Enabling PyPI or crates.io publication requires a separate identity, authentication, dependency-order, migration, and rollout decision.

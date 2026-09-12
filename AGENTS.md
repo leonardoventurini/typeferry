@@ -9,6 +9,7 @@ TypeFerry is a multi-language monorepo implementing one wire protocol. Start wit
 - `typeferry-ts/` — TypeScript client, Node.js server, auth, React adapter, EJSON, and MongoDB extension. Follow `typeferry-ts/AGENTS.md`.
 - `typeferry-py/` — Python server implementation. Follow `typeferry-py/AGENTS.md`.
 - `typeferry-rs/` — Rust server workspace. Follow `typeferry-rs/AGENTS.md`.
+- `typeferry-rb/` — Ruby server gem with Rack/Puma, Redis, and auth adapters. Follow `typeferry-rb/AGENTS.md`.
 - `template/` — standalone TypeScript application template. Follow `template/AGENTS.md`.
 - `specs/` — task specifications and executable implementation checklists.
 - `decisions/` — durable architectural and workflow decisions.

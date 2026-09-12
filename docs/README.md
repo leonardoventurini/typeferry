@@ -3,7 +3,7 @@
 Use this page to choose the smallest guide that matches what you are building. [`PROTOCOL.md`](../PROTOCOL.md) is the normative source for wire behavior; these guides explain application development against the current implementations.
 
 > [!NOTE]
-> The TypeScript package is published on npm as `typeferry`; Python and Rust publication remains disabled. Begin with the [quickstart](getting-started.md) and consult [`RELEASING.md`](../RELEASING.md) for operator guidance.
+> The TypeScript package is published on npm as `typeferry`; Python, Rust, and Ruby publication remains disabled. Begin with the [quickstart](getting-started.md) and consult [`RELEASING.md`](../RELEASING.md) for operator guidance.
 
 ## Start here
 
@@ -41,6 +41,16 @@ The Rust implementation is a modular server workspace with optional HTTP, WebSoc
 
 - [Rust server development](../typeferry-rs/README.md)
 - [Rust runtime architecture](architecture/rust-runtime.md)
+
+## Ruby
+
+The Ruby implementation is a Rack/Puma server library with EJSON, HTTP and
+WebSocket RPC, Redis events, authentication, RBS types, and conformance support.
+It does not provide a browser client and is consumed directly from a pinned Git
+revision while RubyGems publication remains disabled.
+
+- [Ruby server development](../typeferry-rb/README.md)
+- [Ruby runtime architecture](architecture/ruby-runtime.md)
 
 ## Protocol and conformance
 

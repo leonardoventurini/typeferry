@@ -6,6 +6,7 @@ tracks:
 - `typeferry-ts/` (TypeScript, reference)
 - `typeferry-py/` (Python port)
 - `typeferry-rs/` (Rust port)
+- `typeferry-rb/` (Ruby port)
 
 Each fixture is a frozen wire-contract point. An implementation is
 conformant iff every fixture produces the expected output using only

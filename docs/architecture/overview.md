@@ -4,21 +4,22 @@ Status: informative description of the current repository. [`PROTOCOL.md`](../..
 
 ## System shape
 
-TypeFerry implements one RPC, event, authentication, and serialization protocol across three languages:
+TypeFerry implements one RPC, event, authentication, and serialization protocol across four languages:
 
 ```text
                        PROTOCOL.md
                             |
                   shared conformance fixtures
                             |
-          +-----------------+-----------------+
-          |                 |                 |
-   typeferry-ts       typeferry-py       typeferry-rs
- client + server         server             server
- adapters + MongoDB   Python ecosystem    Rust crates
+       +-------------+-------------+-------------+
+       |             |             |             |
+ typeferry-ts  typeferry-py  typeferry-rs  typeferry-rb
+client + server    server        server        server
 ```
 
-The TypeScript package is the only browser/client implementation. Python and Rust target server-side feature parity. Shared fixtures make behavior observable without requiring identical internal APIs.
+The TypeScript package is the only browser/client implementation. Python,
+Rust, and Ruby target server-side feature parity. Shared fixtures make behavior
+observable without requiring identical internal APIs.
 
 The proposed batteries-included TypeScript application workflow is described
 in the [application framework and toolchain proposal](application-framework-toolchain.md).

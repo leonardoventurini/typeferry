@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "typeferry-ts/**"
+      - "typeferry-rb/**"
       - "docs/conformance/**"
       - "PROTOCOL.md"
       - ".github/workflows/ci.yml"
@@ -12,6 +13,7 @@ on:
   pull_request:
     paths:
       - "typeferry-ts/**"
+      - "typeferry-rb/**"
       - "docs/conformance/**"
       - "PROTOCOL.md"
       - ".github/workflows/ci.yml"
@@ -25,6 +27,64 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  ci-ruby:
+    name: CI (typeferry-rb)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: typeferry-rb
+    services:
+      redis:
+        image: redis:7.4-alpine
+        ports:
+          - 16379:6379
+    env:
+      REDIS_URL: redis://127.0.0.1:16379
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler: 2.5.22
+          bundler-cache: true
+          working-directory: typeferry-rb
+
+      - name: Verify Ruby server
+        run: bundle exec rake verify
+
+  cross-language-ruby:
+    name: Cross-language (TypeScript client → Ruby server)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: typeferry-ts
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.19.0
+          cache: npm
+          cache-dependency-path: typeferry-ts/package-lock.json
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler: 2.5.22
+          bundler-cache: true
+          working-directory: typeferry-rb
+
+      - name: Install TypeScript dependencies
+        run: npm ci
+
+      - name: Verify TypeScript to Ruby interoperability
+        env:
+          TYPEFERRY_RUBY_INTEGRATION: "1"
+        run: npm run test:integration -- src/test/conformance/cross-lang-rb.integration.spec.ts
+
   ci-ts:
     name: CI (typeferry-ts)
     runs-on: ubuntu-24.04

@@ -1,7 +1,8 @@
 # Ruby Package Agent Instructions
 
-- `lib/typeferry/ejson/` owns serialization, `protocol/` owns wire constants,
-  `runtime/` owns server behavior, and `transports/` owns external adapters.
+- `lib/typeferry/ejson.rb` owns serialization, `protocol.rb` owns wire constants,
+  `runtime.rb` owns server behavior, `transports/` owns external adapters, and
+  `auth/` owns JWTs, cookies, sessions, device information, and OAuth.
 - Core code must not eagerly require Rack, WebSocket, Redis, or auth gems.
 - Public APIs require matching RBS signatures under `sig/`.
 - Tests live under `test/unit`, `test/conformance`, and `test/integration`.

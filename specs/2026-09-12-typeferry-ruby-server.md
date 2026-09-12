@@ -687,14 +687,14 @@ blocks accepting this implementation plan.
 ## Executable completion checklist
 
 - [x] Approve proposed public APIs and the Rack, Puma, WebSocket, Redis, and JWT production dependencies.
-- [ ] Complete Phase 0 package/test architecture and commit it.
-- [ ] Complete Phase 1 EJSON/protocol with all shared fixtures and commit it.
-- [ ] Complete Phase 2 runtime/DSL with concurrency tests and commit it.
-- [ ] Complete Phase 3 Rack HTTP with all shared fixtures and commit it.
+- [x] Complete Phase 0 package/test architecture and commit it.
+- [x] Complete Phase 1 EJSON/protocol with all shared fixtures and commit it.
+- [x] Complete Phase 2 runtime/DSL with concurrency tests and commit it.
+- [x] Complete Phase 3 Rack HTTP with all shared fixtures and commit it.
 - [x] Complete Phase 4 WebSocket with fake and real-server tests and commit it.
 - [x] Complete Phase 5 Redis with two-instance verification and commit it.
 - [x] Complete Phase 6 auth union with offline tests and commit it.
-- [ ] Complete Phase 7 cross-language/docs and commit it.
+- [x] Complete Phase 7 cross-language/docs and commit it.
 - [ ] Run and report the complete Ruby verification gate.
 - [ ] Run and report TypeScript-to-Ruby black-box verification.
 - [ ] Confirm no `PROTOCOL.md` or fixture change was needed.
