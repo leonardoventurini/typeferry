@@ -111,6 +111,13 @@ validation. Do not add raw Vite or Vitest configuration alongside the
 framework commands; first verify that the requested behavior is supported by
 `TypeFerryConfig`.
 
+Configure Tailwind v4 in the client stylesheet. Keep `@import "tailwindcss"`
+and add CSS-first `@theme`, `@source`, or `@plugin` directives there. If a
+legacy root `tailwind.config.js` is unavoidable, load it explicitly from
+`client/styles.css` with `@config "../tailwind.config.js"`. Do not add Tailwind
+options to `typeferry.config.ts` or attempt to pass a configuration object to
+the Tailwind Vite plugin.
+
 ## Implement one vertical slice
 
 For a new RPC feature, keep one end-to-end contract visible:

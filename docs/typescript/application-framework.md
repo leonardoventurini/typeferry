@@ -244,6 +244,40 @@ lists additionally reject duplicates and non-package specifiers. The
 the default development environment file only when the configuration does not
 set `serverEnvironmentFile`.
 
+### Customize Tailwind CSS
+
+TypeFerry installs Tailwind CSS through its Vite plugin. Tailwind v4
+customization belongs in the application's client stylesheet, not in
+`typeferry.config.ts` or an application-owned Vite configuration.
+
+Use Tailwind's CSS-first directives alongside the required import:
+
+```css
+@import "tailwindcss";
+
+@theme {
+  --color-brand: oklch(62% 0.19 255);
+}
+
+@source "../common";
+@plugin "@tailwindcss/typography";
+```
+
+Paths in `@source`, `@plugin`, and `@config` resolve from the stylesheet. An
+application retaining a legacy JavaScript configuration at its root can load
+it explicitly from `client/styles.css`:
+
+```css
+@import "tailwindcss";
+@config "../tailwind.config.js";
+```
+
+Tailwind v4 does not automatically discover JavaScript configuration files,
+and some legacy options are no longer supported. Prefer CSS-first
+configuration for new applications. The TypeFerry Vite extension remains
+available for genuine Vite customization, but it should not be used to load or
+translate Tailwind configuration.
+
 The configuration intentionally exposes high-level TypeFerry concepts rather
 than raw Vite, Vitest, or esbuild objects for conventional behavior. Complex
 applications can use the typed `extensions` callbacks as a deliberate escape
