@@ -299,6 +299,151 @@ module TypeFerry
       def monotonic_now: () -> Float
     end
   end
+
+  module Auth
+    class DeviceInfo < Data
+      attr_reader ip: String?
+      attr_reader user_agent: String?
+      attr_reader os: String?
+      attr_reader browser: String?
+      attr_reader device_type: String?
+      def initialize: (?ip: String?, ?user_agent: String?, ?os: String?, ?browser: String?, ?device_type: String?) -> void
+      def self.new: (?ip: String?, ?user_agent: String?, ?os: String?, ?browser: String?, ?device_type: String?) -> DeviceInfo
+    end
+
+    class AccessTokenPayload < Data
+      attr_reader user_id: String
+      attr_reader session_id: String
+      attr_reader iat: Integer
+      attr_reader exp: Integer
+      attr_reader claims: Hash[String, untyped]?
+      def initialize: (user_id: String, session_id: String, iat: Integer, exp: Integer, ?claims: Hash[String, untyped]?) -> void
+      def self.new: (user_id: String, session_id: String, iat: Integer, exp: Integer, ?claims: Hash[String, untyped]?) -> AccessTokenPayload
+    end
+
+    class TokenPair < Data
+      attr_reader access_token: String
+      attr_reader refresh_token: String
+      attr_reader exp: Integer
+      def initialize: (access_token: String, refresh_token: String, exp: Integer) -> void
+      def self.new: (access_token: String, refresh_token: String, exp: Integer) -> TokenPair
+    end
+
+    class CookieOptions < Data
+      attr_reader name: String
+      attr_reader max_age_days: Integer
+      attr_reader secure: bool?
+      attr_reader same_site: String
+      attr_reader path: String
+      def initialize: (name: String, max_age_days: Integer, ?secure: bool?, ?same_site: String, ?path: String) -> void
+      def self.new: (name: String, max_age_days: Integer, ?secure: bool?, ?same_site: String, ?path: String) -> CookieOptions
+    end
+
+    class Config < Data
+      attr_reader secret: String
+      attr_reader algorithm: String
+      attr_reader access_token_expiry_minutes: Integer
+      attr_reader refresh_token_expiry_days: Integer
+      attr_reader rotation_grace_period_seconds: Integer
+      attr_reader login_rate_limit: untyped
+      attr_reader refresh_rate_limit: untyped
+      def initialize: (secret: String, ?algorithm: String, ?access_token_expiry_minutes: Integer, ?refresh_token_expiry_days: Integer, ?rotation_grace_period_seconds: Integer, ?login_rate_limit: untyped, ?refresh_rate_limit: untyped) -> void
+      def self.new: (secret: String, ?algorithm: String, ?access_token_expiry_minutes: Integer, ?refresh_token_expiry_days: Integer, ?rotation_grace_period_seconds: Integer, ?login_rate_limit: untyped, ?refresh_rate_limit: untyped) -> Config
+    end
+
+    class Session
+      attr_accessor id: String
+      attr_accessor user_id: String
+      attr_accessor family_id: String
+      attr_accessor token: String
+      attr_accessor expiration: Integer
+      attr_accessor device_info: DeviceInfo?
+      attr_accessor is_revoked: bool
+      attr_accessor replaced_by: String?
+      attr_accessor used_at: Float?
+      def initialize: (id: String, user_id: String, family_id: String, token: String, expiration: Integer, ?device_info: DeviceInfo?, ?is_revoked: bool, ?replaced_by: String?, ?used_at: Float?) -> void
+      def initialize_copy: (Session source) -> void
+    end
+
+    def self.sign_access_token: (AccessTokenPayload payload, Config config) -> String
+    def self.verify_access_token: (String token, Config config, ?clock: untyped) -> AccessTokenPayload?
+    def self.decode_token: (String token) -> AccessTokenPayload?
+    def self.set_refresh_token_cookie: (String token, CookieOptions options, ?production: bool) -> String
+    def self.clear_refresh_token_cookie: (name: String, ?secure: bool?, ?same_site: String, ?path: String, ?production: bool) -> String
+    def self.get_refresh_token_from_cookie_header: (String? header, String name) -> String?
+    def self.parse_device_info: (Hash[String, untyped]? headers, ?remote_address: String?) -> DeviceInfo
+
+    private
+    def self.payload_to_wire: (AccessTokenPayload payload) -> Hash[String, untyped]
+    def self.payload_from_wire: (Hash[String, untyped] payload) -> AccessTokenPayload
+    def self.clean_token: (String token) -> String
+    def self.encode_cookie: (String value) -> String
+    def self.header: (Hash[String, untyped] headers, String name) -> String?
+    def self.user_agent_details: (String value) -> Hash[Symbol, String?]
+    def self.safari: (String value) -> String
+    def self.chrome: (String value) -> String?
+    def self.desktop_browser: (String value) -> String?
+
+    class InMemorySessionManager
+      attr_reader config: Config
+      def initialize: (Config config, ?clock: Proc) -> void
+      def create_session: (String user_id, ?DeviceInfo? device_info) -> TokenPair
+      def refresh_session: (String refresh_token, ?DeviceInfo? device_info) -> TokenPair?
+      def revoke_session: (String session_id) -> bool
+      def revoke_family: (String family_id) -> Integer
+      def user_sessions: (String user_id) -> Array[Session]
+      def revoke_all_user_sessions: (String user_id, ?except_family_id: String?) -> Integer
+      def session_for: (String refresh_token) -> Session?
+      def size: () -> Integer
+      def cleanup: () -> Hash[String, Session]
+      def close: () -> true
+      private
+      def rotate: (Session session, DeviceInfo? device_info) -> TokenPair
+      def reused_token: (Session session) -> TokenPair?
+      def revoke_family_unlocked: (String family_id) -> Integer
+      def build_session: (String id, String user_id, String family_id, String token, DeviceInfo? device_info) -> Session
+      def build_token_pair: (String refresh_token, String user_id, String session_id) -> TokenPair
+      def now_seconds: () -> Integer
+      def now_milliseconds: () -> Float
+      def fresh_id: () -> String
+    end
+
+    module OAuth
+      class GoogleConfig < Data
+        attr_reader client_id: String
+        attr_reader client_secret: String
+        attr_reader redirect_uri: String
+        attr_reader token_endpoint: String
+        attr_reader jwks_endpoint: String
+        def initialize: (client_id: String, client_secret: String, ?redirect_uri: String, ?token_endpoint: String, ?jwks_endpoint: String) -> void
+        def self.new: (client_id: String, client_secret: String, ?redirect_uri: String, ?token_endpoint: String, ?jwks_endpoint: String) -> GoogleConfig
+      end
+
+      class GoogleUser < Data
+        attr_reader provider_id: String
+        attr_reader provider: String
+        attr_reader email: String?
+        attr_reader email_verified: bool
+        attr_reader name: String?
+        attr_reader picture: String?
+        attr_reader raw: Hash[String, untyped]
+        def initialize: (provider_id: String, provider: String, email: String?, email_verified: bool, name: String?, picture: String?, raw: Hash[String, untyped]) -> void
+        def self.new: (provider_id: String, provider: String, email: String?, email_verified: bool, name: String?, picture: String?, raw: Hash[String, untyped]) -> GoogleUser
+      end
+
+      class GoogleProvider
+        attr_reader name: String
+        def initialize: (GoogleConfig config, ?http: untyped) -> void
+        def exchange_code: (String code) -> GoogleUser
+        private
+        def post_form: (String endpoint, Hash[String, String] form) -> Hash[String, untyped]
+        def verify: (String token) -> Hash[String, untyped]
+        def get_json: (String endpoint) -> Hash[String, untyped]
+        def parse_response: (untyped response) -> Hash[String, untyped]
+        def string_value: (untyped value) -> String?
+      end
+    end
+  end
 end
 
 module Base64
@@ -353,6 +498,32 @@ end
 
 module URI
   def self.decode_www_form: (String source) -> Array[[String, String]]
+  def self.parse: (String source) -> untyped
+end
+
+module JWT
+  class DecodeError < StandardError
+  end
+  def self.encode: (Hash[String, untyped] payload, untyped key, String algorithm, ?Hash[String, untyped] header) -> String
+  def self.decode: (String token, untyped key, bool verify, **untyped options) -> [Hash[String, untyped], Hash[String, untyped]]
+end
+
+module Net
+  class HTTPSuccess
+    def body: () -> String
+  end
+
+  class HTTP
+    def self.start: (String hostname, Integer port, **untyped options) { (untyped) -> untyped } -> untyped
+
+    class Post
+      def self.new: (untyped uri) -> untyped
+    end
+
+    class Get
+      def self.new: (untyped uri) -> untyped
+    end
+  end
 end
 
 module WebSocket

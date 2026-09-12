@@ -56,3 +56,29 @@ The adapter uses a serialized publisher connection and a dedicated subscriber
 connection. Lost subscriptions reconnect and resubscribe automatically. Call
 `redis.close` during shutdown to stop its listener and remove the process-owned
 client, user, and server registration keys.
+
+## Authentication
+
+Require `typeferry/auth` for JWT access tokens, refresh-token cookies, device
+information, and the thread-safe in-memory session manager. JWT verification
+always restricts the algorithm to the configured HS256, HS384, or HS512 value.
+The session manager rotates refresh tokens atomically, tolerates concurrent
+refreshes during the configured grace period, and revokes a token family when
+an older token is reused after that period.
+
+Google authorization-code exchange is an additional explicit require:
+
+```ruby
+require "typeferry/auth/oauth"
+
+provider = TypeFerry::Auth::OAuth::GoogleProvider.new(
+  TypeFerry::Auth::OAuth::GoogleConfig.new(
+    client_id: ENV.fetch("GOOGLE_CLIENT_ID"),
+    client_secret: ENV.fetch("GOOGLE_CLIENT_SECRET")
+  )
+)
+```
+
+The provider verifies RS256 signatures, audience, issuer, and expiry against
+Google's JWKS response. Endpoint overrides exist for offline testing and private
+Google-compatible identity infrastructure.
