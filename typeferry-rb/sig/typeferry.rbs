@@ -142,6 +142,7 @@ module TypeFerry
     attr_reader response_headers: Array[untyped]
     attr_accessor authenticated: bool
     attr_accessor server: Server?
+    attr_accessor meta: Hash[String, untyped]
     def initialize: (?socket: untyped, ?uuid: String, ?context: untyped) -> void
     def set_context: (untyped context) -> untyped
     def emit_event: (String event, String channel, untyped params) -> untyped
@@ -219,6 +220,51 @@ module TypeFerry
     private
     def typeferry_defaults: () -> Hash[Symbol, untyped]
   end
+
+  module Transports
+    class RackWebSocket
+      RESPONSE_HEADERS: Hash[String, String]
+      def initialize: (Server server, ?origins: Array[String]?, ?handshake_authenticator: Proc?) -> void
+      def call: (Hash[String, untyped] environment) -> [Integer, Hash[String, String], Array[String]]
+      def close: () -> true
+      private
+      def closed?: () -> bool
+      def origin_allowed?: (String? origin) -> bool
+      def remove_connection: (RackWebSocketConnection connection) -> untyped
+      def response: (Integer status, String body) -> [Integer, Hash[String, String], Array[String]]
+    end
+
+    class RackWebSocketConnection
+      READ_SIZE: Integer
+      MAX_FRAME_BYTES: Integer
+      attr_reader env: Hash[String, untyped]
+      attr_reader url: String
+      attr_reader uuid: String
+      def initialize: (Hash[String, untyped] environment, Server server, handshake_authenticator: Proc?, on_close: untyped) -> void
+      def start: () -> Thread
+      def write: (String bytes) -> untyped
+      def send_text: (String payload) -> untyped
+      def pong!: () -> true
+      def close: (?Integer code) -> untyped
+      private
+      def closed?: () -> bool
+      def install_callbacks: () -> untyped
+      def read_frames: () -> untyped
+      def finish: () -> untyped
+      def websocket_url: (Hash[String, untyped] environment) -> String
+      def query_values: (untyped source) -> Hash[String, String]
+      def handshake_snapshot: (Hash[String, untyped] environment) -> Hash[Symbol, untyped]
+    end
+
+    class WebSocketHeartbeat
+      def initialize: (WebSocketDispatcher dispatcher, untyped socket, ?interval_ms: Integer) -> void
+      def start: () -> Thread
+      def mark_pong: () -> true
+      def stop: () -> true
+      private
+      def run: () -> untyped
+    end
+  end
 end
 
 module Base64
@@ -230,12 +276,15 @@ module JSON
   class ParserError < StandardError
   end
 
+  class GeneratorError < StandardError
+  end
+
   class State
     def initialize: (**untyped) -> void
   end
 
   def self.parse: (String source) -> untyped
-  def self.generate: (untyped value, State state) -> String
+  def self.generate: (untyped value, ?State state) -> String
 end
 
 class Monitor
@@ -255,6 +304,17 @@ module Rack
     def ip: () -> String
     def body: () -> IO
     def get_header: (String name) -> untyped
+  end
+end
+
+module URI
+  def self.decode_www_form: (String source) -> Array[[String, String]]
+end
+
+module WebSocket
+  class Driver
+    def self.websocket?: (Hash[String, untyped] environment) -> bool
+    def self.rack: (untyped socket, ?max_length: Integer) -> untyped
   end
 end
 
@@ -291,16 +351,18 @@ module TypeFerry
       MAX_UUID_LENGTH: Integer
       MAX_META_SIZE: Integer
       attr_reader node: ClientNode
-      def initialize: (Server server, untyped socket, ?query: Hash[String, String], ?handshake_authenticator: Proc?, ?handshake: Hash[untyped, untyped]) -> void
+      def initialize: (Server server, untyped socket, ?query: Hash[String, String], ?handshake_authenticator: Proc?, ?handshake: Hash[untyped, untyped], ?auth_timeout_ms: Integer) -> void
       def open: () -> untyped
       def receive: (String payload) -> untyped
       def close: () -> untyped
       def ping: () -> untyped
       private
+      def authenticate_with_timeout: () -> untyped
       def rpc: (Hash[String, untyped] frame) -> untyped
       def rpc_void: (Hash[String, untyped] frame) -> untyped
       def respond: (untyped id, ?result: untyped, ?error: String?, ?errors: Array[String]?) -> untyped
       def sanitize_uuid: (untyped value) -> String
+      def parse_meta: (untyped value) -> Hash[String, untyped]
     end
   end
 end

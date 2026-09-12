@@ -2,6 +2,7 @@
 
 require "monitor"
 require "securerandom"
+require "set"
 
 module TypeFerry
   class PublicError < StandardError
@@ -59,12 +60,13 @@ module TypeFerry
 
   class ClientNode
     attr_reader :socket, :uuid, :context, :user_id, :response_headers
-    attr_accessor :authenticated, :server
+    attr_accessor :authenticated, :server, :meta
 
     def initialize(socket: nil, uuid: SecureRandom.uuid, context: nil)
       @socket = socket
       @uuid = uuid
       @authenticated = false
+      @meta = {}
       @response_headers = []
       set_context(context)
     end

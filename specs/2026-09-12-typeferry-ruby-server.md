@@ -691,7 +691,7 @@ blocks accepting this implementation plan.
 - [ ] Complete Phase 1 EJSON/protocol with all shared fixtures and commit it.
 - [ ] Complete Phase 2 runtime/DSL with concurrency tests and commit it.
 - [ ] Complete Phase 3 Rack HTTP with all shared fixtures and commit it.
-- [ ] Complete Phase 4 WebSocket with fake and real-server tests and commit it.
+- [x] Complete Phase 4 WebSocket with fake and real-server tests and commit it.
 - [ ] Complete Phase 5 Redis with two-instance verification and commit it.
 - [ ] Complete Phase 6 auth union with offline tests and commit it.
 - [ ] Complete Phase 7 cross-language/docs and commit it.

@@ -18,6 +18,7 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   spec.add_dependency "jwt", "~> 3.1"
+  spec.add_dependency "puma", "~> 7.2"
   spec.add_dependency "rack", "~> 3.2"
   spec.add_dependency "redis-client", "~> 0.26"
   spec.add_dependency "websocket-driver", "~> 0.8"

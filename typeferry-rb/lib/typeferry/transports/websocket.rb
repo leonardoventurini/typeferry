@@ -12,24 +12,23 @@ module TypeFerry
 
       attr_reader :node
 
-      def initialize(server, socket, query: {}, handshake_authenticator: nil, handshake: {})
+      def initialize(server, socket, query: {}, handshake_authenticator: nil, handshake: {},
+        auth_timeout_ms: Protocol::AUTH_TIMEOUT_MS)
         @server = server
         @socket = socket
         @query = query
         @handshake_authenticator = handshake_authenticator
         @handshake = handshake.freeze
+        @auth_timeout_ms = auth_timeout_ms
         @node = ClientNode.new(socket:, uuid: sanitize_uuid(query["uuid"]))
+        @node.meta = parse_meta(query["meta"])
         @node.server = server
         @closed = false
       end
 
       def open
         @server.add_client(node)
-        result = if @handshake_authenticator
-          @handshake_authenticator.call(node, @handshake)
-        elsif @query["token"] && @server.instance_variable_get(:@auth)
-          @server.authenticate(node, {"token" => @query["token"]})
-        end
+        result = authenticate_with_timeout
         if result && @handshake_authenticator
           node.authenticated = true
           node.set_context(result)
@@ -70,6 +69,24 @@ module TypeFerry
       end
 
       private
+
+      def authenticate_with_timeout
+        enabled = @handshake_authenticator || (@query["token"] && @server.instance_variable_get(:@auth))
+        return unless enabled
+
+        worker = Thread.new do
+          if @handshake_authenticator
+            @handshake_authenticator.call(node, @handshake)
+          else
+            @server.authenticate(node, {"token" => @query["token"]})
+          end
+        end
+        return worker.value if worker.join(@auth_timeout_ms / 1000.0)
+
+        worker.kill
+        worker.join
+        nil
+      end
 
       def rpc(frame)
         id = frame["id"]
@@ -113,6 +130,17 @@ module TypeFerry
 
         cleaned = value.gsub(UUID_PATTERN, "").slice(0, MAX_UUID_LENGTH).to_s
         cleaned.empty? ? SecureRandom.uuid : cleaned
+      end
+
+      def parse_meta(value)
+        return {} unless value.is_a?(String)
+
+        parsed = JSON.parse(value)
+        return {} unless parsed.is_a?(Hash) && JSON.generate(parsed).bytesize <= MAX_META_SIZE
+
+        parsed
+      rescue JSON::ParserError, JSON::GeneratorError
+        {}
       end
     end
   end

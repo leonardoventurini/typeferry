@@ -34,4 +34,50 @@ class WebSocketTest < Minitest::Test
 
     refute server.rooms.include?(socket, "typeferry:records:changed")
   end
+
+  def test_handshake_authentication_is_bounded_and_fails_closed
+    socket = Socket.new("one", [], [], 0)
+    dispatcher = TypeFerry::Transports::WebSocketDispatcher.new(
+      TypeFerry::Server.new,
+      socket,
+      handshake_authenticator: ->(*) do
+        sleep 1
+        {"user" => {"_id" => "late"}}
+      end,
+      auth_timeout_ms: 10
+    )
+
+    started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    dispatcher.open
+
+    assert_operator Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at, :<, 0.5
+    assert_equal [{"t" => "auth", "authenticated" => false}], socket.sent
+    refute dispatcher.node.authenticated
+  end
+
+  def test_meta_is_parsed_and_invalid_shapes_are_normalized
+    socket = Socket.new("one", [], [], 0)
+    valid = TypeFerry::Transports::WebSocketDispatcher.new(TypeFerry::Server.new, socket,
+      query: {"meta" => JSON.generate({"editor" => "ruby"})})
+    invalid = TypeFerry::Transports::WebSocketDispatcher.new(TypeFerry::Server.new, socket,
+      query: {"meta" => JSON.generate(["not", "an", "object"])})
+    oversized = TypeFerry::Transports::WebSocketDispatcher.new(TypeFerry::Server.new, socket,
+      query: {"meta" => JSON.generate({"value" => "x" * 10_000})})
+
+    assert_equal({"editor" => "ruby"}, valid.node.meta)
+    assert_equal({}, invalid.node.meta)
+    assert_equal({}, oversized.node.meta)
+  end
+
+  def test_handshake_authenticator_takes_precedence_over_query_token
+    server = TypeFerry::Server.new
+    server.set_auth(auth: ->(*) { raise "token auth must not run" }, log_in: ->(*) { true })
+    socket = Socket.new("one", [], [], 0)
+    dispatcher = TypeFerry::Transports::WebSocketDispatcher.new(server, socket,
+      query: {"token" => "secret"}, handshake_authenticator: ->(*) { false })
+
+    dispatcher.open
+
+    assert_equal [{"t" => "auth", "authenticated" => false}], socket.sent
+  end
 end
