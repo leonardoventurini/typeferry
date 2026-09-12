@@ -164,7 +164,7 @@ adopt string IDs and event subscriptions before upgrading.
 Executed successfully:
 
 - focused local-store unit tests: 19 tests;
-- complete unit suite: 1,655 tests;
+- complete unit suite: 1,656 tests;
 - complete browser suite: 10 tests;
 - ESLint and strict TypeScript typecheck;
 - production build and `npm pack --dry-run`;
