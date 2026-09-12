@@ -58,15 +58,20 @@ module TypeFerry
   end
 
   class ClientNode
-    attr_reader :socket, :uuid, :context, :user_id, :response_headers
+    attr_reader :socket, :uuid, :context, :user_id, :response_headers, :headers, :remote_address, :user_agent
     attr_accessor :authenticated, :server, :meta
 
-    def initialize(socket: nil, uuid: SecureRandom.uuid, context: nil)
+    def initialize(socket: nil, uuid: SecureRandom.uuid, context: nil, headers: {}, remote_address: "", user_agent: "")
       @socket = socket
       @uuid = uuid
       @authenticated = false
       @meta = {}
       @response_headers = []
+      @headers = headers.to_h do |name, value|
+        [name.to_s.downcase.freeze, value.to_s.freeze]
+      end.freeze
+      @remote_address = remote_address.to_s.freeze
+      @user_agent = user_agent.to_s.freeze
       set_context(context)
     end
 

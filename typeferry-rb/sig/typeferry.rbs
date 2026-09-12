@@ -140,10 +140,13 @@ module TypeFerry
     attr_reader context: untyped
     attr_reader user_id: String?
     attr_reader response_headers: Array[untyped]
+    attr_reader headers: Hash[String, String]
+    attr_reader remote_address: String
+    attr_reader user_agent: String
     attr_accessor authenticated: bool
     attr_accessor server: Server?
     attr_accessor meta: Hash[String, untyped]
-    def initialize: (?socket: untyped, ?uuid: String, ?context: untyped) -> void
+    def initialize: (?socket: untyped, ?uuid: String, ?context: untyped, ?headers: Hash[untyped, untyped], ?remote_address: String, ?user_agent: String) -> void
     def set_context: (untyped context) -> untyped
     def emit_event: (String event, String channel, untyped params) -> untyped
     def emit_auth_result: (bool value) -> untyped
@@ -556,6 +559,8 @@ module TypeFerry
       def dispatch: (untyped request) -> [Integer, Hash[String, String], Array[String]]
       def decode: (String body) -> untyped
       def build_node: (untyped request, untyped context) -> ClientNode
+      def origin_allowed?: (String? origin) -> bool
+      def request_headers: (Hash[String, untyped] environment) -> Hash[String, String]
       def error: (String message, ?uuid: String?, ?method: String?, ?errors: Array[String]?, ?void: bool) -> [Integer, Hash[String, String], Array[String]]
       def response: (Integer status, String body, ?Array[[String, String]] headers) -> [Integer, Hash[String, String], Array[String]]
       def rate_headers: (Integer remaining, Integer reset_ms) -> Array[[String, String]]

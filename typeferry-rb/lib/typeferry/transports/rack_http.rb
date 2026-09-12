@@ -38,9 +38,9 @@ module TypeFerry
     class RackHTTP
       CONTENT_TYPE = "text/plain; charset=utf-8"
 
-      def initialize(server, origins: nil, rate_limit: RateLimit.new(100, 60_000))
+      def initialize(server, origins: nil, rate_limit: RateLimit.new(120, 60_000))
         @server = server
-        @origins = origins
+        @origins = origins&.to_set&.freeze
         @rate_limit = rate_limit
         @limiter = rate_limit && SlidingWindowLimiter.new(rate_limit)
       end
@@ -49,6 +49,7 @@ module TypeFerry
         request = Rack::Request.new(environment)
         return response(404, "") unless request.path == Protocol::HTTP_PATH
         return response(405, "") unless request.post?
+        return response(403, "") unless origin_allowed?(request.get_header("HTTP_ORIGIN"))
 
         allowed, remaining, reset = @limiter ? @limiter.consume(request.ip) : [true, 0, 0]
         return response(429, "", rate_headers(remaining, reset)) unless allowed
@@ -94,7 +95,13 @@ module TypeFerry
 
       def build_node(request, context)
         uuid = request.get_header("HTTP_X_CLIENT_ID")
-        node = ClientNode.new(uuid: uuid.to_s.empty? ? SecureRandom.uuid : uuid, context:)
+        node = ClientNode.new(
+          uuid: uuid.to_s.empty? ? SecureRandom.uuid : uuid,
+          context:,
+          headers: request_headers(request.env),
+          remote_address: request.ip,
+          user_agent: request.user_agent.to_s
+        )
         node.server = @server
         token = request.get_header("HTTP_X_API_KEY")
         # @type var empty_context: Hash[String, untyped]
@@ -103,6 +110,24 @@ module TypeFerry
         auth_context["token"] = token.delete_prefix("Bearer ") if token && token != "undefined"
         @server.authenticate(node, auth_context)
         node
+      end
+
+      def origin_allowed?(origin)
+        !@origins || !origin || @origins.include?(origin)
+      end
+
+      def request_headers(environment)
+        # @type var headers: Hash[String, String]
+        headers = {}
+        environment.each do |name, value|
+          header = if name.start_with?("HTTP_")
+            name.delete_prefix("HTTP_").downcase.tr("_", "-")
+          elsif name == "CONTENT_TYPE" || name == "CONTENT_LENGTH"
+            name.downcase.tr("_", "-")
+          end
+          headers[header] = value.to_s if header
+        end
+        headers
       end
 
       def error(message, uuid: nil, method: nil, errors: nil, void: false)

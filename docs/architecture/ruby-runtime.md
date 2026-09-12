@@ -25,6 +25,12 @@ before invoking application or socket code, keeps execution context scoped,
 serializes connection writes, and owns explicit shutdown for WebSocket and
 Redis workers.
 
+The Rack HTTP boundary enforces its configured origin allowlist and the
+protocol-default 120-request sliding window. Each call copies normalized
+request headers, remote address, and user agent into immutable `ClientNode`
+metadata before authentication and method dispatch. Applications may append
+response headers through the node without retaining mutable Rack state.
+
 ## Deployment shape
 
 Mount `RackHTTP` and `RackWebSocket` in one Rack application, run it with Puma,

@@ -15,8 +15,8 @@ authenticated events, and live data. It also owns the application workflow:
 develop, test, build, and run the complete stack without maintaining separate
 Vite or Vitest configurations.
 
-The same wire protocol has server implementations in Python and Rust when a
-service needs to cross language boundaries.
+The same wire protocol has server implementations in Python, Rust, and Ruby
+when a service needs to cross language boundaries.
 
 ```sh
 npm install typeferry
@@ -236,6 +236,7 @@ Rust implement the same normative wire protocol for server-side interoperability
 | [TypeScript](typeferry-ts/README.md) | Node.js | Browser and Node.js | React | Published as `typeferry` |
 | [Python](typeferry-py/README.md) | Yes | — | — | Publication disabled |
 | [Rust](typeferry-rs/README.md) | Yes | — | — | Publication disabled |
+| [Ruby](typeferry-rb/README.md) | Yes | — | — | Publication disabled |
 
 All implementations share the normative [wire protocol](PROTOCOL.md),
 [conformance fixtures](docs/conformance/README.md), and interoperability tests.
@@ -266,6 +267,7 @@ See [release status](RELEASING.md) for current publication details.
 typeferry-ts/   TypeScript application framework, client, and Node.js server
 typeferry-py/   Python server implementation
 typeferry-rs/   Rust server workspace
+typeferry-rb/   Ruby server gem
 template/       React, Node.js, and MongoDB reference application
 docs/           User guides, architecture, protocol, and conformance docs
 PROTOCOL.md     Normative wire protocol

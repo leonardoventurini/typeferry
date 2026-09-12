@@ -17,6 +17,29 @@ bundle install
 bundle exec rake verify
 ```
 
+## Rack HTTP
+
+Require and mount the HTTP adapter on the protocol-owned `/__h` path:
+
+```ruby
+require "typeferry"
+require "typeferry/transports/rack_http"
+
+server = TypeFerry::Server.new
+http = TypeFerry::Transports::RackHTTP.new(
+  server,
+  origins: ["https://studio.example"]
+)
+
+run http
+```
+
+Configured origins are enforced for browser requests; requests without an
+`Origin` header remain valid for non-browser clients. Method handlers can read
+normalized immutable request metadata from `ClientNode#headers`,
+`#remote_address`, and `#user_agent`, and can append response headers through
+`#response_headers`.
+
 ## Puma WebSockets
 
 Require the Puma adapter explicitly and mount its protocol-owned path:
