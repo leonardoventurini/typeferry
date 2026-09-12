@@ -65,6 +65,10 @@ threads for upgraded connections; call `websocket.close` during shutdown.
 The package remains unpublished. Applications should reference this repository
 and revision directly from their Gemfile.
 
+Reconnects that reuse a client UUID replace and close the prior connection.
+Only the current connection remains eligible for event delivery and cluster
+membership cleanup.
+
 ## Redis propagation
 
 Require `typeferry/transports/redis` explicitly, then attach and connect one

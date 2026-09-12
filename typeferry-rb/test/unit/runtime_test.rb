@@ -12,6 +12,12 @@ class RuntimeTest < Minitest::Test
     def safe_parse(_value) = result
   end
 
+  RecordingRedis = Struct.new(:registered, :removed) do
+    def register_client(node) = registered << node
+    def remove_client(node) = removed << node
+    def close = true
+  end
+
   def test_schema_runs_before_middleware_and_handler
     server = TypeFerry::Server.new
     failure = TypeFerry::ValidationResult.new(false, nil, [TypeFerry::ValidationIssue.new(["name"], "is required")])
@@ -101,5 +107,39 @@ class RuntimeTest < Minitest::Test
     assert server.close
     assert socket.closed
     assert_empty server.clients_for_user("missing")
+  end
+
+  def test_duplicate_client_uuid_replaces_and_closes_previous_node
+    server = TypeFerry::Server.new
+    previous_socket = FakeSocket.new("same", [], false)
+    replacement_socket = FakeSocket.new("same", [], false)
+    previous = TypeFerry::ClientNode.new(socket: previous_socket, uuid: "same")
+    replacement = TypeFerry::ClientNode.new(socket: replacement_socket, uuid: "same")
+
+    server.add_client(previous)
+    server.add_client(replacement)
+
+    assert previous_socket.closed
+    assert_equal [replacement], server.client_snapshot
+  end
+
+  def test_stale_client_deletion_does_not_remove_replacement_or_redis_membership
+    redis = RecordingRedis.new([], [])
+    server = TypeFerry::Server.new(redis:)
+    previous = TypeFerry::ClientNode.new(socket: FakeSocket.new("same", [], false), uuid: "same")
+    replacement = TypeFerry::ClientNode.new(socket: FakeSocket.new("same", [], false), uuid: "same")
+
+    server.add_client(previous)
+    server.add_client(replacement)
+    server.delete_client(previous)
+
+    assert_equal [replacement], server.client_snapshot
+    assert_equal [previous, replacement], redis.registered
+    assert_empty redis.removed
+
+    server.delete_client(replacement)
+
+    assert_empty server.client_snapshot
+    assert_equal [replacement], redis.removed
   end
 end

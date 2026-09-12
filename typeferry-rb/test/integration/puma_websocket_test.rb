@@ -12,14 +12,16 @@ class PumaWebSocketTest < Minitest::Test
   class Client
     attr_reader :url
 
-    def initialize(port)
-      @url = "ws://127.0.0.1:#{port}/typeferry-ws?uuid=puma-client"
+    def initialize(port, uuid: "puma-client")
+      @url = "ws://127.0.0.1:#{port}/typeferry-ws?uuid=#{uuid}"
       @socket = TCPSocket.new("127.0.0.1", port)
       @write_lock = Monitor.new
       @driver = WebSocket::Driver.client(self)
       @driver.set_header("Origin", "https://studio.test")
       @messages = Queue.new
+      @closed = Queue.new
       @driver.on(:message) { |event| @messages << TypeFerry::EJSON.parse(event.data) }
+      @driver.on(:close) { @closed << true }
       @driver.start
       @reader = Thread.new { read_frames }
     end
@@ -28,6 +30,7 @@ class PumaWebSocketTest < Minitest::Test
     def send_text(payload) = @write_lock.synchronize { @driver.text(TypeFerry::EJSON.stringify(payload)) }
     def send_binary(payload) = @write_lock.synchronize { @driver.binary(payload) }
     def next_message = Timeout.timeout(5) { @messages.pop }
+    def wait_closed = Timeout.timeout(5) { @closed.pop }
 
     def close
       @driver.close
@@ -91,6 +94,22 @@ class PumaWebSocketTest < Minitest::Test
     assert_equal 20, events.length
     assert_equal (0...20).to_a, events.map { |event| event.dig("params", "index") }.sort
     assert_equal 20, response.fetch("result")
+  end
+
+  def test_reconnect_with_same_uuid_closes_stale_socket_and_keeps_replacement_live
+    previous = Client.new(@port, uuid: "stable-client")
+    assert_equal false, previous.next_message.fetch("authenticated")
+
+    replacement = Client.new(@port, uuid: "stable-client")
+    assert_equal false, replacement.next_message.fetch("authenticated")
+    assert previous.wait_closed
+
+    replacement.send_text({"t" => "rpc", "id" => "replacement", "method" => "echo", "params" => true})
+    assert_equal({"t" => TypeFerry::Protocol::MessageType::RPC_RESPONSE, "id" => "replacement", "result" => true},
+      replacement.next_message)
+  ensure
+    previous&.close
+    replacement&.close
   end
 
   private

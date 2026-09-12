@@ -25,6 +25,11 @@ before invoking application or socket code, keeps execution context scoped,
 serializes connection writes, and owns explicit shutdown for WebSocket and
 Redis workers.
 
+The client registry owns one live node per client UUID. A reconnect installs
+the replacement atomically, then closes the displaced socket outside the
+registry lock. Stale close callbacks still leave their own rooms but cannot
+remove the replacement node or its Redis membership.
+
 The Rack HTTP boundary enforces its configured origin allowlist and the
 protocol-default 120-request sliding window. Each call copies normalized
 request headers, remote address, and user agent into immutable `ClientNode`

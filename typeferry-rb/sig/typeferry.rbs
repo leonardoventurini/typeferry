@@ -187,7 +187,7 @@ module TypeFerry
   class Server
     @methods: Hash[String, Method]
     @events: Hash[String, Event]
-    @clients: Set[ClientNode]
+    @clients: Hash[String, ClientNode]
     @listeners: Hash[Symbol, Array[Proc]]
     attr_reader rooms: RoomRegistry
     attr_reader methods: Hash[String, Method]
@@ -203,8 +203,8 @@ module TypeFerry
     def authenticate: (ClientNode node, untyped context) -> untyped
     def attach_redis: (untyped transport) -> untyped
     def set_channel_authorization: (Proc callable) -> Proc
-    def add_client: (ClientNode node) -> untyped
-    def delete_client: (ClientNode node) -> untyped
+    def add_client: (ClientNode node) -> ClientNode
+    def delete_client: (ClientNode node) -> bool
     def clients_for_user: (String user_id) -> Array[ClientNode]
     def client_snapshot: () -> Array[ClientNode]
     def disconnect_user: (String user_id) -> Array[ClientNode]

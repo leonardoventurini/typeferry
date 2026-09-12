@@ -246,7 +246,7 @@ module TypeFerry
       @redis_transport = options[:redis]
       @methods = {}
       @events = {}
-      @clients = Set.new
+      @clients = {}
       @listeners = Hash.new { |hash, key| hash[key] = [] }
       @rooms = RoomRegistry.new
       @lock = Monitor.new
@@ -306,22 +306,32 @@ module TypeFerry
 
     def add_client(node)
       node.server = self
-      @lock.synchronize { @clients << node }
+      previous = @lock.synchronize do
+        displaced = @clients[node.uuid]
+        @clients[node.uuid] = node
+        displaced
+      end
       @redis_transport&.register_client(node)
+      previous&.close unless previous.equal?(node)
+      node
     end
 
     def delete_client(node)
       rooms.leave_all(node.socket) if node.socket
-      @lock.synchronize { @clients.delete(node) }
-      @redis_transport&.remove_client(node)
+      removed = @lock.synchronize do
+        current = @clients[node.uuid]
+        @clients.delete(node.uuid) if current.equal?(node)
+      end
+      @redis_transport&.remove_client(node) if removed
+      !!removed
     end
 
     def clients_for_user(user_id)
-      @lock.synchronize { @clients.select { |node| node.user_id == user_id }.freeze }
+      @lock.synchronize { @clients.values.select { |node| node.user_id == user_id }.freeze }
     end
 
     def client_snapshot
-      @lock.synchronize { @clients.to_a.freeze }
+      @lock.synchronize { @clients.values.freeze }
     end
 
     def disconnect_user(user_id)
@@ -346,7 +356,7 @@ module TypeFerry
     end
 
     def close
-      @lock.synchronize { @clients.to_a }.each(&:close)
+      @lock.synchronize { @clients.values }.each(&:close)
       @redis_transport&.close
       true
     end
