@@ -1,8 +1,12 @@
 # TypeFerry Ruby Server
 
-Status: proposed
+Status: accepted; implementation in progress
 
 Date: 2026-09-12
+
+Approved scope: complete the identified production-readiness phases, certify
+Puma as the initial WebSocket host, and keep the gem unpublished for direct Git
+consumption. RubyGems publication remains a separate approval gate.
 
 ## Desired outcome
 
@@ -43,10 +47,11 @@ Use these boundaries:
                      application-owned host
 ```
 
-Recommend Ruby 3.3 or newer, RBS signatures checked with Steep, Minitest for
-unit and fixture tests, Rack 3 for HTTP, a pluggable WebSocket boundary with an
-initial Rack-hijack adapter, and `redis-client` for Redis. Keep transport, auth,
-schema, and authoring dependencies optional.
+Use Ruby 3.3 or newer, RBS signatures checked with Steep, Minitest for unit and
+fixture tests, Rack 3 for HTTP, Puma 7.2 as the certified production host, a
+pluggable WebSocket boundary with an initial Rack-hijack adapter, and
+`redis-client` for Redis. Keep transport, auth, schema, and authoring
+dependencies optional.
 
 ## Evidence
 
@@ -681,7 +686,7 @@ blocks accepting this implementation plan.
 
 ## Executable completion checklist
 
-- [ ] Approve proposed public APIs and production dependency set.
+- [x] Approve proposed public APIs and the Rack, Puma, WebSocket, Redis, and JWT production dependencies.
 - [ ] Complete Phase 0 package/test architecture and commit it.
 - [ ] Complete Phase 1 EJSON/protocol with all shared fixtures and commit it.
 - [ ] Complete Phase 2 runtime/DSL with concurrency tests and commit it.
