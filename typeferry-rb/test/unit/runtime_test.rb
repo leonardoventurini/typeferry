@@ -90,4 +90,16 @@ class RuntimeTest < Minitest::Test
 
     assert_equal "Ada", server.call("greeting.hello", {"name" => "Ada"})
   end
+
+  def test_server_close_is_idempotent_and_closes_each_client_once
+    server = TypeFerry::Server.new
+    socket = FakeSocket.new("one", [], false)
+    node = TypeFerry::ClientNode.new(socket:)
+    server.add_client(node)
+
+    assert server.close
+    assert server.close
+    assert socket.closed
+    assert_empty server.clients_for_user("missing")
+  end
 end

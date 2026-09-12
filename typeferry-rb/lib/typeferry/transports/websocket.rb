@@ -20,6 +20,7 @@ module TypeFerry
         @handshake = handshake.freeze
         @node = ClientNode.new(socket:, uuid: sanitize_uuid(query["uuid"]))
         @node.server = server
+        @closed = false
       end
 
       def open
@@ -50,12 +51,17 @@ module TypeFerry
           rpc_void(frame)
         when Protocol::MessageType::PONG
           @socket.pong! if @socket.respond_to?(:pong!)
+        when Protocol::MessageType::PING
+          @socket.send_text(EJSON.stringify({"t" => Protocol::MessageType::PONG}))
         end
       rescue JSON::ParserError, TypeError, ArgumentError
         nil
       end
 
       def close
+        return if @closed
+
+        @closed = true
         @server.delete_client(node)
       end
 
