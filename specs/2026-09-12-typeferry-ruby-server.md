@@ -695,9 +695,9 @@ blocks accepting this implementation plan.
 - [x] Complete Phase 5 Redis with two-instance verification and commit it.
 - [x] Complete Phase 6 auth union with offline tests and commit it.
 - [x] Complete Phase 7 cross-language/docs and commit it.
-- [ ] Run and report the complete Ruby verification gate.
-- [ ] Run and report TypeScript-to-Ruby black-box verification.
-- [ ] Confirm no `PROTOCOL.md` or fixture change was needed.
+- [x] Run and report the complete Ruby verification gate.
+- [x] Run and report TypeScript-to-Ruby black-box verification.
+- [x] Confirm no `PROTOCOL.md` or fixture change was needed.
 - [ ] Record a decision for the accepted Ruby architecture after implementation.
 - [ ] Keep Phase 8 blocked until separately approved.
 
