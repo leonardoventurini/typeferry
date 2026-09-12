@@ -27,5 +27,6 @@ TypeFerry's normal client representation for MongoDB ObjectIds. Returned
 documents are deeply readonly and frozen, and unchanged documents are shared
 between cursor snapshots.
 
-See the package guide for the complete API, examples, supported operators, and
-listener lifecycle.
+See the package guide's [API reference](../../typeferry-ts/src/minimongo/README.md#api-reference)
+for every exported class, function, and type, plus supported operators, event
+payloads, errors, and listener lifecycle.
