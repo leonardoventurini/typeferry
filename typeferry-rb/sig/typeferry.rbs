@@ -105,6 +105,120 @@ module TypeFerry
       RATE_LIMIT_EXCEEDED: String
     end
   end
+
+  class PublicError < StandardError
+  end
+
+  class SchemaValidationError < PublicError
+    attr_reader errors: Array[String]
+    def initialize: (Array[String] errors) -> void
+  end
+
+  class ValidationIssue
+    attr_reader path: Array[String]
+    attr_reader message: String
+    def initialize: (Array[String] path, String message) -> void
+    def format: () -> String
+  end
+
+  class ValidationResult
+    attr_reader success: bool
+    attr_reader data: untyped
+    attr_reader issues: Array[ValidationIssue]
+    def initialize: (bool success, untyped data, Array[ValidationIssue] issues) -> void
+  end
+
+  module Context
+    KEY: Symbol
+    def self.current: () -> (Hash[Symbol, untyped] | nil)
+    def self.with: (Hash[Symbol, untyped] value) { () -> untyped } -> untyped
+  end
+
+  class ClientNode
+    attr_reader socket: untyped
+    attr_reader uuid: String
+    attr_reader context: untyped
+    attr_reader user_id: String?
+    attr_reader response_headers: Array[untyped]
+    attr_accessor authenticated: bool
+    attr_accessor server: Server?
+    def initialize: (?socket: untyped, ?uuid: String, ?context: untyped) -> void
+    def set_context: (untyped context) -> untyped
+    def emit_event: (String event, String channel, untyped params) -> untyped
+    def emit_auth_result: (bool value) -> untyped
+    def close: () -> untyped
+  end
+
+  class Method
+    @entries: Hash[String, Hash[Symbol, untyped]]
+    attr_reader name: String
+    def initialize: (String name, Proc handler, ?protected: bool, ?cache: bool, ?max_age_ms: Integer, ?schema: untyped, ?middleware: Array[Proc], ?clock: Proc?) -> void
+    def protected?: () -> bool
+    def call: (ClientNode? node, untyped params) -> untyped
+    private
+    def validate: (untyped params) -> void
+    def cached_value: (String key) -> Hash[Symbol, untyped]?
+    def store: (String key, untyped value) -> void
+  end
+
+  class RoomRegistry
+    @rooms: Hash[String, Set[untyped]]
+    @socket_rooms: Hash[untyped, Set[String]]
+    def initialize: () -> void
+    def join: (untyped socket, String room) -> untyped
+    def leave: (untyped socket, String room) -> untyped
+    def leave_all: (untyped socket) -> untyped
+    def broadcast: (String room, String payload, ?exclude_uuid: String?) -> untyped
+    def include?: (untyped socket, String room) -> bool
+    def size: (String room) -> Integer
+  end
+
+  class Event
+    attr_reader name: String
+    def initialize: (String name, server: Server, ?protected: bool, ?user: bool, ?cluster: bool, ?exclude_originator: bool, ?should_subscribe: Proc?) -> void
+    def subscribable?: (ClientNode node, String channel) -> bool
+    def emit: (String channel, ?untyped params) -> untyped
+  end
+
+  class Server
+    @methods: Hash[String, Method]
+    @events: Hash[String, Event]
+    @clients: Set[ClientNode]
+    @listeners: Hash[Symbol, Array[Proc]]
+    attr_reader rooms: RoomRegistry
+    attr_reader methods: Hash[String, Method]
+    attr_reader events: Hash[String, Event]
+    def initialize: (**untyped options) -> void
+    def add_method: (String name, ?Proc? handler, **untyped options) ?{ (ClientNode?, untyped) -> untyped } -> Method
+    def add_event: (String name, **untyped options) -> Event
+    def register: (untyped target) -> untyped
+    def call: (String name, ?untyped params, ?node: ClientNode?) -> untyped
+    def set_auth: (auth: Proc, log_in: Proc) -> Method
+    def authenticate: (ClientNode node, untyped context) -> untyped
+    def set_channel_authorization: (Proc callable) -> Proc
+    def add_client: (ClientNode node) -> untyped
+    def delete_client: (ClientNode node) -> untyped
+    def clients_for_user: (String user_id) -> Array[ClientNode]
+    def disconnect_user: (String user_id) -> Array[ClientNode]
+    def on_server_event: (Symbol name) { (untyped) -> untyped } -> Array[Proc]
+    def emit_server_event: (Symbol name, untyped payload) -> Array[Proc]
+    def propagate: (String event, String channel, String payload, ?exclude_uuid: String?, ?cluster: bool) -> untyped
+    def close: () -> true
+    private
+    def install_default_methods: () -> Method
+    def subscription_result: (ClientNode node, Hash[String, untyped]? params, subscribe: bool) -> Hash[String, bool]
+    def room_name: (String channel, String event) -> String
+  end
+
+  module Authoring
+    def namespace: (String value) -> String
+    def protected_by_default: () -> Hash[Symbol, untyped]
+    def cache_by_default: (?max_age_ms: Integer) -> Hash[Symbol, untyped]
+    def method: (Symbol ruby_name, ?name: String?, ?public: bool, ?cache: bool?, ?schema: untyped, ?middleware: Array[Proc]) ?{ (ClientNode?, untyped) -> untyped } -> Array[Hash[Symbol, untyped]]
+    def typeferry_methods: () -> Array[Hash[Symbol, untyped]]
+    private
+    def typeferry_defaults: () -> Hash[Symbol, untyped]
+  end
 end
 
 module Base64
@@ -119,4 +233,13 @@ module JSON
 
   def self.parse: (String source) -> untyped
   def self.generate: (untyped value, State state) -> String
+end
+
+class Monitor
+  def self.new: () -> Monitor
+  def synchronize: [T] () { () -> T } -> T
+end
+
+module SecureRandom
+  def self.uuid: () -> String
 end
