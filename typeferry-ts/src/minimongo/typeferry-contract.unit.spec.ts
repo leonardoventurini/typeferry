@@ -77,6 +77,18 @@ describe('TypeFerry local document store contract', () => {
     expect(change).not.toHaveBeenCalled()
   })
 
+  it('publishes collection events before derived cursor events', () => {
+    const tasks = new LocalCollection<Task>('tasks')
+    const cursor = tasks.find({ 'details.done': false })
+    const order: string[] = []
+
+    tasks.on('insert', () => order.push('collection'))
+    cursor.on('change', () => order.push('cursor'))
+    tasks.insert({ title: 'Ordered', details: { done: false } })
+
+    expect(order).toEqual(['collection', 'cursor'])
+  })
+
   it('observes projected sorted windows and releases observers with listener cleanup', () => {
     const tasks = new LocalCollection<Task>('tasks')
     const firstId = tasks.insert({ title: 'B', details: { done: false } })
