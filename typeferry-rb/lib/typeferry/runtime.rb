@@ -2,7 +2,6 @@
 
 require "monitor"
 require "securerandom"
-require "set"
 
 module TypeFerry
   class PublicError < StandardError
@@ -234,10 +233,12 @@ module TypeFerry
   end
 
   class Server
-    attr_reader :rooms, :methods, :events
+    attr_reader :rooms, :methods, :events, :uuid, :redis_transport
 
     def initialize(**options)
       @options = options.freeze
+      @uuid = options.fetch(:uuid, SecureRandom.uuid)
+      @redis_transport = options[:redis]
       @methods = {}
       @events = {}
       @clients = Set.new
@@ -289,6 +290,11 @@ module TypeFerry
       result
     end
 
+    def attach_redis(transport)
+      @lock.synchronize { @redis_transport = transport }
+      transport
+    end
+
     def set_channel_authorization(callable)
       @channel_authorizer = callable
     end
@@ -296,15 +302,21 @@ module TypeFerry
     def add_client(node)
       node.server = self
       @lock.synchronize { @clients << node }
+      @redis_transport&.register_client(node)
     end
 
     def delete_client(node)
       rooms.leave_all(node.socket) if node.socket
       @lock.synchronize { @clients.delete(node) }
+      @redis_transport&.remove_client(node)
     end
 
     def clients_for_user(user_id)
       @lock.synchronize { @clients.select { |node| node.user_id == user_id }.freeze }
+    end
+
+    def client_snapshot
+      @lock.synchronize { @clients.to_a.freeze }
     end
 
     def disconnect_user(user_id)
@@ -320,7 +332,7 @@ module TypeFerry
     end
 
     def propagate(event, channel, payload, exclude_uuid: nil, cluster: false)
-      transport = @options[:redis]
+      transport = @redis_transport
       if cluster && transport
         transport.publish(event:, channel:, message: payload, exclude_uuid:)
       else
@@ -330,7 +342,7 @@ module TypeFerry
 
     def close
       @lock.synchronize { @clients.to_a }.each(&:close)
-      @options[:redis]&.close
+      @redis_transport&.close
       true
     end
 
@@ -352,6 +364,7 @@ module TypeFerry
 
         node.authenticated = false
         node.set_context(nil)
+        @redis_transport&.register_client(node)
         emit_server_event(:logout, node)
         true
       end

@@ -33,6 +33,7 @@ module TypeFerry
           node.authenticated = true
           node.set_context(result)
         end
+        @server.redis_transport&.register_client(node) if node.authenticated
         node.emit_auth_result(node.authenticated)
       rescue
         node.authenticated = false

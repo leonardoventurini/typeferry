@@ -189,6 +189,8 @@ module TypeFerry
     attr_reader rooms: RoomRegistry
     attr_reader methods: Hash[String, Method]
     attr_reader events: Hash[String, Event]
+    attr_reader uuid: String
+    attr_reader redis_transport: untyped
     def initialize: (**untyped options) -> void
     def add_method: (String name, ?Proc? handler, **untyped options) ?{ (ClientNode?, untyped) -> untyped } -> Method
     def add_event: (String name, **untyped options) -> Event
@@ -196,10 +198,12 @@ module TypeFerry
     def call: (String name, ?untyped params, ?node: ClientNode?) -> untyped
     def set_auth: (auth: Proc, log_in: Proc) -> Method
     def authenticate: (ClientNode node, untyped context) -> untyped
+    def attach_redis: (untyped transport) -> untyped
     def set_channel_authorization: (Proc callable) -> Proc
     def add_client: (ClientNode node) -> untyped
     def delete_client: (ClientNode node) -> untyped
     def clients_for_user: (String user_id) -> Array[ClientNode]
+    def client_snapshot: () -> Array[ClientNode]
     def disconnect_user: (String user_id) -> Array[ClientNode]
     def on_server_event: (Symbol name) { (untyped) -> untyped } -> Array[Proc]
     def emit_server_event: (Symbol name, untyped payload) -> Array[Proc]
@@ -264,6 +268,36 @@ module TypeFerry
       private
       def run: () -> untyped
     end
+
+    class RedisTransport
+      EVENTS_CHANNEL: String
+      SERVERS_KEY: String
+      DEFAULT_URL: String
+      RECONNECT_DELAY: Float
+      attr_reader server: Server
+      attr_reader url: String
+      def initialize: (Server server, ?url: String, ?client_factory: Proc?) -> void
+      def connect: () -> RedisTransport
+      def wait_ready: (?timeout: Float) -> true
+      def publish: (event: String, channel: String, message: String, ?exclude_uuid: String?) -> untyped
+      def register_client: (ClientNode node) -> untyped
+      def remove_client: (ClientNode node) -> untyped
+      def stats: () -> Hash[String, untyped]
+      def close: () -> true
+      private
+      def listen: () -> untyped
+      def consume: (untyped subscriber) -> untyped
+      def route: (String payload) -> untyped
+      def publisher_call: (*String command) -> untyped
+      def rebuild_users: () -> untyped
+      def server_clients: () -> Array[ClientNode]
+      def clients_key: () -> String
+      def users_key: () -> String
+      def closed?: () -> bool
+      def mark_ready: () -> untyped
+      def interruptible_wait: (Float seconds) -> untyped
+      def monotonic_now: () -> Float
+    end
   end
 end
 
@@ -294,6 +328,16 @@ end
 
 module SecureRandom
   def self.uuid: () -> String
+end
+
+class RedisClient
+  class Error < StandardError
+  end
+
+  class ConnectionError < Error
+  end
+
+  def self.config: (url: String) -> untyped
 end
 
 module Rack

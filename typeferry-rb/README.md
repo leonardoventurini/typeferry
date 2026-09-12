@@ -41,3 +41,18 @@ threads for upgraded connections; call `websocket.close` during shutdown.
 
 The package remains unpublished. Applications should reference this repository
 and revision directly from their Gemfile.
+
+## Redis propagation
+
+Require `typeferry/transports/redis` explicitly, then attach and connect one
+transport per server process:
+
+```ruby
+redis = TypeFerry::Transports::RedisTransport.new(server, url: ENV.fetch("REDIS_URL"))
+redis.connect
+```
+
+The adapter uses a serialized publisher connection and a dedicated subscriber
+connection. Lost subscriptions reconnect and resubscribe automatically. Call
+`redis.close` during shutdown to stop its listener and remove the process-owned
+client, user, and server registration keys.
