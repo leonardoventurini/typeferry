@@ -13,7 +13,7 @@ Status: informative. Follow [`typeferry-ts/AGENTS.md`](../../typeferry-ts/AGENTS
 | Transports | `typeferry-ts/src/server/transports/` | Hono/Node HTTP and `ws` integration |
 | Auth | `typeferry-ts/src/auth/` | Client refresh/session flow and server JWT/OAuth/cookies |
 | Serialization | `typeferry-ts/src/ejson/` | EJSON conversion, equality, cloning, custom models |
-| In-memory data | `typeferry-ts/src/minimongo/` | Strict Meteor-compatible queries, mutations, cursors, observation, and replaceable runtime ports |
+| In-memory data | `typeferry-ts/src/minimongo/` | Immutable local documents, Mongo-style queries and mutations, and typed collection/cursor events |
 | Shared utilities | `typeferry-ts/src/utils/` | Protocol shapes, constants, throttling, helpers |
 | React adapter | `typeferry-ts/src/react/` | Hooks and provider over the core client |
 | MongoDB extension | `typeferry-ts/src/mongodb/` | Typed collections and live invalidation over the native driver |

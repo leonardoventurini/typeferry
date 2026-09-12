@@ -252,7 +252,7 @@ See [release status](RELEASING.md) for current publication details.
 - [Events and channels](docs/typescript/events-and-channels.md)
 - [MongoDB extension](docs/typescript/mongodb.md)
 - [EJSON](docs/typescript/ejson.md)
-- [Minimongo](docs/typescript/minimongo.md)
+- [Local document collections](docs/typescript/minimongo.md)
 - [iOS applications](docs/typescript/ios-applications.md)
 - [Native authentication](docs/typescript/native-authentication.md)
 - [Deployment](docs/typescript/deployment.md)

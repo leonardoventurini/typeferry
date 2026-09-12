@@ -1,5 +1,8 @@
 # Strict modular Minimongo compatibility runtime
 
+Status: Superseded by
+[`2026-09-12-typeferry-local-document-store.md`](2026-09-12-typeferry-local-document-store.md).
+
 ## Context
 
 TypeFerry needed a browser-safe local collection with Meteor Minimongo behavior,

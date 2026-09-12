@@ -137,17 +137,17 @@ adopt string IDs and event subscriptions before upgrading.
 
 ## Executable checklist
 
-- [ ] Replace compatibility tests with TypeFerry-owned contract tests.
-- [ ] Restrict IDs to validated strings and generate ObjectId-compatible strings.
-- [ ] materialize deeply frozen, deeply readonly document snapshots.
-- [ ] Add typed collection mutation events.
-- [ ] Add cursor snapshot and granular result events.
-- [ ] Remove compatibility-only public APIs and implementation paths.
-- [ ] Preserve legal attribution without compatibility claims.
-- [ ] Update package, architecture, and user documentation.
-- [ ] Add a decision record superseding the compatibility decision.
-- [ ] Run focused unit and browser tests.
-- [ ] Run lint, typecheck, all split suites, build, and package inspection.
+- [x] Replace compatibility tests with TypeFerry-owned contract tests.
+- [x] Restrict IDs to validated strings and generate ObjectId-compatible strings.
+- [x] Materialize deeply frozen, deeply readonly document snapshots.
+- [x] Add typed collection mutation events.
+- [x] Add cursor snapshot and granular result events.
+- [x] Remove compatibility-only public APIs and implementation paths.
+- [x] Preserve legal attribution without compatibility claims.
+- [x] Update package, architecture, and user documentation.
+- [x] Add a decision record superseding the compatibility decision.
+- [x] Run focused unit and browser tests.
+- [x] Run lint, typecheck, all split suites, build, and package inspection.
 
 ## Acceptance criteria
 
@@ -158,3 +158,20 @@ adopt string IDs and event subscriptions before upgrading.
   historical context.
 - `PROTOCOL.md` and all transport behavior remain unchanged.
 - All required TypeScript verification commands pass.
+
+## Verification results
+
+Executed successfully:
+
+- focused local-store unit tests: 19 tests;
+- complete unit suite: 1,655 tests;
+- complete browser suite: 10 tests;
+- ESLint and strict TypeScript typecheck;
+- production build and `npm pack --dry-run`;
+- repository package verification: 565 allowed files;
+- packed application consumer build, test, and runtime import.
+
+The integration suite was executed. Its four environment-independent files and
+28 tests passed. Redis and MongoDB integration files could not initialize their
+external services in this environment; 23 tests were skipped after connection
+timeouts. No local-store test depends on either service.

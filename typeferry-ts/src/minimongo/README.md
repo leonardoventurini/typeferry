@@ -127,4 +127,16 @@ The store is intentionally local-only and in-memory. It does not provide
 persistence, indexes, aggregation, transport synchronization, publications, or
 implicit React bindings.
 
+## Migrating from the former API
+
+- Change every document identity to a lowercase 24-character hexadecimal
+  string and remove uses of the former object identity class.
+- Replace observer callback objects with `cursor.on(...)` listeners.
+- Replace `fields` with `projection`; cursor events are always reactive.
+- Remove compatibility runtime factories, component overrides, observer
+  pause/resume calls, original-document tracking, mutation callbacks, predicate
+  selectors, and `$where` selectors.
+- Treat returned documents as immutable snapshots and perform all changes
+  through collection mutations.
+
 See `NOTICE.md` for required attribution covering inherited algorithmic work.

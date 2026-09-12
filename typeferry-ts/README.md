@@ -29,7 +29,7 @@ commands, optional configuration, safety boundaries, and completion checks.
 | `typeferry/auth/server/oauth` | Server OAuth providers |
 | `typeferry/auth/client/oauth` | Client OAuth helpers |
 | `typeferry/ejson` | Extended JSON namespace |
-| `typeferry/minimongo` | Strict, modular in-memory Mongo-style collections |
+| `typeferry/minimongo` | Immutable, event-driven local document collections |
 | `typeferry/mongodb` | Native-driver MongoDB extension |
 | `typeferry/mongodb/decorators` | MongoDB collection decorators |
 | `typeferry/config` | Optional typed application configuration |
