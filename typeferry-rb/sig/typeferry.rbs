@@ -1,3 +1,122 @@
 module TypeFerry
   VERSION: String
+
+  module EJSON
+    self.@custom_factories: Hash[String, Proc]
+
+    VALID_REGEXP_FLAGS: String
+    TAG_KEYS: Array[Array[String]]
+
+    class DateValue < Struct[Integer]
+      attr_reader milliseconds: Integer
+      def initialize: (milliseconds: Integer) -> void
+      def self.new: (milliseconds: Integer) -> DateValue
+                   | (milliseconds: Integer, **untyped) -> DateValue
+    end
+
+    class RegexpValue < Struct[String | nil]
+      attr_reader source: String
+      attr_reader flags: String
+      def initialize: (source: String, flags: String) -> void
+      def self.new: (source: String, flags: String) -> RegexpValue
+                   | (source: String, flags: String, **untyped) -> RegexpValue
+    end
+
+    class BinaryValue < Struct[String]
+      attr_reader bytes: String
+      def initialize: (bytes: String) -> void
+      def self.new: (bytes: String) -> BinaryValue
+                   | (bytes: String, **untyped) -> BinaryValue
+    end
+
+    class CustomValue < Struct[untyped]
+      attr_reader type_name: String
+      attr_reader value: untyped
+      def initialize: (type_name: String, value: untyped) -> void
+      def self.new: (type_name: String, value: untyped) -> CustomValue
+                   | (type_name: String, value: untyped, **untyped) -> CustomValue
+    end
+
+    def self.add_type: (String name) { (untyped) -> untyped } -> Proc
+    def self.clear_types: () -> Hash[String, Proc]
+    def self.parse: (String source) -> untyped
+    def self.stringify: (untyped value, ?canonical: bool, ?indent: bool | Integer | String | nil) -> String
+    def self.to_json_value: (untyped value) -> untyped
+    def self.from_json_value: (untyped value) -> untyped
+
+    private
+
+    def self.convert_object: (untyped value) -> untyped
+    def self.convert_json: (Hash[String, untyped] value) -> untyped
+    def self.exact_keys?: (Hash[String, untyped] value, *String keys) -> bool
+    def self.tag_shape?: (Hash[untyped, untyped] value) -> bool
+    def self.regexp_flags: (Regexp value) -> String
+    def self.sanitize_flags: (untyped value) -> String
+    def self.inf_nan: (Float value) -> (Float | Hash[String, Integer])
+    def self.decode_inf_nan: (untyped sign) -> Float
+    def self.decode_base64: (untyped value) -> String
+    def self.canonicalize: (untyped value) -> untyped
+  end
+
+  module Protocol
+    HTTP_PATH: String
+    WEBSOCKET_PATH: String
+    NO_CHANNEL: String
+    AUTH_TIMEOUT_MS: Integer
+    PING_INTERVAL_MS: Integer
+    DEFAULT_CACHE_MAX_AGE_MS: Integer
+    REDIS_EVENTS_CHANNEL: String
+
+    module MessageType
+      RPC: String
+      RPC_VOID: String
+      RPC_RESPONSE: String
+      EVENT: String
+      AUTH: String
+      PING: String
+      PONG: String
+    end
+
+    module Methods
+      RPC_ON: String
+      RPC_OFF: String
+      RPC_LOGIN: String
+      RPC_LOGOUT: String
+      LIST_METHODS: String
+    end
+
+    module Errors
+      AUTHENTICATION_FAILED: String
+      EVENT_FORBIDDEN: String
+      EVENT_NOT_FOUND: String
+      EVENT_NOT_PROVIDED: String
+      EVENT_NOT_SUBSCRIBED: String
+      INTERNAL_ERROR: String
+      INVALID_METHOD_NAME: String
+      INVALID_PARAMS: String
+      INVALID_REQUEST: String
+      INVALID_TOKEN: String
+      METHOD_FORBIDDEN: String
+      METHOD_NOT_FOUND: String
+      METHOD_NOT_SPECIFIED: String
+      PARAMS_NOT_FOUND: String
+      PARSE_ERROR: String
+      SUBSCRIPTION_ERROR: String
+      RATE_LIMIT_EXCEEDED: String
+    end
+  end
+end
+
+module Base64
+  def self.strict_encode64: (String value) -> String
+  def self.strict_decode64: (String value) -> String
+end
+
+module JSON
+  class State
+    def initialize: (**untyped) -> void
+  end
+
+  def self.parse: (String source) -> untyped
+  def self.generate: (untyped value, State state) -> String
 end
