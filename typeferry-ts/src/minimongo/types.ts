@@ -141,7 +141,6 @@ export interface LogicalSelector<TDocument extends object> {
 /** A typed Mongo-style selector or literal predicate. */
 export type Selector<TDocument extends object> =
   | MinimongoId
-  | ((document: TDocument) => boolean)
   | (FieldSelectorMap<TDocument> & LogicalSelector<TDocument>)
 
 export type Projection<TDocument extends object> = Readonly<
@@ -173,8 +172,6 @@ export interface FindOptions<TDocument extends object, TOutput extends object = 
   readonly skip?: number
   readonly limit?: number
   readonly projection?: Projection<TDocument>
-  readonly fields?: Projection<TDocument>
-  readonly reactive?: boolean
   readonly transform?: ((document: TDocument) => TOutput) | null
   readonly collation?: CollationOptions
 }

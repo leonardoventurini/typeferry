@@ -128,7 +128,6 @@ export class Matcher<TDocument extends object = object> {
   private readonly documentMatcher: DocumentMatcher
   private readonly collator: Intl.Collator | undefined
   private geoQuery = false
-  private whereQuery = false
   private simple = true
 
   constructor(
@@ -153,10 +152,6 @@ export class Matcher<TDocument extends object = object> {
     return this.geoQuery
   }
 
-  hasWhere(): boolean {
-    return this.whereQuery
-  }
-
   isSimple(): boolean {
     return this.simple
   }
@@ -166,12 +161,6 @@ export class Matcher<TDocument extends object = object> {
   }
 
   private compileSelector(selector: unknown): DocumentMatcher {
-    if (typeof selector === 'function') {
-      this.simple = false
-      this.paths.add('')
-
-      return document => ({ result: Boolean(selector.call(document, document)) })
-    }
     if (typeof selector === 'string') {
       this.paths.add('_id')
 

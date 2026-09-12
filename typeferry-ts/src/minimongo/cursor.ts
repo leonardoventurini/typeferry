@@ -73,7 +73,7 @@ export class Cursor<
       : this.matcher.hasGeoQuery()
         ? collection[LOCAL_STORE_RUNTIME].query.sorter([], options.collation)
         : undefined
-    this.projection = collection[LOCAL_STORE_RUNTIME].query.projection(options.projection ?? options.fields)
+    this.projection = collection[LOCAL_STORE_RUNTIME].query.projection(options.projection)
     this.transform = wrapTransform(options.transform, collection[LOCAL_STORE_RUNTIME].values)
     this.skip = options.skip ?? 0
     this.limit = options.limit
@@ -117,6 +117,43 @@ export class Cursor<
     return this.fetch().map((document, index) => callback.call(thisArg, document, index, this))
   }
 
+  async forEachAsync(
+    callback: (
+      document: DeepReadonly<TransformedDocument<TDocument, TOutput>>,
+      index: number,
+      cursor: this,
+    ) => void | Promise<void>,
+    thisArg?: unknown,
+  ): Promise<void> {
+    let index = 0
+
+    for (const document of this.fetch()) {
+      await callback.call(thisArg, document, index, this)
+      index += 1
+    }
+  }
+
+  async mapAsync<TResult>(
+    callback: (
+      document: DeepReadonly<TransformedDocument<TDocument, TOutput>>,
+      index: number,
+      cursor: this,
+    ) => TResult | Promise<TResult>,
+    thisArg?: unknown,
+  ): Promise<TResult[]> {
+    const results: TResult[] = []
+
+    await this.forEachAsync(async (document, index) => {
+      results.push(await callback.call(thisArg, document, index, this))
+    })
+
+    return results
+  }
+
+  getTransform(): ((document: TDocument) => TransformedDocument<TDocument, TOutput>) | undefined {
+    return this.transform
+  }
+
   [Symbol.iterator](): Iterator<DeepReadonly<TransformedDocument<TDocument, TOutput>>> {
     return this.fetch()[Symbol.iterator]()
   }
@@ -136,7 +173,7 @@ export class Cursor<
 
   protected override onListenerAdded(): void {
     this.listenerCount += 1
-    if (this.removeObserver || this.options.reactive === false) return
+    if (this.removeObserver) return
 
     this.previous = this.fetch()
     this.removeObserver = this.collection.addObserver(() => this.handleMutation())
@@ -201,7 +238,7 @@ export class Cursor<
   }
 
   private outputDocument(document: TDocument): DeepReadonly<TransformedDocument<TDocument, TOutput>> {
-    const hasProjection = Object.keys(this.options.projection ?? this.options.fields ?? {}).length > 0
+    const hasProjection = Object.keys(this.options.projection ?? {}).length > 0
     const projected = hasProjection ? this.projection(document) : document
     const output = this.transform ? this.transform(projected) : projected
 
