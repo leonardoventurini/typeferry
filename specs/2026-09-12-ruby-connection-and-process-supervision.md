@@ -40,6 +40,6 @@ and process supervision.
 
 - [x] Duplicate UUID runtime tests, including stale deletion and Redis ownership.
 - [x] Real Puma reconnect test proves the old socket closes and only the replacement receives events.
-- [ ] Process supervisor tests cover success, cancel, timeout, descendant termination, duplicate IDs, and shutdown.
-- [ ] RBS, README, architecture, and package inventory updated.
-- [ ] Redis-backed `bundle exec rake verify` passes without skips.
+- [x] Process supervisor tests cover success, cancel, timeout, descendant termination, duplicate IDs, and shutdown.
+- [x] RBS, README, architecture, and package inventory updated.
+- [x] Redis-backed `bundle exec rake verify` passes without skips.

@@ -134,6 +134,58 @@ module TypeFerry
     def self.with: (Hash[Symbol, untyped] value) { () -> untyped } -> untyped
   end
 
+  class ProcessResult
+    attr_reader status: Symbol
+    attr_reader exit_status: Integer?
+    attr_reader term_signal: Integer?
+    attr_reader error: Exception?
+    def initialize: (status: Symbol, exit_status: Integer?, term_signal: Integer?, error: Exception?) -> void
+    def success?: () -> bool
+  end
+
+  class ProcessJob
+    attr_reader id: String
+    attr_reader pid: Integer?
+    def initialize: (ProcessSupervisor supervisor, id: String, command: Array[String], environment: Hash[String, String], directory: String?, timeout: Float?, stdin: untyped, stdout: untyped, stderr: untyped, unset_environment: bool) -> void
+    def start: () -> ProcessJob
+    def cancel: () -> true
+    def wait: (?timeout: Float?) -> ProcessResult
+    def result: () -> ProcessResult?
+    def active?: () -> bool
+    private
+    def monitor_process: () -> void
+    def terminate_and_finish: (Symbol status) -> ProcessResult
+    def reap: (no_hang: bool) -> untyped
+    def exit_result: (untyped status) -> ProcessResult
+    def cancel_requested?: () -> bool
+    def timed_out?: () -> bool
+    def finish: (ProcessResult value) -> ProcessResult
+    def monotonic_now: () -> Float
+  end
+
+  class ProcessSupervisor
+    class ClosedError < StandardError
+    end
+
+    class WaitTimeout < StandardError
+    end
+
+    attr_reader poll_interval: Float
+    attr_reader termination_grace: Float
+    def initialize: (?poll_interval: Float, ?termination_grace: Float) -> void
+    def start: (id: String, command: Array[String], ?environment: Hash[untyped, untyped], ?directory: String?, ?timeout: Float?, ?stdin: untyped, ?stdout: untyped, ?stderr: untyped, ?unset_environment: bool) -> ProcessJob
+    def active?: (String id) -> bool
+    def cancel: (String id) -> bool
+    def close: () -> true
+    def finish: (ProcessJob job) -> untyped
+    def signal_process_group: (Integer pid, String signal) -> bool
+    def terminate_process_group: (Integer pid) -> true
+    private
+    def validate_start: (String id, Array[String] command, Float? timeout) -> void
+    def normalize_environment: (Hash[untyped, untyped] environment) -> Hash[String, String]
+    def monotonic_now: () -> Float
+  end
+
   class ClientNode
     attr_reader socket: untyped
     attr_reader uuid: String

@@ -5,6 +5,7 @@ require_relative "typeferry/ejson"
 require_relative "typeferry/protocol"
 require_relative "typeferry/runtime"
 require_relative "typeferry/authoring"
+require_relative "typeferry/process_supervisor"
 
 module TypeFerry
 end

@@ -17,6 +17,31 @@ bundle install
 bundle exec rake verify
 ```
 
+## Child-process supervision
+
+`TypeFerry::ProcessSupervisor` is a transport-independent mechanism for Ruby
+applications that delegate bounded work to native tools or language workers.
+It accepts an argv array without shell interpolation, creates an isolated
+process group, and provides cancellation, timeout, result, and shutdown
+lifecycle:
+
+```ruby
+supervisor = TypeFerry::ProcessSupervisor.new
+job = supervisor.start(
+  id: "preview-42",
+  command: ["/app/bin/model-worker", "--request", request_path],
+  timeout: 30.0,
+  unset_environment: true
+)
+
+result = job.wait
+supervisor.close
+```
+
+TypeFerry does not add a cancellation wire method. Applications own job IDs,
+authorization, endpoint semantics, and the mapping from terminal process state
+to public errors.
+
 ## Rack HTTP
 
 Require and mount the HTTP adapter on the protocol-owned `/__h` path:
