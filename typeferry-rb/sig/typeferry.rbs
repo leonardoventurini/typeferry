@@ -285,5 +285,22 @@ module TypeFerry
       def response: (Integer status, String body, ?Array[[String, String]] headers) -> [Integer, Hash[String, String], Array[String]]
       def rate_headers: (Integer remaining, Integer reset_ms) -> Array[[String, String]]
     end
+
+    class WebSocketDispatcher
+      UUID_PATTERN: Regexp
+      MAX_UUID_LENGTH: Integer
+      MAX_META_SIZE: Integer
+      attr_reader node: ClientNode
+      def initialize: (Server server, untyped socket, ?query: Hash[String, String], ?handshake_authenticator: Proc?, ?handshake: Hash[untyped, untyped]) -> void
+      def open: () -> untyped
+      def receive: (String payload) -> untyped
+      def close: () -> untyped
+      def ping: () -> untyped
+      private
+      def rpc: (Hash[String, untyped] frame) -> untyped
+      def rpc_void: (Hash[String, untyped] frame) -> untyped
+      def respond: (untyped id, ?result: untyped, ?error: String?, ?errors: Array[String]?) -> untyped
+      def sanitize_uuid: (untyped value) -> String
+    end
   end
 end
