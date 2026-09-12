@@ -1,7 +1,7 @@
-import { MiniMongoQueryError } from './errors'
+import { LocalQueryError as LocalQueryError } from './errors'
 import { expandArrays, lookupBranches } from './path'
 import type { CollationOptions, SortDirection, SortSpecifier } from './types'
-import { meteorValueSemantics, type ValueSemantics } from './value-semantics'
+import { localValueSemantics, type ValueSemantics } from './value-semantics'
 
 type SortPart = readonly [path: string, ascending: boolean]
 
@@ -11,7 +11,7 @@ function ascending(direction: SortDirection): boolean {
   if ([1, 'asc', 'ascending'].includes(direction)) return true
   if ([-1, 'desc', 'descending'].includes(direction)) return false
 
-  throw new MiniMongoQueryError(`Bad sort specification: ${String(direction)}`)
+  throw new LocalQueryError(`Bad sort specification: ${String(direction)}`)
 }
 
 function normalizeSort(specifier: unknown): readonly SortPart[] {
@@ -23,7 +23,7 @@ function normalizeSort(specifier: unknown): readonly SortPart[] {
         return validatedPart(entry[0], ascending(entry[1] as SortDirection))
       }
 
-      throw new MiniMongoQueryError(`Bad sort specification: ${JSON.stringify(specifier)}`)
+      throw new LocalQueryError(`Bad sort specification: ${JSON.stringify(specifier)}`)
     })
   }
   if (typeof specifier === 'object') {
@@ -31,7 +31,7 @@ function normalizeSort(specifier: unknown): readonly SortPart[] {
       .map(([path, direction]) => validatedPart(path, ascending(direction)))
   }
 
-  throw new MiniMongoQueryError(`Bad sort specification: ${String(specifier)}`)
+  throw new LocalQueryError(`Bad sort specification: ${String(specifier)}`)
 }
 
 function validatedPart(path: string, isAscending: boolean): SortPart {
@@ -52,7 +52,7 @@ function createCollator(options?: CollationOptions): Intl.Collator | undefined {
   } as Intl.CollatorOptions)
 }
 
-/** Compiles Meteor-compatible sort specifications into document comparators. */
+/** Compiles Mongo-style sort specifications into document comparators. */
 export class Sorter<TDocument extends object = object> {
   private readonly parts: readonly SortPart[]
   private readonly functionComparator: ((left: TDocument, right: TDocument) => number) | undefined
@@ -61,7 +61,7 @@ export class Sorter<TDocument extends object = object> {
   constructor(
     specifier: SortSpecifier<TDocument> | unknown,
     collation?: CollationOptions,
-    private readonly values: ValueSemantics = meteorValueSemantics,
+    private readonly values: ValueSemantics = localValueSemantics,
   ) {
     this.functionComparator = typeof specifier === 'function'
       ? specifier as (left: TDocument, right: TDocument) => number

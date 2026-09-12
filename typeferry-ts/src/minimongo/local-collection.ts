@@ -1,54 +1,61 @@
-import { minimongoComponents, type MinimongoComponents } from './components'
+import { LOCAL_STORE_RUNTIME, localStoreRuntime } from './components'
 import { Cursor, type CursorCollection } from './cursor'
 import type { DocumentStore } from './document-store'
-import { MinimongoError } from './errors'
-import { assertMinimongoId } from './identity'
+import { LocalCollectionError } from './errors'
+import { TypedEventEmitter } from './events'
+import { deepFreeze, type DeepReadonly } from './immutable'
+import { assertLocalId } from './identity'
 import { assertValidFieldNames } from './modifier'
-import { ObjectID } from './object-id'
 import type {
   FindOptions,
   InsertDocument,
   MaterializedDocument,
-  MinimongoId,
   Modifier,
   Selector,
+  TransformedDocument,
   UpdateOptions,
+  UpsertOptions,
   UpsertResult,
 } from './types'
 
-type Stored<TSchema extends object, TId extends MinimongoId> =
-  MaterializedDocument<TSchema, TId>
+type Stored<TSchema extends object> = MaterializedDocument<TSchema, string>
 
-type MutationCallback<TResult> = (error: Error | null, result?: TResult) => void
-
-export interface LocalCollectionOptions {
-  readonly components?: Partial<MinimongoComponents>
+export interface CollectionInsertEvent<TDocument extends object> {
+  readonly document: TDocument
 }
 
-/** Strict, modular clone of Meteor's in-memory LocalCollection. */
+export interface CollectionUpdateEvent<TDocument extends object> {
+  readonly previous: TDocument
+  readonly document: TDocument
+}
+
+export interface CollectionRemoveEvent<TDocument extends object> {
+  readonly document: TDocument
+}
+
+type CollectionEvents<TDocument extends object> = {
+  insert: readonly [event: CollectionInsertEvent<TDocument>]
+  update: readonly [event: CollectionUpdateEvent<TDocument>]
+  remove: readonly [event: CollectionRemoveEvent<TDocument>]
+}
+
+/** A typed, immutable, event-driven local document collection. */
 export class LocalCollection<
   TSchema extends object = Record<string, unknown>,
-  TId extends MinimongoId = MinimongoId,
-> implements CursorCollection<Stored<TSchema, TId>> {
-  static _useOID = false
-
-  readonly components: MinimongoComponents
+> extends TypedEventEmitter<CollectionEvents<Stored<TSchema>>>
+  implements CursorCollection<Stored<TSchema>> {
+  readonly [LOCAL_STORE_RUNTIME] = localStoreRuntime
   readonly name: string | undefined
-  private readonly store: DocumentStore<TId, Stored<TSchema, TId>>
+  private readonly store: DocumentStore<string, Stored<TSchema>>
   private readonly observers = new Set<() => void>()
-  private originals: DocumentStore<TId, Stored<TSchema, TId> | undefined> | undefined
-  private paused = false
 
-  constructor(
-    name?: string,
-    options: LocalCollectionOptions = {},
-  ) {
+  constructor(name?: string) {
+    super()
     this.name = name
-    this.components = minimongoComponents(options.components ?? {})
-    this.store = this.components.documentStoreFactory.create<TId, Stored<TSchema, TId>>()
+    this.store = localStoreRuntime.documentStoreFactory.create<string, Stored<TSchema>>()
   }
 
-  documents(): Iterable<Stored<TSchema, TId>> {
+  documents(): Iterable<Stored<TSchema>> {
     return Array.from(this.store.entries(), ([, document]) => document)
   }
 
@@ -58,277 +65,164 @@ export class LocalCollection<
     return () => this.observers.delete(observer)
   }
 
-  isPaused(): boolean {
-    return this.paused
-  }
-
-  find<TOutput extends object = Stored<TSchema, TId>>(
-    selector?: Selector<Stored<TSchema, TId>>,
-    options: FindOptions<Stored<TSchema, TId>, TOutput> = {},
-  ): Cursor<Stored<TSchema, TId>, TOutput> {
+  find<TOutput extends object = Stored<TSchema>>(
+    selector?: Selector<Stored<TSchema>>,
+    options: FindOptions<Stored<TSchema>, TOutput> = {},
+  ): Cursor<Stored<TSchema>, TOutput> {
     const effectiveSelector = arguments.length === 0 ? {} : selector
 
     return new Cursor(this, effectiveSelector, options)
   }
 
-  findOne<TOutput extends object = Stored<TSchema, TId>>(
-    selector?: Selector<Stored<TSchema, TId>>,
-    options: FindOptions<Stored<TSchema, TId>, TOutput> = {},
-  ): TOutput | undefined {
+  findOne<TOutput extends object = Stored<TSchema>>(
+    selector?: Selector<Stored<TSchema>>,
+    options: FindOptions<Stored<TSchema>, TOutput> = {},
+  ): DeepReadonly<TransformedDocument<Stored<TSchema>, TOutput>> | undefined {
     const effectiveSelector = arguments.length === 0 ? {} : selector
 
     return this.find(effectiveSelector, { ...options, limit: 1 }).fetch()[0]
   }
 
-  findOneAsync<TOutput extends object = Stored<TSchema, TId>>(
-    selector?: Selector<Stored<TSchema, TId>>,
-    options: FindOptions<Stored<TSchema, TId>, TOutput> = {},
-  ): Promise<TOutput | undefined> {
-    const effectiveSelector = arguments.length === 0 ? {} : selector
-
-    return Promise.resolve(this.findOne(effectiveSelector, options))
+  findOneAsync<TOutput extends object = Stored<TSchema>>(
+    selector?: Selector<Stored<TSchema>>,
+    options: FindOptions<Stored<TSchema>, TOutput> = {},
+  ): Promise<DeepReadonly<TransformedDocument<Stored<TSchema>, TOutput>> | undefined> {
+    return Promise.resolve(this.findOne(selector, options))
   }
 
   countDocuments(
-    selector: Selector<Stored<TSchema, TId>> | undefined = {},
-    options: FindOptions<Stored<TSchema, TId>> = {},
+    selector: Selector<Stored<TSchema>> | undefined = {},
+    options: FindOptions<Stored<TSchema>> = {},
   ): Promise<number> {
     return this.find(selector, options).countAsync()
   }
 
-  estimatedDocumentCount(options: FindOptions<Stored<TSchema, TId>> = {}): Promise<number> {
+  estimatedDocumentCount(options: FindOptions<Stored<TSchema>> = {}): Promise<number> {
     return this.find({}, options).countAsync()
   }
 
-  insert(document: InsertDocument<TSchema, TId>, callback?: MutationCallback<TId>): TId {
-    const cloned = this.components.values.clone(document) as Record<string, unknown>
-    const id = this.prepareInsert(cloned)
+  insert(document: InsertDocument<TSchema, string>): string {
+    const mutable = localStoreRuntime.values.clone(document) as Record<string, unknown>
+    const stored = this.prepareInsert(mutable)
 
+    this.emit('insert', deepFreeze({ document: stored }))
     this.notifyObservers()
-    this.deferCallback(callback, id)
 
-    return id
+    return stored._id
   }
 
-  async insertAsync(document: InsertDocument<TSchema, TId>, callback?: MutationCallback<TId>): Promise<TId> {
-    const cloned = this.components.values.clone(document) as Record<string, unknown>
-    const id = this.prepareInsert(cloned)
-
-    await this.notifyObserversAsync()
-    this.deferCallback(callback, id)
-
-    return id
+  insertAsync(document: InsertDocument<TSchema, string>): Promise<string> {
+    return Promise.resolve(this.insert(document))
   }
 
-  remove(selector: Selector<Stored<TSchema, TId>>, callback?: MutationCallback<number>): number {
-    const ids = this.matchedIds(selector)
-    for (const id of ids) {
-      const document = this.store.get(id)
-      this.saveOriginal(id, document)
-      this.store.delete(id)
-    }
+  remove(selector: Selector<Stored<TSchema>>): number {
+    const documents = this.matchedDocuments(selector)
+
+    for (const document of documents) this.store.delete(document._id)
+    for (const document of documents) this.emit('remove', deepFreeze({ document }))
     this.notifyObservers()
-    this.deferCallback(callback, ids.length)
 
-    return ids.length
+    return documents.length
   }
 
-  async removeAsync(selector: Selector<Stored<TSchema, TId>>, callback?: MutationCallback<number>): Promise<number> {
-    const ids = this.matchedIds(selector)
-    for (const id of ids) {
-      const document = this.store.get(id)
-      this.saveOriginal(id, document)
-      this.store.delete(id)
-    }
-    await this.notifyObserversAsync()
-    this.deferCallback(callback, ids.length)
-
-    return ids.length
+  removeAsync(selector: Selector<Stored<TSchema>>): Promise<number> {
+    return Promise.resolve(this.remove(selector))
   }
 
   update(
-    selector: Selector<Stored<TSchema, TId>>,
-    modifier: Modifier<Stored<TSchema, TId>> | Partial<Stored<TSchema, TId>>,
-    options: UpdateOptions<TId> | MutationCallback<number | UpsertResult<TId>> = {},
-    callback?: MutationCallback<number | UpsertResult<TId>>,
-  ): number | UpsertResult<TId> {
-    const updateOptions = typeof options === 'function' ? {} : options
-    const updateCallback = typeof options === 'function' ? options : callback
-    const result = this.applyUpdate(selector, modifier, updateOptions)
-
-    this.notifyObservers()
-    this.deferCallback(updateCallback, result)
-
-    return result
-  }
-
-  async updateAsync(
-    selector: Selector<Stored<TSchema, TId>>,
-    modifier: Modifier<Stored<TSchema, TId>> | Partial<Stored<TSchema, TId>>,
-    options: UpdateOptions<TId> | MutationCallback<number | UpsertResult<TId>> = {},
-    callback?: MutationCallback<number | UpsertResult<TId>>,
-  ): Promise<number | UpsertResult<TId>> {
-    const updateOptions = typeof options === 'function' ? {} : options
-    const updateCallback = typeof options === 'function' ? options : callback
-    const result = this.applyUpdate(selector, modifier, updateOptions)
-
-    await this.notifyObserversAsync()
-    this.deferCallback(updateCallback, result)
-
-    return result
-  }
-
-  upsert(
-    selector: Selector<Stored<TSchema, TId>>,
-    modifier: Modifier<Stored<TSchema, TId>> | Partial<Stored<TSchema, TId>>,
-    options: Omit<UpdateOptions<TId>, 'upsert' | '_returnObject'> = {},
-    callback?: MutationCallback<UpsertResult<TId>>,
-  ): UpsertResult<TId> {
-    const result = this.update(
-      selector,
-      modifier,
-      { ...options, upsert: true, _returnObject: true },
-      callback as MutationCallback<number | UpsertResult<TId>>,
-    )
-
-    return result as UpsertResult<TId>
-  }
-
-  async upsertAsync(
-    selector: Selector<Stored<TSchema, TId>>,
-    modifier: Modifier<Stored<TSchema, TId>> | Partial<Stored<TSchema, TId>>,
-    options: Omit<UpdateOptions<TId>, 'upsert' | '_returnObject'> = {},
-    callback?: MutationCallback<UpsertResult<TId>>,
-  ): Promise<UpsertResult<TId>> {
-    const result = await this.updateAsync(
-      selector,
-      modifier,
-      { ...options, upsert: true, _returnObject: true },
-      callback as MutationCallback<number | UpsertResult<TId>>,
-    )
-
-    return result as UpsertResult<TId>
-  }
-
-  pauseObservers(): void {
-    this.paused = true
-  }
-
-  resumeObserversClient(): void {
-    if (!this.paused) return
-    this.paused = false
-    this.notifyObservers()
-  }
-
-  async resumeObserversServer(): Promise<void> {
-    if (!this.paused) return
-    this.paused = false
-    await this.notifyObserversAsync()
-  }
-
-  saveOriginals(): void {
-    if (this.originals) throw new Error('Called saveOriginals twice without retrieveOriginals')
-    this.originals = this.components.documentStoreFactory.create<TId, Stored<TSchema, TId> | undefined>()
-  }
-
-  retrieveOriginals(): DocumentStore<TId, Stored<TSchema, TId> | undefined> {
-    if (!this.originals) throw new Error('Called retrieveOriginals without saveOriginals')
-    const originals = this.originals
-
-    this.originals = undefined
-
-    return originals
-  }
-
-  private prepareInsert(document: Record<string, unknown>): TId {
-    assertValidFieldNames(document)
-    if (!Object.hasOwn(document, '_id')) {
-      document['_id'] = LocalCollection._useOID
-        ? new ObjectID()
-        : this.components.randomId()
-    }
-    const id = document['_id']
-
-    assertMinimongoId(id)
-    if (typeof id === 'string' && id.length === 0) throw new MinimongoError('Meteor does not allow empty string IDs')
-    if (this.store.has(id as TId)) throw new MinimongoError(`Duplicate _id '${String(id)}'`)
-    this.saveOriginal(id as TId, undefined)
-    this.store.set(id as TId, document as Stored<TSchema, TId>)
-
-    return id as TId
-  }
-
-  private matchedIds(selector: Selector<Stored<TSchema, TId>>): TId[] {
-    const matcher = this.components.query.matcher(selector, {
-      isUpdate: true,
-      allowJavascriptWhere: this.components.allowJavascriptWhere,
-    })
-    const result: TId[] = []
-    for (const [id, document] of this.store.entries()) {
-      if (matcher.documentMatches(document).result) result.push(id)
-    }
-
-    return result
-  }
-
-  private applyUpdate(
-    selector: Selector<Stored<TSchema, TId>>,
-    modifier: Modifier<Stored<TSchema, TId>> | Partial<Stored<TSchema, TId>>,
-    options: UpdateOptions<TId>,
-  ): number | UpsertResult<TId> {
-    const matcher = this.components.query.matcher(selector, {
-      isUpdate: true,
-      allowJavascriptWhere: this.components.allowJavascriptWhere,
-    })
+    selector: Selector<Stored<TSchema>>,
+    modifier: Modifier<Stored<TSchema>> | Partial<Stored<TSchema>>,
+    options: UpdateOptions<string> = {},
+  ): number {
+    const matches = this.matchedDocuments(selector)
+    const updates: CollectionUpdateEvent<Stored<TSchema>>[] = []
     let numberAffected = 0
-    for (const [id, document] of this.store.entries()) {
-      const match = matcher.documentMatches(document)
-      if (!match.result) continue
-      this.saveOriginal(id, document)
-      this.components.mutations.modify(document, modifier, {
+
+    for (const previous of matches) {
+      const mutable = localStoreRuntime.values.clone(previous) as Record<string, unknown>
+      const match = localStoreRuntime.query.matcher(selector, { isUpdate: true }).documentMatches(previous)
+
+      localStoreRuntime.mutations.modify(mutable, modifier, {
         ...(match.arrayIndices ? { arrayIndices: match.arrayIndices } : {}),
-        now: this.components.now,
+        now: localStoreRuntime.now,
       })
+      const document = deepFreeze(mutable) as Stored<TSchema>
+
+      this.store.set(previous._id, document)
+      updates.push(deepFreeze({ previous, document }))
       numberAffected += 1
       if (!options.multi) break
     }
 
-    let insertedId: TId | undefined
-    if (numberAffected === 0 && options.upsert) {
-      const document = this.components.mutations.createUpsert<Stored<TSchema, TId>>(selector, modifier)
-      if (!document['_id'] && options.insertedId !== undefined) document['_id'] = options.insertedId
-      insertedId = this.prepareInsert(document)
-      numberAffected = 1
-    }
-
-    if (options._returnObject) {
-      return {
-        numberAffected,
-        ...(insertedId !== undefined ? { insertedId } : {}),
-      }
+    if (numberAffected > 0) {
+      for (const event of updates) this.emit('update', event)
+      this.notifyObservers()
     }
 
     return numberAffected
   }
 
-  private saveOriginal(id: TId, document: Stored<TSchema, TId> | undefined): void {
-    if (!this.originals || this.originals.has(id)) return
-    this.originals.set(id, document === undefined ? undefined : this.components.values.clone(document))
+  updateAsync(
+    selector: Selector<Stored<TSchema>>,
+    modifier: Modifier<Stored<TSchema>> | Partial<Stored<TSchema>>,
+    options: UpdateOptions<string> = {},
+  ): Promise<number> {
+    return Promise.resolve(this.update(selector, modifier, options))
+  }
+
+  upsert(
+    selector: Selector<Stored<TSchema>>,
+    modifier: Modifier<Stored<TSchema>> | Partial<Stored<TSchema>>,
+    options: UpsertOptions<string> = {},
+  ): UpsertResult<string> {
+    const numberAffected = this.update(selector, modifier, options)
+
+    if (numberAffected > 0) return deepFreeze({ numberAffected })
+
+    const document = localStoreRuntime.mutations.createUpsert<Record<string, unknown>>(
+      selector,
+      modifier as Modifier<Record<string, unknown>> | Partial<Record<string, unknown>>,
+    )
+    if (!document._id && options.insertedId !== undefined) document._id = options.insertedId
+    const stored = this.prepareInsert(document)
+
+    this.emit('insert', deepFreeze({ document: stored }))
+    this.notifyObservers()
+
+    return deepFreeze({ numberAffected: 1, insertedId: stored._id })
+  }
+
+  upsertAsync(
+    selector: Selector<Stored<TSchema>>,
+    modifier: Modifier<Stored<TSchema>> | Partial<Stored<TSchema>>,
+    options: UpsertOptions<string> = {},
+  ): Promise<UpsertResult<string>> {
+    return Promise.resolve(this.upsert(selector, modifier, options))
+  }
+
+  private prepareInsert(document: Record<string, unknown>): Stored<TSchema> {
+    assertValidFieldNames(document)
+    document._id ??= localStoreRuntime.randomId()
+    assertLocalId(document._id)
+    if (this.store.has(document._id)) {
+      throw new LocalCollectionError(`Duplicate _id '${document._id}'`)
+    }
+
+    const stored = deepFreeze(document) as Stored<TSchema>
+
+    this.store.set(stored._id, stored)
+
+    return stored
+  }
+
+  private matchedDocuments(selector: Selector<Stored<TSchema>>): Stored<TSchema>[] {
+    const matcher = localStoreRuntime.query.matcher(selector, { isUpdate: true })
+
+    return Array.from(this.store.entries(), ([, document]) => document)
+      .filter(document => matcher.documentMatches(document).result)
   }
 
   private notifyObservers(): void {
-    if (this.paused) return
     for (const observer of this.observers) observer()
-    void this.components.scheduler.drain()
-  }
-
-  private async notifyObserversAsync(): Promise<void> {
-    if (this.paused) return
-    for (const observer of this.observers) observer()
-    await this.components.scheduler.drain()
-  }
-
-  private deferCallback<TResult>(callback: MutationCallback<TResult> | undefined, result: TResult): void {
-    if (callback) this.components.scheduler.defer(() => callback(null, result))
   }
 }

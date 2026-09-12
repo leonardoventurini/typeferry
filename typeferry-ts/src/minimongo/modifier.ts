@@ -1,10 +1,9 @@
-import { MinimongoError } from './errors'
+import { LocalCollectionError as LocalCollectionError } from './errors'
 import { Matcher } from './matcher'
-import { ObjectID } from './object-id'
 import { isNumericKey, isOperatorObject, isPlainObject, setPath } from './path'
 import { Sorter } from './sorter'
 import type { Modifier } from './types'
-import { meteorValueSemantics, type ValueSemantics } from './value-semantics'
+import { localValueSemantics, type ValueSemantics } from './value-semantics'
 
 export interface ModifyOptions {
   readonly isInsert?: boolean
@@ -38,7 +37,7 @@ export function assertValidFieldNames(value: unknown): void {
 
   for (const [key, child] of Object.entries(value)) {
     const reason = invalidFieldNameReason(key)
-    if (reason) throw new MinimongoError(`Key ${key} must not ${reason}`)
+    if (reason) throw new LocalCollectionError(`Key ${key} must not ${reason}`)
     assertValidFieldNames(child)
   }
 }
@@ -59,7 +58,7 @@ function modificationTarget(
 ): Target {
   const parts = path.split('.')
   const field = parts.pop()
-  if (!field) throw new MinimongoError('Invalid empty update path', { field: path })
+  if (!field) throw new LocalCollectionError('Invalid empty update path', { field: path })
   const positional = [...(options.arrayIndices ?? [])].filter(value => value !== 'x')
   let current: Record<string, unknown> | unknown[] = document
 
@@ -68,12 +67,12 @@ function modificationTarget(
     if (part === '$') {
       const position = positional.shift()
       if (position === undefined) {
-        throw new MinimongoError('The positional operator did not find the match needed from the query', { field: path })
+        throw new LocalCollectionError('The positional operator did not find the match needed from the query', { field: path })
       }
       part = String(position)
     }
     if (options.forbidArray && Array.isArray(current)) {
-      throw new MinimongoError('The source field cannot be an array element', { field: path })
+      throw new LocalCollectionError('The source field cannot be an array element', { field: path })
     }
     const existing = Reflect.get(current, part) as unknown
     if (isPlainObject(existing) || Array.isArray(existing)) {
@@ -81,7 +80,7 @@ function modificationTarget(
       continue
     }
     if (existing !== undefined && existing !== null) {
-      throw new MinimongoError('Cannot set property on non-object field', {
+      throw new LocalCollectionError('Cannot set property on non-object field', {
         field: path,
         setPropertyError: true,
       })
@@ -97,7 +96,7 @@ function modificationTarget(
   if (field === '$') {
     const position = positional.shift()
     if (position === undefined) {
-      throw new MinimongoError('The positional operator did not find the match needed from the query', { field: path })
+      throw new LocalCollectionError('The positional operator did not find the match needed from the query', { field: path })
     }
 
     return { parent: current, field: String(position) }
@@ -133,7 +132,7 @@ function applyPush(
     current = []
     writeField(target, current)
   }
-  if (!Array.isArray(current)) throw new MinimongoError('Cannot apply $push modifier to non-array', { field: target.field })
+  if (!Array.isArray(current)) throw new LocalCollectionError('Cannot apply $push modifier to non-array', { field: target.field })
   if (!isPlainObject(argument) || !Object.hasOwn(argument, '$each')) {
     assertValidFieldNames(argument)
     current.push(argument)
@@ -142,22 +141,22 @@ function applyPush(
   }
 
   const each = argument.$each
-  if (!Array.isArray(each)) throw new MinimongoError('$each must be an array', { field: target.field })
+  if (!Array.isArray(each)) throw new LocalCollectionError('$each must be an array', { field: target.field })
   assertValidFieldNames(each)
   const position = argument.$position === undefined ? current.length : argument.$position
-  if (typeof position !== 'number') throw new MinimongoError('$position must be a numeric value', { field: target.field })
-  if (position < 0) throw new MinimongoError('$position in $push must be zero or positive', { field: target.field })
+  if (typeof position !== 'number') throw new LocalCollectionError('$position must be a numeric value', { field: target.field })
+  if (position < 0) throw new LocalCollectionError('$position in $push must be zero or positive', { field: target.field })
   current.splice(position, 0, ...each)
 
   if (argument.$sort !== undefined) {
-    if (argument.$slice === undefined) throw new MinimongoError('$sort requires $slice to be present', { field: target.field })
+    if (argument.$slice === undefined) throw new LocalCollectionError('$sort requires $slice to be present', { field: target.field })
     if (each.some(element => !isPlainObject(element))) {
-      throw new MinimongoError('$push like modifiers using $sort require all elements to be objects', { field: target.field })
+      throw new LocalCollectionError('$push like modifiers using $sort require all elements to be objects', { field: target.field })
     }
     current.sort(new Sorter(argument.$sort, undefined, values).getComparator())
   }
   if (argument.$slice !== undefined) {
-    if (typeof argument.$slice !== 'number') throw new MinimongoError('$slice must be a numeric value', { field: target.field })
+    if (typeof argument.$slice !== 'number') throw new LocalCollectionError('$slice must be a numeric value', { field: target.field })
     const sliced = argument.$slice === 0
       ? []
       : argument.$slice < 0
@@ -201,9 +200,9 @@ function applyModifierOperator(
     removeField(target)
   } else if (actualOperator === '$inc' || actualOperator === '$mul'
     || actualOperator === '$min' || actualOperator === '$max') {
-    if (typeof argument !== 'number') throw new MinimongoError(`Modifier ${actualOperator} allowed for numbers only`, { field: path })
+    if (typeof argument !== 'number') throw new LocalCollectionError(`Modifier ${actualOperator} allowed for numbers only`, { field: path })
     if (current !== undefined && typeof current !== 'number') {
-      throw new MinimongoError(`Cannot apply ${actualOperator} modifier to non-number`, { field: path })
+      throw new LocalCollectionError(`Cannot apply ${actualOperator} modifier to non-number`, { field: path })
     }
     const numericCurrent = current as number | undefined
     if (actualOperator === '$inc') writeField(target, numericCurrent === undefined ? argument : numericCurrent + argument)
@@ -212,13 +211,13 @@ function applyModifierOperator(
     if (actualOperator === '$max' && (numericCurrent === undefined || numericCurrent < argument)) writeField(target, argument)
   } else if (actualOperator === '$currentDate') {
     if (argument !== true && (!isPlainObject(argument) || argument.$type !== 'date')) {
-      throw new MinimongoError('Invalid $currentDate modifier', { field: path })
+      throw new LocalCollectionError('Invalid $currentDate modifier', { field: path })
     }
     writeField(target, options.now?.() ?? new Date())
   } else if (actualOperator === '$rename') {
-    if (typeof argument !== 'string') throw new MinimongoError('$rename target must be a string', { field: path })
-    if (path === argument) throw new MinimongoError('$rename source must differ from target', { field: path })
-    if (argument.includes('\0')) throw new MinimongoError('The \'to\' field for $rename cannot contain an embedded null byte', { field: path })
+    if (typeof argument !== 'string') throw new LocalCollectionError('$rename target must be a string', { field: path })
+    if (path === argument) throw new LocalCollectionError('$rename source must differ from target', { field: path })
+    if (argument.includes('\0')) throw new LocalCollectionError('The \'to\' field for $rename cannot contain an embedded null byte', { field: path })
     if (current !== undefined) {
       removeField(target)
       const destination = modificationTarget(document, argument, { forbidArray: true })
@@ -227,45 +226,45 @@ function applyModifierOperator(
   } else if (actualOperator === '$push') {
     applyPush(target, argument, values)
   } else if (actualOperator === '$pushAll') {
-    if (!Array.isArray(argument)) throw new MinimongoError('Modifier $pushAll/pullAll allowed for arrays only')
+    if (!Array.isArray(argument)) throw new LocalCollectionError('Modifier $pushAll/pullAll allowed for arrays only')
     if (current === undefined) writeField(target, argument)
-    else if (!Array.isArray(current)) throw new MinimongoError('Cannot apply $pushAll modifier to non-array', { field: path })
+    else if (!Array.isArray(current)) throw new LocalCollectionError('Cannot apply $pushAll modifier to non-array', { field: path })
     else current.push(...argument)
   } else if (actualOperator === '$addToSet') {
     const items = isPlainObject(argument) && Array.isArray(argument.$each) ? argument.$each : [argument]
     if (current === undefined) writeField(target, items)
-    else if (!Array.isArray(current)) throw new MinimongoError('Cannot apply $addToSet modifier to non-array', { field: path })
+    else if (!Array.isArray(current)) throw new LocalCollectionError('Cannot apply $addToSet modifier to non-array', { field: path })
     else for (const item of items) {
       if (!current.some(value => values.equals(value, item, { keyOrderSensitive: true }))) current.push(item)
     }
   } else if (actualOperator === '$pop') {
     if (current === undefined) return
-    if (!Array.isArray(current)) throw new MinimongoError('Cannot apply $pop modifier to non-array', { field: path })
+    if (!Array.isArray(current)) throw new LocalCollectionError('Cannot apply $pop modifier to non-array', { field: path })
     if (typeof argument === 'number' && argument < 0) current.splice(0, 1)
     else current.pop()
   } else if (actualOperator === '$pull' || actualOperator === '$pullAll') {
     if (current === undefined) return
-    if (!Array.isArray(current)) throw new MinimongoError('Cannot apply $pull/pullAll modifier to non-array', { field: path })
+    if (!Array.isArray(current)) throw new LocalCollectionError('Cannot apply $pull/pullAll modifier to non-array', { field: path })
     const argumentsToPull = actualOperator === '$pullAll'
       ? Array.isArray(argument) ? argument : undefined
       : [argument]
-    if (!argumentsToPull) throw new MinimongoError('Modifier $pushAll/pullAll allowed for arrays only')
+    if (!argumentsToPull) throw new LocalCollectionError('Modifier $pushAll/pullAll allowed for arrays only')
     writeField(target, current.filter(value => !argumentsToPull.some(item => pullMatches(value, item, values))))
   } else if (actualOperator === '$bit') {
-    throw new MinimongoError('$bit is not supported', { field: path })
+    throw new LocalCollectionError('$bit is not supported', { field: path })
   } else if (actualOperator !== '$v') {
-    throw new MinimongoError(`Invalid modifier specified ${actualOperator}`)
+    throw new LocalCollectionError(`Invalid modifier specified ${actualOperator}`)
   }
 }
 
-/** Mutates one stored document using Meteor-compatible replacement or operators. */
+/** Mutates one working document using TypeFerry's supported replacement or operators. */
 export function modifyDocument<TDocument extends Record<string, unknown>>(
   document: TDocument,
   modifier: Modifier<TDocument> | Partial<TDocument> | unknown,
   options: ModifyOptions = {},
-  values: ValueSemantics = meteorValueSemantics,
+  values: ValueSemantics = localValueSemantics,
 ): void {
-  if (!isPlainObject(modifier)) throw new MinimongoError('Modifier must be an object')
+  if (!isPlainObject(modifier)) throw new LocalCollectionError('Modifier must be an object')
   const cloned = values.clone(modifier)
   const keys = Object.keys(cloned)
   const operatorKeys = keys.filter(key => key.startsWith('$'))
@@ -277,7 +276,7 @@ export function modifyDocument<TDocument extends Record<string, unknown>>(
     assertValidFieldNames(cloned)
     const id = document['_id']
     if (Object.hasOwn(cloned, '_id') && !values.equals(cloned._id, id)) {
-      throw new MinimongoError('Cannot change the _id of a document')
+      throw new LocalCollectionError('Cannot change the _id of a document')
     }
     for (const key of Object.keys(document)) delete document[key]
     Object.assign(document, cloned)
@@ -288,22 +287,22 @@ export function modifyDocument<TDocument extends Record<string, unknown>>(
 
   for (const operator of operatorKeys) {
     const fields = cloned[operator]
-    if (!isPlainObject(fields)) throw new MinimongoError(`Modifier ${operator}'s argument must be an object`)
+    if (!isPlainObject(fields)) throw new LocalCollectionError(`Modifier ${operator}'s argument must be an object`)
     for (const [path, argument] of Object.entries(fields)) {
-      if (path === '_id' || path.startsWith('_id.')) throw new MinimongoError('Mod on _id not allowed')
+      if (path === '_id' || path.startsWith('_id.')) throw new LocalCollectionError('Mod on _id not allowed')
       applyModifierOperator(document, operator, path, argument, options, values)
     }
   }
 }
 
-/** Creates the base document used by a Meteor-style upsert. */
+/** Creates the base document used by a local collection upsert. */
 export function createUpsertDocument<TDocument extends Record<string, unknown>>(
   selector: unknown,
   modifier: Modifier<TDocument> | Partial<TDocument>,
-  values: ValueSemantics = meteorValueSemantics,
+  values: ValueSemantics = localValueSemantics,
 ): TDocument {
   const document: Record<string, unknown> = {}
-  if (typeof selector === 'string' || typeof selector === 'number' || selector instanceof ObjectID) {
+  if (typeof selector === 'string') {
     document._id = selector
   }
   else if (isPlainObject(selector)) {

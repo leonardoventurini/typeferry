@@ -1,16 +1,18 @@
-/** Identifier values supported by the strict TypeFerry Minimongo API. */
-export type MinimongoId = string | number | ObjectID
+import type { DeepReadonly } from './immutable'
+
+/** Client-safe hexadecimal identity used by TypeFerry local collections. */
+export type MinimongoId = string
 
 /** A schema after Minimongo has assigned its required identity. */
 export type MaterializedDocument<
   TSchema extends object,
   TId extends MinimongoId = MinimongoId,
-> = Omit<TSchema, '_id'> & { _id: TId }
+> = DeepReadonly<Omit<TSchema, '_id'>> & { readonly _id: TId }
 
 /** Result of a transform after Minimongo restores the source identity. */
 export type TransformedDocument<TDocument extends object, TOutput extends object> =
-  TOutput & {
-    _id: TDocument extends { _id: infer TId } ? TId : unknown
+  DeepReadonly<TOutput> & {
+    readonly _id: TDocument extends { readonly _id: infer TId } ? TId : unknown
   }
 
 /** Input accepted when inserting a document. */
@@ -25,7 +27,7 @@ type PreviousDepth = [never, 0, 1, 2, 3, 4, 5, 6, 7, 8]
 /** Dot-separated paths through a document, bounded to protect the compiler. */
 export type FieldPath<TValue, TDepth extends number = 8> = TDepth extends 0
   ? never
-  : TValue extends Primitive | Date | RegExp | ObjectID
+  : TValue extends Primitive | Date | RegExp
     ? never
     : TValue extends readonly (infer TElement)[]
       ? FieldPath<TElement, PreviousDepth[TDepth]>
@@ -50,17 +52,6 @@ export type ValueAtPath<TValue, TPath extends string> =
     : TPath extends keyof TValue
       ? TValue[TPath]
       : unknown
-
-export interface ObjectID {
-  equals(other: unknown): boolean
-  clone(): ObjectID
-  typeName(): 'oid'
-  toJSONValue(): string
-  toHexString(): string
-  getTimestamp(): number
-  valueOf(): string
-  toString(): string
-}
 
 export interface ComparisonSelector<TValue> {
   readonly $eq?: TValue
@@ -144,11 +135,10 @@ export interface LogicalSelector<TDocument extends object> {
   readonly $and?: readonly Selector<TDocument>[]
   readonly $or?: readonly Selector<TDocument>[]
   readonly $nor?: readonly Selector<TDocument>[]
-  readonly $where?: (this: TDocument, document: TDocument) => boolean
   readonly $comment?: string
 }
 
-/** A typed Meteor-compatible selector or literal predicate. */
+/** A typed Mongo-style selector or literal predicate. */
 export type Selector<TDocument extends object> =
   | MinimongoId
   | ((document: TDocument) => boolean)
@@ -256,48 +246,16 @@ export interface Modifier<TDocument extends object> {
 
 export interface UpdateOptions<TId extends MinimongoId = MinimongoId> {
   readonly multi?: boolean
-  readonly upsert?: boolean
+}
+
+export interface UpsertOptions<TId extends MinimongoId = MinimongoId> {
+  readonly multi?: boolean
   readonly insertedId?: TId
-  readonly _returnObject?: boolean
 }
 
 export interface UpsertResult<TId extends MinimongoId = MinimongoId> {
   readonly numberAffected: number
   readonly insertedId?: TId
-}
-
-export interface ObserveHandle {
-  readonly collection: unknown
-  readonly isReady: boolean
-  readonly isReadyPromise: Promise<void>
-  stop(): void
-}
-
-export interface ObserveCallbacks<TDocument> {
-  readonly added?: (document: TDocument) => unknown
-  readonly addedAt?: (document: TDocument, atIndex: number, before: MinimongoId | null) => unknown
-  readonly changed?: (newDocument: TDocument, oldDocument: TDocument) => unknown
-  readonly changedAt?: (newDocument: TDocument, oldDocument: TDocument, atIndex: number) => unknown
-  readonly removed?: (oldDocument: TDocument) => unknown
-  readonly removedAt?: (oldDocument: TDocument, atIndex: number) => unknown
-  readonly movedTo?: (
-    document: TDocument,
-    fromIndex: number,
-    toIndex: number,
-    before: MinimongoId | null,
-  ) => unknown
-}
-
-export interface ObserveChangesCallbacks<TDocument extends object> {
-  readonly added?: (id: MinimongoId, fields: Partial<Omit<TDocument, '_id'>>) => unknown
-  readonly addedBefore?: (
-    id: MinimongoId,
-    fields: Partial<Omit<TDocument, '_id'>>,
-    before: MinimongoId | null,
-  ) => unknown
-  readonly changed?: (id: MinimongoId, fields: Partial<Omit<TDocument, '_id'>>) => unknown
-  readonly removed?: (id: MinimongoId) => unknown
-  readonly movedBefore?: (id: MinimongoId, before: MinimongoId | null) => unknown
 }
 
 /** Values used by a compiled matcher, including positional and geo metadata. */

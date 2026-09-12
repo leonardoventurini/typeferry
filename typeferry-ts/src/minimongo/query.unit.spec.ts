@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { MiniMongoQueryError } from './errors'
+import { LocalQueryError } from './errors'
 import { Matcher } from './matcher'
 import { compileProjection } from './projection'
 import { Sorter } from './sorter'
@@ -40,15 +40,16 @@ describe('Matcher', () => {
     expect(new Matcher(undefined).documentMatches(documents[0]!).result).toBe(false)
     expect(new Matcher({ _id: '' }).documentMatches(documents[0]!).result).toBe(false)
     expect(() => new Matcher({ score: { $in: 1 } })).toThrow('$in needs an array')
-    expect(() => new Matcher({ $unknown: true })).toThrow(MiniMongoQueryError)
+    expect(() => new Matcher({ $unknown: true })).toThrow(LocalQueryError)
   })
 
-  it('gates string-valued javascript where selectors', () => {
+  it('rejects javascript where selectors', () => {
     expect(() => new Matcher({ $where: 'obj.score === 3' })).toThrow(
-      '$where must be a function unless allowJavascriptWhere is enabled',
+      'Unrecognized logical operator: $where',
     )
-    expect(new Matcher({ $where: 'obj.score === 3' }, false, undefined, undefined, true)
-      .documentMatches(documents[0]!).result).toBe(true)
+    expect(() => new Matcher({ $where: () => true })).toThrow(
+      'Unrecognized logical operator: $where',
+    )
   })
 })
 

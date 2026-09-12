@@ -1,5 +1,3 @@
-import { ObjectID } from './object-id'
-
 export interface ValueSemantics {
   clone<TValue>(value: TValue): TValue
   equals(left: unknown, right: unknown, options?: { readonly keyOrderSensitive?: boolean }): boolean
@@ -24,7 +22,6 @@ function cloneValue<TValue>(value: TValue): TValue {
   if (!isRecord(value)) return value
   if (value instanceof Date) return new Date(value.valueOf()) as TValue
   if (value instanceof RegExp) return new RegExp(value.source, value.flags) as TValue
-  if (value instanceof ObjectID) return value.clone() as TValue
   if (isBinary(value)) return value.slice() as TValue
   if (hasClone(value)) return value.clone() as TValue
   if (Array.isArray(value)) return value.map(item => cloneValue(item)) as TValue
@@ -46,9 +43,6 @@ function equalValues(
   if (!isRecord(left) || !isRecord(right)) return false
   if (left instanceof Date || right instanceof Date) {
     return left instanceof Date && right instanceof Date && left.valueOf() === right.valueOf()
-  }
-  if (left instanceof ObjectID || right instanceof ObjectID) {
-    return left instanceof ObjectID && left.equals(right)
   }
   if (isBinary(left) || isBinary(right)) {
     if (!isBinary(left) || !isBinary(right) || left.length !== right.length) return false
@@ -87,7 +81,6 @@ const TYPE_ORDER = new Map<string, number>([
   ['object', 3],
   ['array', 4],
   ['binary', 5],
-  ['objectId', 6],
   ['boolean', 7],
   ['date', 8],
   ['regexp', 9],
@@ -98,7 +91,6 @@ function valueType(value: unknown): string {
   if (value === null) return 'null'
   if (Array.isArray(value)) return 'array'
   if (isBinary(value)) return 'binary'
-  if (value instanceof ObjectID) return 'objectId'
   if (value instanceof Date) return 'date'
   if (value instanceof RegExp) return 'regexp'
 
@@ -121,7 +113,6 @@ function compareValues(left: unknown, right: unknown, collator?: Intl.Collator):
   }
   if (typeof left === 'boolean' && typeof right === 'boolean') return left ? 1 : -1
   if (left instanceof Date && right instanceof Date) return left < right ? -1 : 1
-  if (left instanceof ObjectID && right instanceof ObjectID) return left.valueOf() < right.valueOf() ? -1 : 1
   if (left instanceof RegExp && right instanceof RegExp) return left.toString() < right.toString() ? -1 : 1
   if (Array.isArray(left) && Array.isArray(right)) {
     for (let index = 0; index < Math.min(left.length, right.length); index += 1) {
@@ -157,7 +148,7 @@ function compareValues(left: unknown, right: unknown, collator?: Intl.Collator):
   return String(left) < String(right) ? -1 : 1
 }
 
-export const meteorValueSemantics: ValueSemantics = {
+export const localValueSemantics: ValueSemantics = {
   clone: cloneValue,
   equals(left, right, options) {
     return equalValues(left, right, options?.keyOrderSensitive ?? false)

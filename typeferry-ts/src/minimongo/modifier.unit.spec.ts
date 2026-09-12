@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { MinimongoError } from './errors'
+import { LocalCollectionError } from './errors'
 import { createUpsertDocument, modifyDocument } from './modifier'
 
 interface MutableDocument extends Record<string, unknown> {
@@ -64,7 +64,7 @@ describe('modifyDocument', () => {
     expect(target).toEqual({ _id: 'one', count: 9, tags: [] })
     expect(() => modifyDocument(target, { $set: { count: 1 }, extra: true }))
       .toThrow('Update parameter cannot have both modifier and non-modifier fields.')
-    expect(() => modifyDocument(target, { _id: 'two', count: 1 })).toThrow(MinimongoError)
+    expect(() => modifyDocument(target, { _id: 'two', count: 1 })).toThrow(LocalCollectionError)
   })
 
   it('constructs upserts from equality query fields and setOnInsert', () => {

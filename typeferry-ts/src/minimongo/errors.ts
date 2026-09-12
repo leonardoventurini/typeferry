@@ -1,11 +1,11 @@
-/** Query compilation error used by Meteor's selector engine. */
-export class MiniMongoQueryError extends Error {
-  override readonly name = 'MiniMongoQueryError'
+/** Error raised when a local collection query cannot be compiled. */
+export class LocalQueryError extends Error {
+  override readonly name = 'LocalQueryError'
 }
 
-/** Mutation and collection error used by Meteor Minimongo. */
-export class MinimongoError extends Error {
-  override readonly name = 'MinimongoError'
+/** Error raised by a local collection mutation. */
+export class LocalCollectionError extends Error {
+  override readonly name = 'LocalCollectionError'
   readonly field: string | undefined
   readonly setPropertyError: boolean | undefined
 

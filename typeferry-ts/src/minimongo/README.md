@@ -1,9 +1,12 @@
-# TypeFerry Minimongo
+# TypeFerry local collections
 
-`typeferry/minimongo` is a browser-safe, strict-TypeScript implementation of
-the documented public behavior of Meteor 3.5.2 `minimongo` 2.2.0. It provides
-an in-memory Mongo-style collection without importing TypeFerry transport,
-React, MongoDB-driver, or server code.
+`typeferry/minimongo` is TypeFerry's browser-safe, framework-neutral local
+document store. The import path is stable package history; the behavior is
+defined only by TypeFerry's types, tests, and documentation.
+
+It provides immutable documents, Mongo-style selectors and modifiers, and
+typed events without importing TypeFerry transports, React, or the MongoDB
+driver.
 
 ```ts
 import { LocalCollection } from 'typeferry/minimongo'
@@ -11,120 +14,117 @@ import { LocalCollection } from 'typeferry/minimongo'
 interface Task {
   title: string
   priority: number
-  tags: string[]
+  details: {
+    done: boolean
+  }
 }
 
-const tasks = new LocalCollection<Task, string>('tasks')
+const tasks = new LocalCollection<Task>('tasks')
 const id = tasks.insert({
-  title: 'Ship strict Minimongo',
+  title: 'Ship local collections',
   priority: 1,
-  tags: ['typescript'],
+  details: { done: false },
 })
 
-tasks.update(id, { $addToSet: { tags: 'browser' } })
+tasks.update(id, { $set: { 'details.done': true } })
 
 const urgent = tasks.find(
   { priority: { $lte: 2 } },
   { sort: { priority: 1 } },
-).fetch()
+)
+
+console.log(urgent.fetch())
 ```
 
-Inserted documents accept an optional `_id`; materialized documents always
-carry one. Selectors, nested field paths, modifiers, projections, transforms,
-and observer payloads are inferred from the collection schema. Runtime guards
-remain in place for untyped JavaScript callers.
+## IDs and immutable documents
 
-## Compatibility profile
+Every document has a lowercase, 24-character hexadecimal string `_id`. This is
+the client representation TypeFerry uses for the default MongoDB ObjectId
+identity. `insert()` generates an ID when none is supplied and rejects IDs in
+other formats. The local package does not import the MongoDB driver.
 
-The default profile is pinned to:
-
-- Meteor release `3.5.2`
-- `minimongo` package `2.2.0`
-- Meteor commit `4e310085974a245837eefec3326e9012edc20309`
-
-The profile includes:
-
-- literal, comparison, logical, array, regex, BSON type, bit, and `$near`
-  selectors;
-- replacement updates and `$currentDate`, `$inc`, `$min`, `$max`, `$mul`,
-  `$rename`, `$set`, `$setOnInsert`, `$unset`, `$push`, `$pushAll`,
-  `$addToSet`, `$pop`, `$pull`, and `$pullAll`;
-- natural and explicit sorting, collation, skip, limit, nested-array
-  projections, identity-preserving transforms, and sync/async iteration;
-- sync/async mutations, upserts, ordered and unordered observation,
-  pause/resume coalescing, readiness, stop handles, and copy-on-write
-  originals;
-- string, number, and Minimongo `ObjectID` identities, including Meteor's
-  collision-safe identity encoding.
-
-As in upstream Minimongo, this package does not provide indexes, persistence,
-aggregation, map/reduce, `findAndModify`, capped collections, `$bit`, complete
-BSON type support, or geospatial operators other than `$near`. It also retains
-upstream limitations for `$pull`, `$all` with `$elemMatch`, array-aware sort
-filtering, and duplicate results from multi-point geo matches.
-
-String-valued `$where` selectors are the sole intentional security hardening:
-they are disabled by default because they construct executable JavaScript.
-Enable them only for trusted local selectors:
+Inserted values are cloned before storage. Materialized documents and event
+payloads are deeply readonly and frozen. Unchanged documents retain their
+identity across query snapshots, which makes reference comparison useful in UI
+and state-management code.
 
 ```ts
-import { createMinimongo } from 'typeferry/minimongo'
+const before = urgent.fetch()
 
-const trusted = createMinimongo({ allowJavascriptWhere: true })
-const records = new trusted.LocalCollection<{ score: number }>()
+tasks.insert({
+  title: 'Unrelated task',
+  priority: 10,
+  details: { done: false },
+})
+
+const after = urgent.fetch()
+
+console.log(before[0] === after[0]) // true
 ```
 
-Function-valued `$where` and function selectors remain enabled by default.
-This package exposes explicit `observe` and `observeChanges` APIs but does not
-implicitly bind Meteor's global Tracker runtime.
+## Collection events
 
-## Replaceable architecture
-
-`createMinimongo()` binds overrides into an isolated facade. Individual
-collections may also receive component overrides.
-
-```text
-LocalCollection / Cursor / Matcher / Sorter
-                    |
-      +-------------+--------------+
-      |             |              |
-    query        mutations      observers
-      |             |              |
-      +-------- storage ------------+
-                    |
-       values, identity, scheduler,
-          random ID and clock ports
-```
+Collections follow TypeFerry's `on`, `off`, `once`, `onAny`, and `offAny`
+event-emitter conventions. Events contain immutable snapshots.
 
 ```ts
-import {
-  createMinimongo,
-  meteor352Components,
-  type ObserverEngine,
-} from 'typeferry/minimongo'
+tasks.on('insert', ({ document }) => {
+  console.log('inserted', document._id)
+})
 
-const observers: ObserverEngine = {
-  diff(ordered, previous, current, callbacks, identities, values) {
-    // Instrument or replace diffing, then preserve the observer contract.
-    meteor352Components.observers.diff(
-      ordered,
-      previous,
-      current,
-      callbacks,
-      identities,
-      values,
-    )
-  },
-}
+tasks.on('update', ({ previous, document }) => {
+  console.log('changed', previous, document)
+})
 
-const instrumented = createMinimongo({ observers })
+tasks.on('remove', ({ document }) => {
+  console.log('removed', document._id)
+})
 ```
 
-A replacement is compatible only if it preserves value cloning, identity
-namespaces, natural iteration order, callback ordering, stable-state delivery,
-and thrown-versus-rejected behavior. The repository port-contract tests are the
-minimum acceptance surface for custom implementations.
+Collection events are emitted before dependent cursors publish their updated
+results.
 
-The compatibility implementation derives behavior from Meteor's MIT-licensed
-Minimongo. See `NOTICE.md` in the published subpath for attribution and the
-exact upstream source baseline.
+## Cursor events
+
+A cursor starts observing its collection when its first event listener is
+added. It stops automatically after all listeners are removed, or explicitly
+with `cursor.stop()`.
+
+```ts
+urgent.on('added', ({ document, index }) => {
+  console.log('entered query', document, index)
+})
+
+urgent.on('changed', ({ previous, document, previousIndex, index }) => {
+  console.log('changed inside query', previous, document, previousIndex, index)
+})
+
+urgent.on('removed', ({ document, index }) => {
+  console.log('left query', document, index)
+})
+
+urgent.on('change', documents => {
+  console.log('complete result snapshot', documents)
+})
+```
+
+Granular events describe rows entering, changing within, or leaving the result.
+The `change` event follows them once with the complete result snapshot. A
+mutation that does not affect the query result emits nothing from that cursor.
+
+## Query and mutation surface
+
+`find()` and `findOne()` accept typed Mongo-style selectors. Queries support
+nested paths, comparisons, logical and array operators, regular expressions,
+sorting, collation, projection, skip, limit, transforms, iteration, and async
+convenience methods.
+
+Mutations support replacement updates and `$currentDate`, `$inc`, `$min`,
+`$max`, `$mul`, `$rename`, `$set`, `$setOnInsert`, `$unset`, `$push`, `$pushAll`,
+`$addToSet`, `$pop`, `$pull`, and `$pullAll`.
+
+The store is intentionally local-only and in-memory. It does not provide
+persistence, indexes, aggregation, transport synchronization, publications, or
+implicit React bindings.
+
+See `NOTICE.md` for required attribution covering inherited algorithmic work.

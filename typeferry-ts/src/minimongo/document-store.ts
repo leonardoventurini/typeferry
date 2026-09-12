@@ -16,7 +16,7 @@ export interface DocumentStoreFactory {
   create<TId, TDocument>(): DocumentStore<TId, TDocument>
 }
 
-/** Insertion-ordered storage used by the Meteor compatibility profile. */
+/** Insertion-ordered storage used by TypeFerry local collections. */
 export class MemoryDocumentStore<TId, TDocument> implements DocumentStore<TId, TDocument> {
   private readonly documents = new Map<string, TDocument>()
   private readonly identities = new Map<string, TId>()

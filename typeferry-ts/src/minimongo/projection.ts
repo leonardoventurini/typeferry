@@ -1,7 +1,7 @@
-import { MinimongoError } from './errors'
+import { LocalCollectionError as LocalCollectionError } from './errors'
 import { isPlainObject } from './path'
 import type { Projection } from './types'
-import { meteorValueSemantics, type ValueSemantics } from './value-semantics'
+import { localValueSemantics, type ValueSemantics } from './value-semantics'
 
 export type ProjectionFunction<TDocument extends object> = (document: TDocument) => TDocument
 
@@ -22,7 +22,7 @@ function projectionDetails(projection: Record<string, unknown>): {
   for (const path of paths) {
     const rule = Boolean(projection[path])
     if (rule !== including) {
-      throw new MinimongoError('You cannot currently mix including and excluding fields.')
+      throw new LocalCollectionError('You cannot currently mix including and excluding fields.')
     }
     const parts = path.split('.')
     let node = tree
@@ -33,7 +33,7 @@ function projectionDetails(projection: Record<string, unknown>): {
       if (existing !== undefined) {
         if (final || typeof existing === 'boolean') {
           const existingPath = parts.slice(0, index + 1).join('.')
-          throw new MinimongoError(
+          throw new LocalCollectionError(
             `both ${existingPath} and ${path} found in fields option, using both of them may trigger unexpected behavior. Did you mean to use only one of them?`,
           )
         }
@@ -86,21 +86,21 @@ function applyRuleTree(
   return result
 }
 
-/** Compiles inclusion or exclusion field projections with Meteor validation. */
+/** Compiles inclusion or exclusion field projections with local-store validation. */
 export function compileProjection<TDocument extends object>(
   projection: Projection<TDocument> | Record<string, unknown> = {},
-  values: ValueSemantics = meteorValueSemantics,
+  values: ValueSemantics = localValueSemantics,
 ): ProjectionFunction<TDocument> {
-  if (!isPlainObject(projection)) throw new MinimongoError('fields option must be an object')
+  if (!isPlainObject(projection)) throw new LocalCollectionError('fields option must be an object')
   for (const [path, value] of Object.entries(projection)) {
     if (path.split('.').includes('$')) {
-      throw new MinimongoError('Minimongo doesn\'t support $ operator in projections yet.')
+      throw new LocalCollectionError('Local collections do not support $ operators in projections.')
     }
     if (isPlainObject(value) && ['$elemMatch', '$meta', '$slice'].some(key => Object.hasOwn(value, key))) {
-      throw new MinimongoError('Minimongo doesn\'t support operators in projections yet.')
+      throw new LocalCollectionError('Local collections do not support operators in projections.')
     }
     if (![0, 1, false, true].includes(value as 0 | 1 | false | true)) {
-      throw new MinimongoError('Projection values should be one of 1, 0, true, or false')
+      throw new LocalCollectionError('Projection values should be one of 1, 0, true, or false')
     }
   }
 

@@ -1,5 +1,4 @@
-import { MiniMongoQueryError } from './errors'
-import { ObjectID } from './object-id'
+import { LocalQueryError as LocalQueryError } from './errors'
 import {
   expandArrays,
   isOperatorObject,
@@ -8,7 +7,7 @@ import {
   type ValueBranch,
 } from './path'
 import type { CollationOptions, MatchResult, MinimongoId, Selector } from './types'
-import { meteorValueSemantics, type ValueSemantics } from './value-semantics'
+import { localValueSemantics, type ValueSemantics } from './value-semantics'
 
 type DocumentMatcher = (document: Record<string, unknown>) => MatchResult
 type BranchMatcher = (branches: readonly ValueBranch[]) => MatchResult
@@ -30,7 +29,6 @@ function minimongoType(value: unknown): number {
   if (typeof value === 'function') return 13
   if (value instanceof Date) return 9
   if (value instanceof Uint8Array) return 5
-  if (value instanceof ObjectID) return 7
 
   return 3
 }
@@ -38,7 +36,7 @@ function minimongoType(value: unknown): number {
 function createCollator(options?: CollationOptions | Intl.Collator): Intl.Collator | undefined {
   if (!options) return undefined
   if (options instanceof Intl.Collator) return options
-  if (!options.locale) throw new MiniMongoQueryError('Collation requires a locale')
+  if (!options.locale) throw new LocalQueryError('Collation requires a locale')
 
   const sensitivity = options.strength === 1
     ? 'base'
@@ -75,7 +73,7 @@ function bitMask(operand: unknown, operator: string): Uint8Array {
     return result
   }
 
-  throw new MiniMongoQueryError(
+  throw new LocalQueryError(
     `operand to ${operator} must be a numeric bitmask (representable as a non-negative 32-bit signed integer), a bindata bitmask or an array with bit positions (non-negative integers)`,
   )
 }
@@ -124,7 +122,7 @@ function geoJsonDistance(left: readonly [number, number], right: readonly [numbe
   return 6_371_000 * arc
 }
 
-/** Compiles and evaluates Meteor-compatible Minimongo selectors. */
+/** Compiles and evaluates TypeFerry's Mongo-style selectors. */
 export class Matcher<TDocument extends object = object> {
   private readonly paths = new Set<string>()
   private readonly documentMatcher: DocumentMatcher
@@ -137,8 +135,7 @@ export class Matcher<TDocument extends object = object> {
     readonly selector: Selector<TDocument> | unknown,
     private readonly isUpdate = false,
     collation?: CollationOptions | Intl.Collator,
-    private readonly values: ValueSemantics = meteorValueSemantics,
-    private readonly allowJavascriptWhere = false,
+    private readonly values: ValueSemantics = localValueSemantics,
   ) {
     this.collator = createCollator(collation)
     this.documentMatcher = this.compileSelector(selector)
@@ -175,7 +172,7 @@ export class Matcher<TDocument extends object = object> {
 
       return document => ({ result: Boolean(selector.call(document, document)) })
     }
-    if (typeof selector === 'string' || typeof selector === 'number' || selector instanceof ObjectID) {
+    if (typeof selector === 'string') {
       this.paths.add('_id')
 
       return document => ({ result: this.equal(selector, document._id) })
@@ -223,27 +220,15 @@ export class Matcher<TDocument extends object = object> {
 
   private compileLogical(operator: string, operand: unknown): DocumentMatcher {
     this.simple = false
-    if (operator === '$where') {
-      this.paths.add('')
-      this.whereQuery = true
-      let predicate: (this: Record<string, unknown>, document: Record<string, unknown>) => unknown
-      if (typeof operand === 'function') {
-        predicate = operand as typeof predicate
-      } else if (typeof operand === 'string' && this.allowJavascriptWhere) {
-        // Exact Meteor compatibility is explicitly gated because this evaluates code.
-        predicate = Function('obj', `return ${operand}`) as typeof predicate
-      } else {
-        throw new MiniMongoQueryError('$where must be a function unless allowJavascriptWhere is enabled')
-      }
-
-      return document => ({ result: Boolean(predicate.call(document, document)) })
-    }
     if (operator === '$comment') return () => ({ result: true })
+    if (!['$and', '$or', '$nor'].includes(operator)) {
+      throw new LocalQueryError(`Unrecognized logical operator: ${operator}`)
+    }
     if (!Array.isArray(operand) || operand.length === 0) {
-      throw new MiniMongoQueryError('$and/$or/$nor must be nonempty array')
+      throw new LocalQueryError('$and/$or/$nor must be nonempty array')
     }
     const entries = operand.map(value => {
-      if (!isPlainObject(value)) throw new MiniMongoQueryError('$or/$and/$nor entries need to be full objects')
+      if (!isPlainObject(value)) throw new LocalQueryError('$or/$and/$nor entries need to be full objects')
 
       return this.compileDocument(value, false)
     })
@@ -272,7 +257,7 @@ export class Matcher<TDocument extends object = object> {
     }
     if (operator === '$nor') return document => ({ result: entries.every(matcher => !matcher(document).result) })
 
-    throw new MiniMongoQueryError(`Unrecognized logical operator: ${operator}`)
+    throw new LocalQueryError(`Unrecognized logical operator: ${operator}`)
   }
 
   private compileValue(selector: unknown, isRoot: boolean): BranchMatcher {
@@ -322,9 +307,9 @@ export class Matcher<TDocument extends object = object> {
     if (operator === '$eq') return this.elementMatcher(value => this.equal(operand, value))
     if (operator === '$ne') return this.invert(this.elementMatcher(value => this.equal(operand, value)))
     if (operator === '$in' || operator === '$nin') {
-      if (!Array.isArray(operand)) throw new MiniMongoQueryError('$in needs an array')
+      if (!Array.isArray(operand)) throw new LocalQueryError('$in needs an array')
       const matcher = this.elementMatcher(value => operand.some(option => {
-        if (isOperatorObject(option)) throw new MiniMongoQueryError('cannot nest $ under $in')
+        if (isOperatorObject(option)) throw new LocalQueryError('cannot nest $ under $in')
 
         return option instanceof RegExp ? regexMatches(option, value) : this.equal(option, value)
       }))
@@ -338,19 +323,19 @@ export class Matcher<TDocument extends object = object> {
     }
     if (operator === '$not') return this.invert(this.compileValue(operand, false))
     if (operator === '$options') {
-      if (!Object.hasOwn(selector, '$regex')) throw new MiniMongoQueryError('$options needs a $regex')
+      if (!Object.hasOwn(selector, '$regex')) throw new LocalQueryError('$options needs a $regex')
 
       return () => ({ result: true })
     }
     if (operator === '$regex') {
       if (!(typeof operand === 'string' || operand instanceof RegExp)) {
-        throw new MiniMongoQueryError('$regex has to be a string or RegExp')
+        throw new LocalQueryError('$regex has to be a string or RegExp')
       }
       const source = operand instanceof RegExp ? operand.source : operand
       const inheritedFlags = operand instanceof RegExp ? operand.flags : ''
       const flags = selector.$options === undefined ? inheritedFlags : String(selector.$options)
       if (/[^gim]/.test(flags)) {
-        throw new MiniMongoQueryError('Only the i, m, and g regexp options are supported')
+        throw new LocalQueryError('Only the i, m, and g regexp options are supported')
       }
       const regex = new RegExp(source, flags)
 
@@ -358,14 +343,14 @@ export class Matcher<TDocument extends object = object> {
     }
     if (operator === '$size') {
       const size = typeof operand === 'string' ? 0 : operand
-      if (typeof size !== 'number') throw new MiniMongoQueryError('$size needs a number')
+      if (typeof size !== 'number') throw new LocalQueryError('$size needs a number')
 
       return this.elementMatcher(value => Array.isArray(value) && value.length === size, false)
     }
     if (operator === '$all') {
-      if (!Array.isArray(operand)) throw new MiniMongoQueryError('$all requires array')
+      if (!Array.isArray(operand)) throw new LocalQueryError('$all requires array')
       if (operand.length === 0) return () => ({ result: false })
-      if (operand.some(isOperatorObject)) throw new MiniMongoQueryError('no $ expressions in $all')
+      if (operand.some(isOperatorObject)) throw new LocalQueryError('no $ expressions in $all')
 
       return branches => ({
         result: operand.every(expected => this.elementMatcher(value => expected instanceof RegExp
@@ -374,7 +359,7 @@ export class Matcher<TDocument extends object = object> {
       })
     }
     if (operator === '$elemMatch') {
-      if (!isPlainObject(operand)) throw new MiniMongoQueryError('$elemMatch need an object')
+      if (!isPlainObject(operand)) throw new LocalQueryError('$elemMatch need an object')
 
       return branches => {
         for (const branch of branches) {
@@ -394,17 +379,17 @@ export class Matcher<TDocument extends object = object> {
     if (operator === '$mod') {
       if (!Array.isArray(operand) || operand.length !== 2
         || typeof operand[0] !== 'number' || typeof operand[1] !== 'number') {
-        throw new MiniMongoQueryError('argument to $mod must be an array of two numbers')
+        throw new LocalQueryError('argument to $mod must be an array of two numbers')
       }
 
       return this.elementMatcher(value => typeof value === 'number' && value % operand[0] === operand[1])
     }
     if (operator === '$type') {
       const expected = typeof operand === 'string' ? TYPE_ALIASES.get(operand) : operand
-      if (expected === undefined) throw new MiniMongoQueryError(`unknown string alias for $type: ${String(operand)}`)
-      if (typeof expected !== 'number') throw new MiniMongoQueryError('argument to $type is not a number or a string')
+      if (expected === undefined) throw new LocalQueryError(`unknown string alias for $type: ${String(operand)}`)
+      if (typeof expected !== 'number') throw new LocalQueryError('argument to $type is not a number or a string')
       if (expected === 0 || expected < -1 || (expected > 19 && expected !== 127)) {
-        throw new MiniMongoQueryError(`Invalid numerical $type code: ${expected}`)
+        throw new LocalQueryError(`Invalid numerical $type code: ${expected}`)
       }
 
       return this.elementMatcher(value => value !== undefined && minimongoType(value) === expected, true, true)
@@ -429,19 +414,19 @@ export class Matcher<TDocument extends object = object> {
       })
     }
     if (operator === '$maxDistance') {
-      if (!Object.hasOwn(selector, '$near')) throw new MiniMongoQueryError('$maxDistance needs a $near')
+      if (!Object.hasOwn(selector, '$near')) throw new LocalQueryError('$maxDistance needs a $near')
 
       return () => ({ result: true })
     }
     if (operator === '$near') {
-      if (!isRoot) throw new MiniMongoQueryError('$near can\'t be inside another $ operator')
+      if (!isRoot) throw new LocalQueryError('$near can\'t be inside another $ operator')
       this.geoQuery = true
       const isGeoJson = isPlainObject(operand) && Object.hasOwn(operand, '$geometry')
       const geometry = isGeoJson
         ? operand.$geometry
         : operand
       const origin = point(geometry)
-      if (!origin) throw new MiniMongoQueryError('$near argument must be coordinate pair or GeoJSON')
+      if (!origin) throw new LocalQueryError('$near argument must be coordinate pair or GeoJSON')
       const maxDistance = isPlainObject(operand) && typeof operand.$maxDistance === 'number'
         ? operand.$maxDistance
         : typeof selector.$maxDistance === 'number'
@@ -476,7 +461,7 @@ export class Matcher<TDocument extends object = object> {
       }
     }
 
-    throw new MiniMongoQueryError(`Unrecognized operator: ${operator}`)
+    throw new LocalQueryError(`Unrecognized operator: ${operator}`)
   }
 
   private elementMatcher(
@@ -509,5 +494,5 @@ export class Matcher<TDocument extends object = object> {
 }
 
 export function isIdSelector(selector: unknown): selector is MinimongoId {
-  return typeof selector === 'string' || typeof selector === 'number' || selector instanceof ObjectID
+  return typeof selector === 'string'
 }

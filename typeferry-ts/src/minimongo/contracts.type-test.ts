@@ -1,62 +1,38 @@
-import { LocalCollection, type MaterializedDocument, type ObjectIDContract } from './index'
+import {
+  LocalCollection,
+  type DeepReadonly,
+  type MaterializedDocument,
+} from './index'
 
 interface Task {
   title: string
-  rank: number
-  tags: string[]
-  nested: { enabled: boolean }
-  location: readonly [number, number]
+  nested: {
+    done: boolean
+  }
 }
 
-const tasks = new LocalCollection<Task, string>()
-const insertedId: string = tasks.insert({
-  title: 'typed',
-  rank: 1,
-  tags: [],
-  nested: { enabled: true },
-  location: [0, 0],
-})
-const task: MaterializedDocument<Task, string> | undefined = tasks.findOne(insertedId)
+const tasks = new LocalCollection<Task>()
+const id: string = tasks.insert({ title: 'Typed', nested: { done: false } })
+const document: MaterializedDocument<Task> | undefined = tasks.findOne(id)
+const snapshot: readonly DeepReadonly<MaterializedDocument<Task>>[] = tasks.find().fetch()
 
-tasks.find({
-  title: { $regex: '^type', $options: 'i' },
-  rank: { $gte: 1, $type: 'double' },
-  tags: { $all: ['strict'] },
-  'nested.enabled': true,
-  location: { $near: [0, 0], $maxDistance: 10 },
-})
-tasks.update(insertedId, {
-  $inc: { rank: 1 },
-  $set: { title: 'updated', 'nested.enabled': false },
-  $push: { tags: { $each: ['safe'], $position: 0 } },
+tasks.on('insert', event => {
+  const insertedId: string = event.document._id
+  void insertedId
+
+  // @ts-expect-error Public snapshots are deeply readonly.
+  event.document.nested.done = true
 })
 
-const transformed = tasks.find({}, {
-  transform: document => ({ id: document._id, label: document.title }),
-}).fetch()
-const transformedId: string = transformed[0]!.id
-const restoredId: string = transformed[0]!._id
+tasks.find().on('change', documents => {
+  const first = documents[0]
 
-tasks.find().observeChanges({
-  added(id, fields) {
-    const typedId: string | number | ObjectIDContract = id
-    const title: string | undefined = fields.title
-    void typedId
-    void title
-  },
+  // @ts-expect-error Cursor snapshots are readonly arrays.
+  documents.push(first!)
 })
 
-// @ts-expect-error Numeric selectors reject string operands.
-tasks.find({ rank: { $gt: 'high' } })
-// @ts-expect-error Unknown document paths are rejected.
-tasks.find({ missing: true })
-// @ts-expect-error Numeric modifiers reject string increments.
-tasks.update(insertedId, { $inc: { rank: 'one' } })
-// @ts-expect-error Array modifiers reject element values of the wrong type.
-tasks.update(insertedId, { $push: { tags: 42 } })
-// @ts-expect-error Projection values use Mongo inclusion/exclusion flags.
-tasks.find({}, { projection: { title: 2 } })
+// @ts-expect-error Local collections accept only string IDs.
+tasks.insert({ _id: 1, title: 'Invalid', nested: { done: false } })
 
-void task
-void transformedId
-void restoredId
+void document
+void snapshot

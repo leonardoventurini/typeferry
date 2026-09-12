@@ -9,7 +9,7 @@ type WrappedTransform<TDocument extends object, TOutput extends object> =
     readonly [WRAPPED_TRANSFORM]?: true
   }
 
-/** Enforces Meteor's identity-preserving document transform contract. */
+/** Enforces the local store's identity-preserving document transform contract. */
 export function wrapTransform<TDocument extends object, TOutput extends object>(
   transform: ((document: TDocument) => TOutput) | null | undefined,
   values: ValueSemantics,
