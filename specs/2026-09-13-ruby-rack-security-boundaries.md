@@ -45,10 +45,9 @@ together if cross-language conformance changes unexpectedly.
 
 ## Checklist
 
-- [ ] Add failing boundary-policy tests.
-- [ ] Implement the shared Rack security policy and RBS surface.
-- [ ] Integrate HTTP and WebSocket transports.
-- [ ] Update protocol and Ruby documentation.
-- [ ] Run Ruby verification and TypeScript/Ruby interoperability.
-- [ ] Record the security-default decision.
-
+- [x] Add failing boundary-policy tests.
+- [x] Implement the shared Rack security policy and RBS surface.
+- [x] Integrate HTTP and WebSocket transports.
+- [x] Update protocol and Ruby documentation.
+- [ ] Run TypeScript/Ruby interoperability. Ruby verification passes.
+- [x] Record the security-default decision.

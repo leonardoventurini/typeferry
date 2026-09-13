@@ -2,6 +2,7 @@
 
 require "rack"
 require_relative "../runtime"
+require_relative "rack_security_policy"
 
 module TypeFerry
   module Transports
@@ -38,9 +39,10 @@ module TypeFerry
     class RackHTTP
       CONTENT_TYPE = "text/plain; charset=utf-8"
 
-      def initialize(server, origins: nil, rate_limit: RateLimit.new(120, 60_000))
+      def initialize(server, origins: nil, rate_limit: RateLimit.new(120, 60_000), allow_originless: false,
+        max_body_bytes: RackSecurityPolicy::DEFAULT_MAX_BODY_BYTES, client_address_resolver: nil)
         @server = server
-        @origins = origins&.to_set&.freeze
+        @security = RackSecurityPolicy.new(origins:, allow_originless:, max_body_bytes:, client_address_resolver:)
         @rate_limit = rate_limit
         @limiter = rate_limit && SlidingWindowLimiter.new(rate_limit)
       end
@@ -49,18 +51,19 @@ module TypeFerry
         request = Rack::Request.new(environment)
         return response(404, "") unless request.path == Protocol::HTTP_PATH
         return response(405, "") unless request.post?
-        return response(403, "") unless origin_allowed?(request.get_header("HTTP_ORIGIN"))
+        return response(403, "") unless @security.origin_allowed?(request.get_header("HTTP_ORIGIN"))
 
-        allowed, remaining, reset = @limiter ? @limiter.consume(request.ip) : [true, 0, 0]
+        client_address = @security.client_address(request)
+        allowed, remaining, reset = @limiter ? @limiter.consume(client_address) : [true, 0, 0]
         return response(429, "", rate_headers(remaining, reset)) unless allowed
 
-        dispatch(request)
+        dispatch(request, client_address)
       end
 
       private
 
-      def dispatch(request)
-        transport = decode(request.body.read)
+      def dispatch(request, client_address)
+        transport = decode(@security.read_body(request))
         return error(Protocol::Errors::INVALID_REQUEST) unless transport.is_a?(Hash) && transport["payload"]
 
         payload = transport.fetch("payload")
@@ -71,7 +74,7 @@ module TypeFerry
         end
         method = @server.methods.fetch(method_name)
 
-        node = build_node(request, transport["context"])
+        node = build_node(request, transport["context"], client_address)
         return error(Protocol::Errors::METHOD_FORBIDDEN, method: method_name, void: is_void) if method.protected? && !node.authenticated
 
         result = method.call(node, payload["params"])
@@ -82,6 +85,8 @@ module TypeFerry
         error(exception.message, uuid: payload&.dig("uuid"), errors: exception.errors, void: is_void)
       rescue PublicError => exception
         error(exception.message, uuid: payload&.dig("uuid"), void: is_void)
+      rescue RequestBodyTooLarge
+        response(413, "")
       rescue => exception
         warn("TypeFerry HTTP dispatch failed: #{exception.class}: #{exception.message}")
         error(Protocol::Errors::INTERNAL_ERROR, uuid: payload&.dig("uuid"), void: is_void)
@@ -93,13 +98,13 @@ module TypeFerry
         nil
       end
 
-      def build_node(request, context)
+      def build_node(request, context, client_address)
         uuid = request.get_header("HTTP_X_CLIENT_ID")
         node = ClientNode.new(
           uuid: uuid.to_s.empty? ? SecureRandom.uuid : uuid,
           context:,
           headers: request_headers(request.env),
-          remote_address: request.ip,
+          remote_address: client_address,
           user_agent: request.user_agent.to_s
         )
         node.server = @server
@@ -110,10 +115,6 @@ module TypeFerry
         auth_context["token"] = token.delete_prefix("Bearer ") if token && token != "undefined"
         @server.authenticate(node, auth_context)
         node
-      end
-
-      def origin_allowed?(origin)
-        !@origins || !origin || @origins.include?(origin)
       end
 
       def request_headers(environment)

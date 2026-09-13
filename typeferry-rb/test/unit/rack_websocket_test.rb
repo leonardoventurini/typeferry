@@ -32,6 +32,12 @@ class RackWebSocketTest < Minitest::Test
     assert_equal 403, response.status
   end
 
+  def test_rejects_missing_origin_before_upgrade
+    response = Rack::MockRequest.new(@transport).get(TypeFerry::Protocol::WEBSOCKET_PATH)
+
+    assert_equal 403, response.status
+  end
+
   def test_requires_websocket_upgrade
     response = Rack::MockRequest.new(@transport).get(TypeFerry::Protocol::WEBSOCKET_PATH,
       "HTTP_ORIGIN" => "https://studio.test")

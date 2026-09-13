@@ -5,6 +5,7 @@ require "monitor"
 require "uri"
 require "websocket/driver"
 require_relative "websocket"
+require_relative "rack_security_policy"
 
 module TypeFerry
   module Transports
@@ -12,9 +13,9 @@ module TypeFerry
     class RackWebSocket
       RESPONSE_HEADERS = {"content-type" => "text/plain; charset=utf-8"}.freeze
 
-      def initialize(server, origins: nil, handshake_authenticator: nil)
+      def initialize(server, origins: nil, handshake_authenticator: nil, allow_originless: false)
         @server = server
-        @origins = origins&.to_set&.freeze
+        @security = RackSecurityPolicy.new(origins:, allow_originless:)
         @handshake_authenticator = handshake_authenticator
         @connections = Set.new
         @lock = Mutex.new
@@ -24,7 +25,7 @@ module TypeFerry
       def call(environment)
         return response(404, "") unless environment["PATH_INFO"] == Protocol::WEBSOCKET_PATH
         return response(503, "WebSocket transport is shutting down") if closed?
-        return response(403, "WebSocket origin is not allowed") unless origin_allowed?(environment["HTTP_ORIGIN"])
+        return response(403, "WebSocket origin is not allowed") unless @security.origin_allowed?(environment["HTTP_ORIGIN"])
         return response(426, "WebSocket upgrade required") unless WebSocket::Driver.websocket?(environment)
         return response(501, "Rack hijacking is unavailable") unless environment["rack.hijack"]
 
@@ -59,10 +60,6 @@ module TypeFerry
 
       def closed?
         @lock.synchronize { @closed }
-      end
-
-      def origin_allowed?(origin)
-        !@origins || !origin || @origins.include?(origin)
       end
 
       def remove_connection(connection)

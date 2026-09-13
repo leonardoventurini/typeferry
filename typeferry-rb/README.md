@@ -59,8 +59,10 @@ http = TypeFerry::Transports::RackHTTP.new(
 run http
 ```
 
-Configured origins are enforced for browser requests; requests without an
-`Origin` header remain valid for non-browser clients. Method handlers can read
+Configured origins are enforced for every request; requests without an
+`Origin` header are rejected unless `allow_originless: true` is explicitly set
+for a trusted non-browser integration. Bodies are capped at 4 MiB by default;
+set `max_body_bytes:` to a smaller application budget. Method handlers can read
 normalized immutable request metadata from `ClientNode#headers`,
 `#remote_address`, and `#user_agent`, and can append response headers through
 `#response_headers`.

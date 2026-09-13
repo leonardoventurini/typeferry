@@ -70,6 +70,7 @@ propagation).
 | Success status          | `200`                                   |
 | Rate-limit status       | `429` (when limiter exceeded)           |
 | CORS failure status     | `403`                                   |
+| Oversized body status   | `413` (when a configured transport limit is exceeded) |
 
 **Content-Type variance:** The Express transport calls
 `res.send(string)`, which defaults to
@@ -78,6 +79,11 @@ which emits `text/plain; charset=UTF-8`. Both serve identical EJSON-text
 bodies; the JS client decodes on body content, not Content-Type. An
 alternate implementation MAY choose either header value but MUST serve
 EJSON-text.
+
+Servers that configure an origin allowlist MUST reject missing and non-matching
+browser origins by default. A host MAY explicitly allow an absent `Origin` for
+a trusted non-browser integration. Implementations SHOULD reject request bodies
+above a configurable finite byte limit before EJSON decoding.
 
 Sources: `src/server/transports/http-transport.ts:47-48,68`,
 `src/server/transports/bun-hono-transport.ts:87,90,262,279`.

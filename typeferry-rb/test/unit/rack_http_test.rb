@@ -18,13 +18,41 @@ class RackHTTPTest < Minitest::Test
     refute called
   end
 
-  def test_configured_origins_allow_matching_and_non_browser_requests
+  def test_configured_origins_require_an_explicit_matching_origin
     server = TypeFerry::Server.new
     server.add_method("ping", ->(*) { true })
     app = TypeFerry::Transports::RackHTTP.new(server, origins: ["https://studio.test"], rate_limit: nil)
 
     assert_equal 200, post(app, "ping", "HTTP_ORIGIN" => "https://studio.test").status
+    assert_equal 403, post(app, "ping").status
+  end
+
+  def test_originless_clients_require_an_explicit_compatibility_option
+    server = TypeFerry::Server.new
+    server.add_method("ping", ->(*) { true })
+    app = TypeFerry::Transports::RackHTTP.new(server, origins: ["https://studio.test"], allow_originless: true,
+      rate_limit: nil)
+
     assert_equal 200, post(app, "ping").status
+  end
+
+  def test_rejects_declared_and_streamed_bodies_over_the_limit
+    server = TypeFerry::Server.new
+    app = TypeFerry::Transports::RackHTTP.new(server, max_body_bytes: 8, rate_limit: nil, allow_originless: true)
+
+    assert_equal 413, Rack::MockRequest.new(app).post(TypeFerry::Protocol::HTTP_PATH, input: "x" * 9).status
+  end
+
+  def test_uses_the_explicit_client_address_resolver
+    server = TypeFerry::Server.new
+    server.add_method("inspect", ->(node, *) { node.remote_address })
+    resolver = ->(environment) { environment.fetch("REMOTE_ADDR") }
+    app = TypeFerry::Transports::RackHTTP.new(server, rate_limit: nil, allow_originless: true,
+      client_address_resolver: resolver)
+
+    result = TypeFerry::EJSON.parse(post(app, "inspect", "REMOTE_ADDR" => "192.0.2.12",
+      "HTTP_X_FORWARDED_FOR" => "203.0.113.9").body).fetch("result")
+    assert_equal "192.0.2.12", result
   end
 
   def test_request_metadata_is_normalized_and_immutable
@@ -37,7 +65,7 @@ class RackHTTPTest < Minitest::Test
         "userAgent" => node.user_agent
       }
     })
-    app = TypeFerry::Transports::RackHTTP.new(server, rate_limit: nil)
+    app = TypeFerry::Transports::RackHTTP.new(server, rate_limit: nil, allow_originless: true)
 
     response = post(app, "inspect",
       "CONTENT_TYPE" => "text/plain",
@@ -56,7 +84,7 @@ class RackHTTPTest < Minitest::Test
   def test_default_rate_limit_allows_120_requests_per_window
     server = TypeFerry::Server.new
     server.add_method("ping", ->(*) { true })
-    app = TypeFerry::Transports::RackHTTP.new(server)
+    app = TypeFerry::Transports::RackHTTP.new(server, allow_originless: true)
 
     120.times { assert_equal 200, post(app, "ping").status }
 
