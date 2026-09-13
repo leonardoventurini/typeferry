@@ -29,3 +29,20 @@ No language implementation may become an undocumented second protocol.
 - [ ] Make cross-language conformance and interoperability mandatory before enabling Python, Rust, or Ruby publication.
 - [ ] Publish a machine-readable conformance report with each server release candidate.
 - [ ] Reject releases when normative prose, fixtures, server behavior, or documented support status disagree.
+
+## SolidScript Studio Ruby consumer gate
+
+- [x] The Ruby server passes every shared HTTP, WebSocket, authentication,
+  origin, duplicate-client, metadata, limit, event, malformed-input, and
+  lifecycle fixture used by SolidScript Studio.
+- [x] The TypeScript client interoperability suite passes against the Ruby
+  conformance server without a client compatibility branch.
+- [x] SolidScript owns its downstream `studio.*` application-contract suite;
+  TypeFerry release tooling remains consumer-agnostic.
+
+Verified on 2026-09-13 with:
+
+```sh
+cd typeferry-rb && bundle exec rake test:conformance
+cd typeferry-ts && npm run test:interop:ruby
+```
