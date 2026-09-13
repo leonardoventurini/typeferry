@@ -10,7 +10,10 @@ import { ClientEvents } from '../../utils'
 const REPO_ROOT = path.resolve(__dirname, '../../../..')
 const RUBY_DIR = path.join(REPO_ROOT, 'typeferry-rb')
 const SERVER = path.join(RUBY_DIR, 'exe/typeferry-conformance-server')
-const BUNDLE = process.env.TYPEFERRY_RUBY_BUNDLE ?? 'bundle'
+const RUBY_EXECUTABLE = process.env.TYPEFERRY_RUBY_EXECUTABLE ?? 'bundle'
+const RUBY_EXECUTABLE_ARGS = process.env.TYPEFERRY_RUBY_EXECUTABLE_ARGS
+  ? (JSON.parse(process.env.TYPEFERRY_RUBY_EXECUTABLE_ARGS) as string[])
+  : ['exec', 'ruby']
 const RUBY_AVAILABLE = fs.existsSync(SERVER) && process.env.TYPEFERRY_RUBY_INTEGRATION === '1'
 const describeIf = RUBY_AVAILABLE ? describe : describe.skip
 
@@ -43,7 +46,7 @@ describeIf('JS client ↔ Ruby server (cross-language integration)', () => {
 
   beforeAll(async () => {
     ;(globalThis as unknown as { WebSocket: typeof WS }).WebSocket = WS
-    proc = spawn(BUNDLE, ['exec', 'ruby', SERVER], {
+    proc = spawn(RUBY_EXECUTABLE, [...RUBY_EXECUTABLE_ARGS, SERVER], {
       cwd: RUBY_DIR,
       env: {...process.env},
       stdio: ['ignore', 'pipe', 'pipe'],
