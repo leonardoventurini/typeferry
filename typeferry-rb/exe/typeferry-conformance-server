@@ -17,7 +17,7 @@ config = File.join(root, "examples", "rack_app.ru")
 command = [RbConfig.ruby, Gem.bin_path("puma", "puma"), "--quiet", "--bind", "tcp://127.0.0.1:#{port}", config]
 child = Process.spawn(*command, chdir: root, out: $stderr, err: $stderr)
 
-shutdown = lambda do
+shutdown = lambda do |*|
   Process.kill("TERM", child)
 rescue Errno::ESRCH
   nil

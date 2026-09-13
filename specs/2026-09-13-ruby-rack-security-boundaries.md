@@ -49,5 +49,5 @@ together if cross-language conformance changes unexpectedly.
 - [x] Implement the shared Rack security policy and RBS surface.
 - [x] Integrate HTTP and WebSocket transports.
 - [x] Update protocol and Ruby documentation.
-- [ ] Run TypeScript/Ruby interoperability. Ruby verification passes.
+- [x] Run TypeScript/Ruby interoperability and Ruby verification.
 - [x] Record the security-default decision.
