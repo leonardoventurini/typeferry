@@ -7,41 +7,95 @@
 
 # TypeFerry
 
-Build type-safe, real-time TypeScript applications from one server contract.
+Build a full-stack TypeScript application from one server contract.
 
-TypeFerry connects a Node.js server to browser, Node.js, React, and optional
-Capacitor iOS clients through typed RPC, HTTP and WebSocket transports,
-authenticated events, and live data. It also owns the application workflow:
-develop, test, build, and run the complete stack without maintaining separate
-Vite or Vitest configurations.
+Define a method on the server, validate its input at runtime, and call it from
+the client with its path, parameters, and result inferred by TypeScript. The
+same client handles HTTP, WebSockets, authenticated events, and live data;
+React hooks turn those operations into application state.
 
-The same wire protocol has server implementations in Python, Rust, and Ruby
-when a service needs to cross language boundaries.
+TypeFerry also owns the development loop around that contract. One package
+runs the client and server, configures their proxy, splits tests by runtime,
+and builds both sides for production. There is no generated client to keep in
+sync and no separate Vite or Vitest setup to assemble.
 
 ```sh
 npm install typeferry
 ```
 
-## Why TypeFerry
+## Where TypeFerry shines
 
-- **One contract from server to client.** Infer the client API directly from
-  decorated server methods, with runtime input validation and no generated
-  client artifacts.
-- **RPC and real-time behavior belong together.** Call the same method over
-  HTTP or WebSocket, then use events, private channels, rooms, or live MongoDB
-  publications to keep clients current.
-- **React is an adapter, not a separate runtime.** Hooks expose method state,
-  authentication, connection and reconnection state, subscriptions,
-  event-driven refresh, and live publications over the core TypeScript client.
-- **The application toolchain is included.** TypeFerry supplies development,
-  client and server builds, split unit/integration/browser testing, and an
-  optional typed configuration surface.
-- **Web and iOS share the application model.** Build the React client for the
-  web or package it with Capacitor for iOS, with native authentication, private
-  cookie HTTP, lifecycle, file sharing, media permissions, and simulator tools.
-- **Production boundaries stay explicit.** Authentication and authorization
-  policy remain application-owned; the MongoDB extension preserves the native
-  driver instead of replacing it with an ORM.
+TypeFerry is designed for full-stack TypeScript teams that want to build a
+feature once and carry its contract all the way to the interface.
+
+### Ship a feature without building the plumbing first
+
+A typical feature stays in one connected workflow:
+
+```text
+server method + Zod schema
+            |
+            v
+inferred client path, input, and result
+            |
+            v
+React loading, error, and result state
+            |
+            v
+event invalidation or a live publication
+```
+
+There is no schema compiler or generated client artifact between those steps.
+Rename a method, change its input, or change its result and TypeScript reports
+affected client calls during development.
+
+### Add real-time behavior without adding a second application model
+
+RPC and real-time updates use the same server, client context, authentication
+state, and serialization rules. A mutation can emit a private event after an
+acknowledged write; React can then refresh the authoritative query. When a
+screen needs finer-grained updates, an authorized MongoDB publication can send
+an initial snapshot and apply changes over the same WebSocket connection.
+
+That makes TypeFerry particularly useful for collaborative interfaces,
+dashboards, inboxes, operational tools, and mobile companions where ordinary
+request/response features gradually become live.
+
+### Keep the application workflow as cohesive as the runtime
+
+The package supplies the development server, client/server builds, proxying,
+and unit, integration, and browser test projects. A conventional application
+can start with three commands and no TypeFerry, Vite, or Vitest configuration:
+
+```sh
+typeferry develop
+typeferry test
+typeferry build
+```
+
+Configuration remains available when the defaults stop fitting. Production
+startup, infrastructure, secrets, authorization policy, and database access
+remain application-owned rather than hidden behind the framework.
+
+### Grow beyond a browser-only TypeScript service
+
+The framework-independent client works in browsers and Node.js, while React is
+an adapter over that client rather than a separate runtime. The same React
+application can also be packaged for iOS through the optional Capacitor tools.
+
+For services that cross language boundaries, Python, Rust, and Ruby server
+implementations target the same documented wire protocol and shared
+conformance fixtures. TypeScript remains the reference and only currently
+published package.
+
+### When it is a good fit
+
+TypeFerry is strongest when your application has a Node.js and TypeScript
+center of gravity, uses React or a framework-independent TypeScript client,
+and benefits from typed RPC plus authenticated real-time updates. It is less
+opinionated about deployment and persistence: use the production platform you
+already trust, and use the optional MongoDB extension only when its
+native-driver-first model fits the service.
 
 ## From a server method to a typed client call
 
