@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/leonardoventurini/typeferry/typeferry-go/ejson"
+	"github.com/leonardoventurini/typeferry/typeferry-go/protocol"
 )
 
 func TestValidationPrecedesMiddlewareAndHandler(t *testing.T) {
@@ -179,6 +180,34 @@ func TestProtectedMethodFailsClosed(t *testing.T) {
 	_, err = server.Call(context.Background(), "secret", ejson.Null(), nil)
 	if err == nil || err.Error() != "Method Forbidden" {
 		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestDefaultLogoutAndConditionalLogin(t *testing.T) {
+	server := NewServer()
+	client := NewClient("signed-in")
+	if server.HasMethod(protocol.MethodLogin) || server.HasMethod(protocol.MethodList) {
+		t.Fatal("optional or reserved method was installed by default")
+	}
+	if _, err := server.Call(context.Background(), protocol.MethodLogout, ejson.Null(), client); err == nil || err.Error() != protocol.ErrorMethodForbidden {
+		t.Fatalf("anonymous logout = %v", err)
+	}
+	client.SetContext(ejson.Object(ejson.Field{Key: "user", Value: ejson.Object(ejson.Field{Key: "_id", Value: ejson.String("u1")})}))
+	client.SetAuthenticated(true)
+	result, err := server.Call(context.Background(), protocol.MethodLogout, ejson.Null(), client)
+	if value, ok := result.Boolean(); err != nil || !ok || !value || client.Authenticated() || client.UserID() != "" || client.Context().Kind() != ejson.KindNull {
+		t.Fatalf("logout = %#v, %v; client=%#v", result, err, client)
+	}
+	if err := server.SetAuth(func(context.Context, *Client, ejson.Value) (ejson.Value, error) {
+		return ejson.Null(), nil
+	}, func(context.Context, *Client, ejson.Value) (ejson.Value, error) {
+		return ejson.String("application login"), nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	result, err = server.Call(context.Background(), protocol.MethodLogin, ejson.Null(), client)
+	if value, ok := result.Text(); err != nil || !ok || value != "application login" {
+		t.Fatalf("conditional login = %#v, %v", result, err)
 	}
 }
 

@@ -40,6 +40,30 @@ but the library must contain no SolidScript policy or test-path dependency.
   live-view extension. That extension is outside the shared server-parity
   contract here; adding it later needs its own contract and tests.
 
+## Protocol-to-test matrix
+
+This maps maintained protocol sections to executable Go evidence. "Focused"
+means the behavior has a direct test but the complete cross-language feature
+surface has not run against the TypeScript client in CI.
+
+| Protocol section | Go implementation and test evidence | Gate still open |
+|---|---|---|
+| 2.1 HTTP envelope, headers, origins, limits | `httptransport/http_test.go` shared fixtures and boundary tests; TypeScript `cross-lang-go-http.integration.spec.ts` | Upstream CI |
+| 2.2 WebSocket query, handshake, lifecycle, heartbeat | `websocket/fixtures_test.go`, `handler_test.go`, frame fuzz; TypeScript `cross-lang-go-ws.integration.spec.ts` | Broader TypeScript lifecycle matrix and CI |
+| 2.3 Redis events | `redistransport/fixtures_test.go` and disposable two-server `client_integration_test.go` | Upstream Redis CI |
+| 3–4 EJSON and Presentation values | `ejson/ejson_test.go`, shared fixtures, bounded fuzz | Upstream CI |
+| 5 message envelopes and void RPC | WebSocket shared fixtures and real TypeScript calls | Broader TypeScript error/reconnect cases |
+| 6 methods, protection, cache, validation, middleware, telemetry | `runtime/server_test.go` including concurrent cached calls | Public API review and CI |
+| 7 default methods | `runtime/events_test.go` covers subscriptions and `rpc:off`; `runtime/server_test.go` covers protected logout and conditional login; TypeScript Go WebSocket interop calls both. `list:methods` remains reserved by the protocol. | Upstream CI |
+| 8 JWT, cookies, OAuth, session lifecycle | `auth/auth_test.go`, `cookies_test.go`, `device_test.go`, `google_test.go` | Public API review and CI |
+| 9 public versus internal errors | HTTP and WebSocket shared fixtures, runtime validation tests | Broader cross-language negative cases |
+| 10 rooms, channels, event exclusion | `runtime/events_test.go` and Redis cross-instance test | Broader TypeScript subscription lifecycle |
+| 11 typed authoring and cache keys | `authoring/group_test.go`, `runtime/server_test.go` | Public API review |
+
+The matrix identifies broader TypeScript lifecycle and negative cases to add
+before claiming full parity. The optional MongoDB live-view extension
+is outside the agreed shared server scope.
+
 ## Scope and contracts
 
 Go support covers the maintained server-side feature union, including:
@@ -195,3 +219,8 @@ cases without a panic or round-trip mismatch.
 The application-owned `net/http` example compiles under `go test ./...` and
 `go test -race ./...`; `go vet ./...` passed. Public API review, a tagged Go
 module revision, and upstream CI remain outstanding.
+The focused default-method gap is closed locally: a Go runtime test confirms
+that logout is protected and clears client identity, login appears only after
+`SetAuth`, and reserved `list:methods` stays absent. A real TypeScript client
+then called login and logout over the Go WebSocket server and observed protected
+access disappear. The four-case cross-language WebSocket file passed.

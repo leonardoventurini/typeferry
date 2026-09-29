@@ -69,6 +69,18 @@ describe('TypeScript WebSocket client ↔ Go server', () => {
     }
   })
 
+  it('calls the application login method and clears protected access on logout', async () => {
+    const client = await newClient('good-token')
+    try {
+      expect(await client.call('rpc:login', {})).toBe(true)
+      expect(await client.call('whoami')).toBe('u1')
+      expect(await client.call('rpc:logout')).toBe(true)
+      await expect(client.call('whoami')).rejects.toBeDefined()
+    } finally {
+      await client.close()
+    }
+  })
+
   it('reconnects after duplicate UUID replacement and restores subscriptions', async () => {
     const client = await newClient()
     try {
