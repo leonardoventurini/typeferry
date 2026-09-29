@@ -19,6 +19,8 @@ type Options struct {
 	AllowOriginless bool
 	Authenticate    HandshakeAuthenticator
 	MaxMessageBytes int64
+	RateLimitMax    int
+	RateLimitWindow time.Duration
 }
 
 type Handler struct {
@@ -99,6 +101,13 @@ func (handler *Handler) ServeHTTP(response http.ResponseWriter, request *http.Re
 		}
 	}
 	dispatcher := NewDispatcher(handler.server, socket, query, handler.options.Authenticate)
+	if handler.options.RateLimitMax > 0 {
+		window := handler.options.RateLimitWindow
+		if window <= 0 {
+			window = time.Minute
+		}
+		dispatcher.SetRateLimit(handler.options.RateLimitMax, window)
+	}
 	dispatcher.SetHandshake(Handshake{Path: request.URL.Path, Headers: headers, Query: query})
 	dispatcher.Client().SetRequestMetadata(headers, request.RemoteAddr, request.UserAgent())
 	defer dispatcher.Close()

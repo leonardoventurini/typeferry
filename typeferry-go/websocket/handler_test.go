@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/coder/websocket"
 	"github.com/leonardoventurini/typeferry/typeferry-go/ejson"
@@ -37,6 +38,14 @@ func TestHTTPUpgradeOriginAndRPC(t *testing.T) {
 	if err != nil || string(frame) != `{"t":"rpc:res","id":"x","error":"Method Not Found"}` {
 		t.Fatalf("RPC frame %s: %v", frame, err)
 	}
+	if err := handler.Close(); err != nil {
+		t.Fatal(err)
+	}
+	readCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if _, _, err := connection.Read(readCtx); err == nil {
+		t.Fatal("shutdown left upgraded socket open")
+	}
 }
 
 func TestCancelledAuthenticationCannotAuthenticateLater(t *testing.T) {
@@ -57,5 +66,83 @@ func TestCancelledAuthenticationCannotAuthenticateLater(t *testing.T) {
 	}
 	if got := socket.next(t); got["authenticated"] != false {
 		t.Fatalf("auth frame: %v", got)
+	}
+}
+
+func TestAuthenticationTimeoutIgnoresLateResult(t *testing.T) {
+	server := runtime.NewServer()
+	socket := &fixtureSocket{}
+	release := make(chan struct{})
+	dispatcher := NewDispatcher(server, socket, nil, func(context.Context, *runtime.Client, Handshake) (ejson.Value, error) {
+		<-release
+		return ejson.Object(ejson.Field{Key: "user", Value: ejson.String("late")}), nil
+	})
+	dispatcher.authTimeout = 10 * time.Millisecond
+	if err := dispatcher.Open(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	close(release)
+	if frame := socket.next(t); frame["authenticated"] != false {
+		t.Fatalf("timeout auth frame = %v", frame)
+	}
+	if dispatcher.Client().Authenticated() {
+		t.Fatal("late auth result changed client")
+	}
+}
+
+func TestClientPingReceivesPong(t *testing.T) {
+	server := runtime.NewServer()
+	socket := &fixtureSocket{}
+	dispatcher := NewDispatcher(server, socket, nil, nil)
+	if err := dispatcher.Open(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	socket.next(t)
+	dispatcher.Receive(context.Background(), `{"t":"ping"}`)
+	if frame := socket.next(t); frame["t"] != "pong" {
+		t.Fatalf("frame = %v", frame)
+	}
+}
+
+func TestHandshakeAuthRejectsWithoutTokenFallback(t *testing.T) {
+	server := runtime.NewServer()
+	if err := server.SetAuth(func(_ context.Context, _ *runtime.Client, _ ejson.Value) (ejson.Value, error) {
+		return ejson.Object(ejson.Field{Key: "user", Value: ejson.String("token-user")}), nil
+	}, func(context.Context, *runtime.Client, ejson.Value) (ejson.Value, error) { return ejson.Bool(true), nil }); err != nil {
+		t.Fatal(err)
+	}
+	socket := &fixtureSocket{}
+	dispatcher := NewDispatcher(server, socket, map[string]string{"token": "good"}, func(context.Context, *runtime.Client, Handshake) (ejson.Value, error) { return ejson.Null(), nil })
+	if err := dispatcher.Open(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if frame := socket.next(t); frame["authenticated"] != false {
+		t.Fatalf("handshake fallback: %v", frame)
+	}
+}
+
+func TestRPCConnectionRateLimit(t *testing.T) {
+	server := runtime.NewServer()
+	if err := server.AddMethod("echo", func(_ context.Context, _ *runtime.Client, value ejson.Value) (ejson.Value, error) { return value, nil }, runtime.MethodOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	socket := &fixtureSocket{}
+	dispatcher := NewDispatcher(server, socket, nil, nil)
+	dispatcher.SetRateLimit(1, time.Minute)
+	if err := dispatcher.Open(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	socket.next(t)
+	dispatcher.Receive(context.Background(), `{"t":"rpc","id":"one","method":"echo","params":1}`)
+	if frame := socket.next(t); frame["result"] != float64(1) {
+		t.Fatalf("first response = %v", frame)
+	}
+	dispatcher.Receive(context.Background(), `{"t":"rpc","id":"two","method":"echo","params":2}`)
+	if frame := socket.next(t); frame["error"] != "Rate Limit Exceeded" {
+		t.Fatalf("limit response = %v", frame)
+	}
+	dispatcher.Receive(context.Background(), `{"t":"rpc:void","method":"echo","params":3}`)
+	if !socket.empty() {
+		t.Fatal("void rate-limit response was not silent")
 	}
 }

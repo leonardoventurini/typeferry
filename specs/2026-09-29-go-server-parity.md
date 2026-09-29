@@ -162,6 +162,17 @@ An implementation-only revert does not require a protocol or data migration.
 
 ## Verification results
 
+| Contract area | Go evidence | Remaining gate |
+|---|---|---|
+| EJSON, custom tags, canonical output | 15 shared fixtures, focused codec tests | Bounded fuzz/property run |
+| HTTP method/auth/error transport | Nine shared fixtures, TypeScript `ClientHttp` calls | Final full-suite CI |
+| WebSocket RPC, auth, events, lifecycle | Nine shared fixtures, real TypeScript calls and reconnect, origin/timeout/rate/shutdown tests | Full-suite CI |
+| Method metadata, validation, cache, middleware | Runtime tests and `authoring.Group` tests | Final API review |
+| Redis cluster fanout and presence | Three shared envelopes, disposable two-server Redis integration | Full-suite CI |
+| JWT, sessions, cookies, device, Google OAuth | Focused token/replay and offline Google validation tests | Final API review |
+
+These are implementation checks; none constitutes SolidScript acceptance.
+
 The Go EJSON unit passes all 15 shared fixtures and focused canonical, invalid
 tag, and regex tests. The Go HTTP adapter passes all nine shared HTTP fixtures
 and two real TypeScript `ClientHttp` interoperability checks. The WebSocket

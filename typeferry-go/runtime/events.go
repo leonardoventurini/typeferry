@@ -277,7 +277,7 @@ func (server *Server) subscriptionResult(client *Client, params ejson.Value, sub
 			if allowed && (entry.options.Protected || entry.options.User) && !client.Authenticated() {
 				allowed = false
 			}
-			if allowed && entry.options.User && channel != client.UserID() {
+			if allowed && entry.options.User && entry.options.ShouldSubscribe == nil && channel != client.UserID() {
 				allowed = false
 			}
 			if allowed && entry.options.ShouldSubscribe != nil {

@@ -8,6 +8,7 @@ through an optional Redis connection. `auth` provides signed access tokens,
 rotating in-memory refresh sessions, cookies, device metadata, and Google code
 exchange with RS256 ID-token verification. The Redis adapter also maintains
 server, client, and user presence sets and exposes aggregate stats.
+`authoring.Group` declares namespaced method metadata without reflection.
 
 ```go
 codec := ejson.NewCodec()

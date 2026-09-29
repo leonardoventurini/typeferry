@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"regexp"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -35,6 +36,38 @@ type Dispatcher struct {
 	handshake   Handshake
 	auth        HandshakeAuthenticator
 	pendingPing atomic.Bool
+	limit       *rateLimiter
+	authTimeout time.Duration
+}
+
+type rateLimiter struct {
+	mu       sync.Mutex
+	capacity float64
+	tokens   float64
+	interval time.Duration
+	last     time.Time
+}
+
+func (limit *rateLimiter) take() bool {
+	limit.mu.Lock()
+	defer limit.mu.Unlock()
+	now := time.Now()
+	limit.tokens += now.Sub(limit.last).Seconds() / limit.interval.Seconds() * limit.capacity
+	if limit.tokens > limit.capacity {
+		limit.tokens = limit.capacity
+	}
+	limit.last = now
+	if limit.tokens < 1 {
+		return false
+	}
+	limit.tokens--
+	return true
+}
+
+func (dispatcher *Dispatcher) SetRateLimit(max int, interval time.Duration) {
+	if max > 0 && interval > 0 {
+		dispatcher.limit = &rateLimiter{capacity: float64(max), tokens: float64(max), interval: interval, last: time.Now()}
+	}
 }
 
 func NewDispatcher(server *runtime.Server, socket runtime.Socket, query map[string]string, auth HandshakeAuthenticator) *Dispatcher {
@@ -53,7 +86,7 @@ func NewDispatcher(server *runtime.Server, socket runtime.Socket, query map[stri
 		}
 	}
 	client.SetMeta(meta)
-	return &Dispatcher{server: server, socket: socket, client: client, query: query, auth: auth}
+	return &Dispatcher{server: server, socket: socket, client: client, query: query, auth: auth, authTimeout: AuthenticationTimeout}
 }
 
 func (dispatcher *Dispatcher) Client() *runtime.Client { return dispatcher.client }
@@ -67,7 +100,7 @@ func (dispatcher *Dispatcher) Open(ctx context.Context) error {
 	if dispatcher.auth == nil && (!dispatcher.server.HasAuth() || dispatcher.query["token"] == "") {
 		return dispatcher.send(ctx, ejson.Field{Key: "t", Value: ejson.String(protocol.MessageAuth)}, ejson.Field{Key: "authenticated", Value: ejson.Bool(false)})
 	}
-	authCtx, cancel := context.WithTimeout(ctx, AuthenticationTimeout)
+	authCtx, cancel := context.WithTimeout(ctx, dispatcher.authTimeout)
 	defer cancel()
 	type authResult struct {
 		identity ejson.Value
@@ -114,9 +147,20 @@ func (dispatcher *Dispatcher) Receive(ctx context.Context, text string) {
 	}
 	kind, _ := fieldText(frame, "t")
 	switch kind {
+	case protocol.MessagePing:
+		_ = dispatcher.send(ctx, ejson.Field{Key: "t", Value: ejson.String(protocol.MessagePong)})
 	case protocol.MessagePong:
 		dispatcher.pendingPing.Store(false)
 	case protocol.MessageRPC, protocol.MessageRPCVoid:
+		if dispatcher.limit != nil && !dispatcher.limit.take() {
+			if kind == protocol.MessageRPC {
+				id, _ := fieldText(frame, "id")
+				_ = dispatcher.send(ctx, ejson.Field{Key: "t", Value: ejson.String(protocol.MessageRPCResponse)},
+					ejson.Field{Key: "id", Value: ejson.String(id)},
+					ejson.Field{Key: "error", Value: ejson.String(protocol.ErrorRateLimit)})
+			}
+			return
+		}
 		method, _ := fieldText(frame, "method")
 		params, ok := frame.Lookup("params")
 		if !ok {

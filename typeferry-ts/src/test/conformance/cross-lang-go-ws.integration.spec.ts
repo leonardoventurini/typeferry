@@ -68,4 +68,32 @@ describe('TypeScript WebSocket client ↔ Go server', () => {
       await client.close()
     }
   })
+
+  it('reconnects after duplicate UUID replacement and restores subscriptions', async () => {
+    const client = await newClient()
+    try {
+      const channel = client.channel('room-reconnect')!
+      await channel.subscribe('ping.tick')
+      const reinitialized = new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('Go reconnect timed out')), 5000)
+        client.once(ClientEvents.INITIALIZED, () => {
+          clearTimeout(timeout)
+          resolve()
+        })
+      })
+      const duplicate = new WS(`ws://127.0.0.1:${port}/typeferry-ws?uuid=${client.uuid}`)
+      duplicate.on('error', () => undefined)
+      await new Promise<void>((resolve, reject) => {
+        duplicate.once('open', () => resolve())
+        duplicate.once('error', reject)
+      })
+      await reinitialized
+      duplicate.terminate()
+      const received = new Promise(resolve => channel.once('ping.tick', resolve))
+      await client.call('emit_ping', { channel: 'room-reconnect', params: { n: 8 } })
+      await expect(received).resolves.toEqual({ n: 8 })
+    } finally {
+      await client.close()
+    }
+  }, 10000)
 })

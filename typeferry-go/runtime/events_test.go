@@ -139,3 +139,25 @@ func TestClusterEventPublishesThenRoutesInbound(t *testing.T) {
 		t.Fatal("inbound cluster event did not reach local subscriber")
 	}
 }
+
+func TestUserEventCustomSubscriptionPredicateOverridesDefaultChannel(t *testing.T) {
+	server := NewServer()
+	if err := server.AddEvent("custom", EventOptions{User: true, ShouldSubscribe: func(*Client, string, string) bool { return true }}); err != nil {
+		t.Fatal(err)
+	}
+	client := NewClient("client")
+	client.SetSocket(&recordingSocket{})
+	client.SetAuthenticated(true)
+	client.SetContext(ejson.Object(ejson.Field{Key: "user", Value: ejson.Object(ejson.Field{Key: "_id", Value: ejson.String("user")})}))
+	server.AddClient(client)
+	params := ejson.Object(ejson.Field{Key: "events", Value: ejson.Array(ejson.String("custom"))}, ejson.Field{Key: "channel", Value: ejson.String("other")})
+	result, err := server.Call(context.Background(), protocol.MethodOn, params, client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	value, _ := result.Lookup("custom")
+	allowed, _ := value.Boolean()
+	if !allowed {
+		t.Fatal("custom predicate did not override user channel rule")
+	}
+}
