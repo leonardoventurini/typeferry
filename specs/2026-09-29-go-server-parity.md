@@ -175,5 +175,7 @@ cookies, and device metadata have focused Go checks. Google code exchange and
 RS256 ID-token validation pass an offline endpoint/key test, with invalid
 audience, issuer, expiry, and signature cases. The implementation follows
 [Google's OIDC validation requirements](https://developers.google.com/identity/openid-connect/openid-connect).
-Redis presence stats, full TypeScript-client lifecycle, and complete
-feature-parity criteria remain unverified. CI has not run yet.
+Redis server/client/user presence and aggregate stats pass a disposable
+Redis cross-instance test under the Go race detector. Full TypeScript-client
+lifecycle and complete feature-parity criteria remain unverified. CI has not
+run yet.

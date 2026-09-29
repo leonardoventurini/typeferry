@@ -67,4 +67,19 @@ func TestRedisCrossInstanceDelivery(t *testing.T) {
 	case <-ctx.Done():
 		t.Fatal("cluster event did not arrive")
 	}
+	stats, err := secondRedis.Stats(ctx)
+	if err != nil || stats.ClientCount != 1 {
+		t.Fatalf("presence stats = %#v, %v", stats, err)
+	}
+	client.SetContext(ejson.Object(ejson.Field{Key: "user", Value: ejson.Object(ejson.Field{Key: "_id", Value: ejson.String("user")})}))
+	second.RefreshClientPresence(client)
+	stats, err = firstRedis.Stats(ctx)
+	if err != nil || stats.UserCount != 1 || len(stats.Users) != 1 || stats.Users[0] != "user" {
+		t.Fatalf("authenticated presence = %#v, %v", stats, err)
+	}
+	second.DeleteClient(client)
+	stats, err = secondRedis.Stats(ctx)
+	if err != nil || stats.ClientCount != 0 || stats.UserCount != 0 {
+		t.Fatalf("presence after disconnect = %#v, %v", stats, err)
+	}
 }

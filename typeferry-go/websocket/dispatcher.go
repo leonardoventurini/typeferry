@@ -88,6 +88,7 @@ func (dispatcher *Dispatcher) Open(ctx context.Context) error {
 	case auth := <-result:
 		if auth.err == nil && authCtx.Err() == nil {
 			acceptIdentity(dispatcher.client, auth.identity)
+			dispatcher.server.RefreshClientPresence(dispatcher.client)
 		}
 	}
 	return dispatcher.send(ctx, ejson.Field{Key: "t", Value: ejson.String(protocol.MessageAuth)}, ejson.Field{Key: "authenticated", Value: ejson.Bool(dispatcher.client.Authenticated())})

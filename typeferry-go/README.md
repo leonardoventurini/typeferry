@@ -6,8 +6,8 @@ TypeFerry values, `runtime` handles typed methods and local events, and
 application-owned `net/http` server. `redistransport` propagates cluster events
 through an optional Redis connection. `auth` provides signed access tokens,
 rotating in-memory refresh sessions, cookies, device metadata, and Google code
-exchange with RS256 ID-token verification. Redis presence stats are still in
-progress.
+exchange with RS256 ID-token verification. The Redis adapter also maintains
+server, client, and user presence sets and exposes aggregate stats.
 
 ```go
 codec := ejson.NewCodec()

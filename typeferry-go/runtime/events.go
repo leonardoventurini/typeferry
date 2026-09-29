@@ -30,6 +30,41 @@ type EventPublisher interface {
 	Publish(context.Context, string, string, string, string) error
 }
 
+type PresenceTracker interface {
+	RegisterClient(*Client)
+	RemoveClient(*Client)
+	RefreshClient(*Client)
+}
+
+func (server *Server) SetPresenceTracker(tracker PresenceTracker) {
+	server.presenceMu.Lock()
+	defer server.presenceMu.Unlock()
+	server.mu.Lock()
+	server.presenceTracker = tracker
+	clients := make([]*Client, 0, len(server.clients))
+	for _, client := range server.clients {
+		clients = append(clients, client)
+	}
+	server.mu.Unlock()
+	if tracker != nil {
+		for _, client := range clients {
+			tracker.RegisterClient(client)
+		}
+	}
+}
+
+func (server *Server) RefreshClientPresence(client *Client) {
+	server.presenceMu.Lock()
+	defer server.presenceMu.Unlock()
+	server.mu.RLock()
+	tracker := server.presenceTracker
+	current := server.clients[client.ID()] == client
+	server.mu.RUnlock()
+	if tracker != nil && current {
+		tracker.RefreshClient(client)
+	}
+}
+
 func (server *Server) SetEventPublisher(publisher EventPublisher) {
 	server.mu.Lock()
 	defer server.mu.Unlock()
@@ -61,13 +96,24 @@ func (server *Server) SetChannelAuthorization(check func(*Client, string) bool) 
 // socket closes after releasing the server lock, so stale close callbacks
 // cannot remove the replacement.
 func (server *Server) AddClient(client *Client) {
+	server.presenceMu.Lock()
 	server.mu.Lock()
 	previous := server.clients[client.ID()]
 	server.clients[client.ID()] = client
 	if previous != nil && previous != client {
 		server.leaveAllLocked(previous)
 	}
+	tracker := server.presenceTracker
 	server.mu.Unlock()
+	if previous != nil && previous != client {
+		if tracker != nil {
+			tracker.RemoveClient(previous)
+		}
+	}
+	if tracker != nil {
+		tracker.RegisterClient(client)
+	}
+	server.presenceMu.Unlock()
 	if previous != nil && previous != client {
 		if socket := previous.Socket(); socket != nil {
 			_ = socket.Close()
@@ -76,13 +122,20 @@ func (server *Server) AddClient(client *Client) {
 }
 
 func (server *Server) DeleteClient(client *Client) bool {
+	server.presenceMu.Lock()
+	defer server.presenceMu.Unlock()
 	server.mu.Lock()
-	defer server.mu.Unlock()
 	server.leaveAllLocked(client)
 	if server.clients[client.ID()] != client {
+		server.mu.Unlock()
 		return false
 	}
 	delete(server.clients, client.ID())
+	tracker := server.presenceTracker
+	server.mu.Unlock()
+	if tracker != nil {
+		tracker.RemoveClient(client)
+	}
 	return true
 }
 
@@ -90,6 +143,16 @@ func (server *Server) Client(id string) *Client {
 	server.mu.RLock()
 	defer server.mu.RUnlock()
 	return server.clients[id]
+}
+
+func (server *Server) ClientSnapshot() []*Client {
+	server.mu.RLock()
+	defer server.mu.RUnlock()
+	clients := make([]*Client, 0, len(server.clients))
+	for _, client := range server.clients {
+		clients = append(clients, client)
+	}
+	return clients
 }
 
 func (server *Server) ClientsForUser(userID string) []*Client {
@@ -246,6 +309,7 @@ func (server *Server) installDefaultMethods() {
 	_ = server.AddMethod(protocol.MethodLogout, func(_ context.Context, client *Client, _ ejson.Value) (ejson.Value, error) {
 		client.SetAuthenticated(false)
 		client.SetContext(ejson.Null())
+		server.RefreshClientPresence(client)
 		return ejson.Bool(true), nil
 	}, MethodOptions{Protected: true})
 }

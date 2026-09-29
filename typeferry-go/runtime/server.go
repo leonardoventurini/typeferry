@@ -234,6 +234,8 @@ type MethodExecution struct {
 // listeners; constructing a Server never binds a socket.
 type Server struct {
 	mu                   sync.RWMutex
+	presenceMu           sync.Mutex
+	id                   string
 	methods              map[string]*method
 	auth                 Authenticator
 	listeners            []func(MethodExecution)
@@ -244,11 +246,13 @@ type Server struct {
 	clientRooms          map[*Client]map[string]struct{}
 	channelAuthorization func(*Client, string) bool
 	eventPublisher       EventPublisher
+	presenceTracker      PresenceTracker
 	closed               bool
 }
 
 func NewServer() *Server {
 	server := &Server{
+		id:          newID(),
 		methods:     make(map[string]*method),
 		codec:       ejson.NewCodec(),
 		events:      make(map[string]*event),
@@ -261,6 +265,8 @@ func NewServer() *Server {
 }
 
 func (server *Server) Codec() *ejson.Codec { return server.codec }
+
+func (server *Server) ID() string { return server.id }
 
 func (server *Server) AddMethod(name string, handler Handler, options MethodOptions) error {
 	if name == "" || handler == nil {
