@@ -171,6 +171,9 @@ event delivery. The Redis adapter passes all three shared envelope fixtures
 and a two-server delivery test against a disposable Redis 7.4 container.
 `go test ./...`, `go test -race ./...`, and `go vet ./...` passed from
 `typeferry-go/`. Access-token signing/verification, rotating refresh sessions,
-cookies, and device metadata have focused Go checks. Redis presence stats,
-Google OAuth, full TypeScript-client lifecycle, and complete feature-parity
-criteria remain unverified. CI has not run yet.
+cookies, and device metadata have focused Go checks. Google code exchange and
+RS256 ID-token validation pass an offline endpoint/key test, with invalid
+audience, issuer, expiry, and signature cases. The implementation follows
+[Google's OIDC validation requirements](https://developers.google.com/identity/openid-connect/openid-connect).
+Redis presence stats, full TypeScript-client lifecycle, and complete
+feature-parity criteria remain unverified. CI has not run yet.
