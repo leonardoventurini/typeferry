@@ -10,6 +10,17 @@ exchange with RS256 ID-token verification. The Redis adapter also maintains
 server, client, and user presence sets and exposes aggregate stats.
 `authoring.Group` declares namespaced method metadata without reflection.
 
+`examples/server` mounts both transports on an application-owned `net/http`
+server, registers a typed method, and closes upgraded WebSocket connections
+before shutting down the HTTP host. From `typeferry-go/`, run:
+
+```sh
+go run ./examples/server
+```
+
+Set the permitted browser origin and host address for your application. The
+example binds only to loopback; the library does not open a listener itself.
+
 ```go
 codec := ejson.NewCodec()
 payload := ejson.Object(ejson.Field{Key: "message", Value: ejson.String("hello")})

@@ -84,6 +84,9 @@ An npm version cannot be reused after publication. If a release is incorrect, de
 - `typeferry-py/pyproject.toml` retains a temporary distribution identity and has no publication workflow.
 - `typeferry-rs/Cargo.toml` keeps workspace publication set to `false`.
 - `typeferry-rb/` builds a local gem for verification but has no RubyGems publication workflow.
+- `typeferry-go/` is an in-repository Go module under parity review. Its
+  example and Go/TypeScript interoperability suites compile and run locally;
+  no version tag or Go module release has been approved.
 - No GitHub workflow uploads packages or contains registry credentials.
 
 Enabling PyPI or crates.io publication requires a separate identity, authentication, dependency-order, migration, and rollout decision.

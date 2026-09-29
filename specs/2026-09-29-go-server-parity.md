@@ -192,3 +192,6 @@ lifecycle and complete feature-parity criteria remain unverified. CI has not
 run yet.
 Bounded Go fuzz runs completed 25,835 EJSON cases and 73,634 WebSocket frame
 cases without a panic or round-trip mismatch.
+The application-owned `net/http` example compiles under `go test ./...` and
+`go test -race ./...`; `go vet ./...` passed. Public API review, a tagged Go
+module revision, and upstream CI remain outstanding.
