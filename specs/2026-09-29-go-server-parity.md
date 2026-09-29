@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: implementing
 project: typeferry
 project-root: /Users/leonardo/Repositories/typeferry
 created: 2026-09-29
@@ -32,9 +32,10 @@ but the library must contain no SolidScript policy or test-path dependency.
 - `typeferry-rb/lib/typeferry/`, `typeferry-py/src/typeferry/`, and
   `typeferry-rs/crates/` show the maintained server feature set. No Go package
   or Go conformance server exists in the current checkout.
-- Root `AGENTS.md` makes `PROTOCOL.md` authoritative, while
-  `docs/conformance/README.md` says fixtures win on disagreement. Reconcile
-  that conflict before treating any discrepancy as a Go-specific exception.
+- Root `AGENTS.md` makes `PROTOCOL.md` authoritative. The former conflicting
+  fixture-precedence sentence in `docs/conformance/README.md` was reconciled
+  in the first implementation unit. Any future discrepancy still requires
+  comparison with the TypeScript reference before changing behavior.
 - The existing Ruby server plan excludes the optional TypeScript-only MongoDB
   live-view extension. That extension is outside the shared server-parity
   contract here; adding it later needs its own contract and tests.
@@ -161,7 +162,7 @@ An implementation-only revert does not require a protocol or data migration.
 
 ## Verification results
 
-Planning review only: inspected the current protocol, fixture layout,
-implementation architecture, Ruby parity spec, release rules, and existing
-cross-language harness. No tests, builds, or live services were run. All
-acceptance criteria remain unverified.
+The Go EJSON unit passes all 15 shared fixtures and focused canonical, invalid
+tag, and regex tests with `go test ./...`, `go test -race ./...`, and
+`go vet ./...` from `typeferry-go/`. HTTP, WebSocket, Redis, auth,
+cross-language, and complete feature-parity criteria remain unverified.

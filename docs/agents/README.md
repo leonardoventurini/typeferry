@@ -26,6 +26,7 @@ When two sources at the same level disagree, stop and surface the conflict inste
 | Understand the repository | [Architecture overview](../architecture/overview.md) | Confirm referenced paths in the current tree |
 | Change TypeScript runtime or clients | [`typeferry-ts/AGENTS.md`](../../typeferry-ts/AGENTS.md), [TypeScript architecture](../architecture/typescript-runtime.md) | Split npm suites, typecheck, lint, build |
 | Change Python server parity | [`typeferry-py/AGENTS.md`](../../typeferry-py/AGENTS.md), [Python architecture](../architecture/python-runtime.md) | pytest, Ruff, mypy |
+| Change Go server parity | [`typeferry-go/AGENTS.md`](../../typeferry-go/AGENTS.md), [Go parity spec](../../specs/2026-09-29-go-server-parity.md) | Go unit, shared fixtures, race detector, cross-language tests |
 | Change Rust server parity | [`typeferry-rs/AGENTS.md`](../../typeferry-rs/AGENTS.md), [Rust architecture](../architecture/rust-runtime.md) | fmt, Clippy, workspace tests |
 | Change the application template | [`template/AGENTS.md`](../../template/AGENTS.md) | Template split suites and builds |
 | Change wire or shared behavior | [Protocol-change runbook](../runbooks/protocol-changes.md) | Shared fixtures and affected language suites |

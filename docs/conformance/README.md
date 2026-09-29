@@ -7,13 +7,16 @@ tracks:
 - `typeferry-py/` (Python port)
 - `typeferry-rs/` (Rust port)
 - `typeferry-rb/` (Ruby port)
+- `typeferry-go/` (Go server, implementation in progress)
 
 Each fixture is a frozen wire-contract point. An implementation is
 conformant iff every fixture produces the expected output using only
 the public wire surface described in `PROTOCOL.md`.
 
-When `PROTOCOL.md` and a fixture disagree, the fixture wins — fixtures
-are executable and mechanically enforced; prose isn't.
+`PROTOCOL.md` is the wire authority. Fixtures are executable examples of that
+contract. If a fixture and the protocol disagree, stop and reconcile the
+discrepancy against the TypeScript reference before changing an implementation.
+Never make one language special-case a fixture to conceal the disagreement.
 
 ## Layout
 
