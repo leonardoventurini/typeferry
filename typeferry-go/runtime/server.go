@@ -243,6 +243,7 @@ type Server struct {
 	rooms                map[string]map[*Client]struct{}
 	clientRooms          map[*Client]map[string]struct{}
 	channelAuthorization func(*Client, string) bool
+	eventPublisher       EventPublisher
 	closed               bool
 }
 

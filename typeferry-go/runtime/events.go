@@ -24,6 +24,18 @@ type EventOptions struct {
 	ShouldSubscribe   func(*Client, string, string) bool
 }
 
+// EventPublisher carries cluster events to a transport such as Redis.
+// The transport echoes each published frame through PropagateEvent.
+type EventPublisher interface {
+	Publish(context.Context, string, string, string, string) error
+}
+
+func (server *Server) SetEventPublisher(publisher EventPublisher) {
+	server.mu.Lock()
+	defer server.mu.Unlock()
+	server.eventPublisher = publisher
+}
+
 type event struct {
 	name    string
 	options EventOptions
@@ -253,6 +265,7 @@ func (server *Server) EmitEvent(ctx context.Context, name, channel string, param
 	for client := range server.rooms[room] {
 		clients = append(clients, client)
 	}
+	publisher := server.eventPublisher
 	server.mu.RUnlock()
 	fields := []ejson.Field{
 		{Key: "t", Value: ejson.String(protocol.MessageEvent)},
@@ -270,6 +283,24 @@ func (server *Server) EmitEvent(ctx context.Context, name, channel string, param
 		value, _ := params.Lookup("uuid")
 		exclude, _ = value.Text()
 	}
+	if entry.options.Cluster && publisher != nil {
+		return publisher.Publish(ctx, name, channel, frame, exclude)
+	}
+	return server.deliver(ctx, clients, frame, exclude)
+}
+
+// PropagateEvent delivers a cluster frame locally without publishing it again.
+func (server *Server) PropagateEvent(ctx context.Context, name, channel, frame, exclude string) error {
+	server.mu.RLock()
+	clients := make([]*Client, 0, len(server.rooms[roomName(channel, name)]))
+	for client := range server.rooms[roomName(channel, name)] {
+		clients = append(clients, client)
+	}
+	server.mu.RUnlock()
+	return server.deliver(ctx, clients, frame, exclude)
+}
+
+func (server *Server) deliver(ctx context.Context, clients []*Client, frame, exclude string) error {
 	var failures []error
 	for _, client := range clients {
 		if client.ID() == exclude {

@@ -98,3 +98,44 @@ func TestDuplicateClientReplacementAndStaleRemoval(t *testing.T) {
 		t.Fatal("client remains registered")
 	}
 }
+
+type recordingPublisher struct {
+	event, channel, message, exclude string
+}
+
+func (publisher *recordingPublisher) Publish(_ context.Context, event, channel, message, exclude string) error {
+	publisher.event, publisher.channel, publisher.message, publisher.exclude = event, channel, message, exclude
+	return nil
+}
+
+func TestClusterEventPublishesThenRoutesInbound(t *testing.T) {
+	server := NewServer()
+	publisher := &recordingPublisher{}
+	server.SetEventPublisher(publisher)
+	if err := server.AddEvent("changed", EventOptions{Cluster: true, ExcludeOriginator: true}); err != nil {
+		t.Fatal(err)
+	}
+	socket := &recordingSocket{}
+	client := NewClient("peer")
+	client.SetSocket(socket)
+	server.AddClient(client)
+	params := ejson.Object(ejson.Field{Key: "events", Value: ejson.Array(ejson.String("changed"))})
+	if _, err := server.Call(context.Background(), protocol.MethodOn, params, client); err != nil {
+		t.Fatal(err)
+	}
+	if err := server.EmitEvent(context.Background(), "changed", protocol.NoChannel, ejson.Object(ejson.Field{Key: "uuid", Value: ejson.String("origin")})); err != nil {
+		t.Fatal(err)
+	}
+	if publisher.event != "changed" || publisher.channel != protocol.NoChannel || publisher.exclude != "origin" || publisher.message == "" {
+		t.Fatalf("cluster publish = %#v", publisher)
+	}
+	if len(socket.sent) != 0 {
+		t.Fatal("published cluster event delivered twice")
+	}
+	if err := server.PropagateEvent(context.Background(), "changed", protocol.NoChannel, publisher.message, publisher.exclude); err != nil {
+		t.Fatal(err)
+	}
+	if len(socket.sent) != 1 {
+		t.Fatal("inbound cluster event did not reach local subscriber")
+	}
+}

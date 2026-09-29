@@ -167,7 +167,9 @@ tag, and regex tests. The Go HTTP adapter passes all nine shared HTTP fixtures
 and two real TypeScript `ClientHttp` interoperability checks. The WebSocket
 adapter passes all nine shared frame fixtures, an actual HTTP upgrade and origin
 gate, and two unchanged TypeScript client checks for RPC, authentication, and
-event delivery. `go test ./...`, `go test -race ./...`, and `go vet ./...`
-passed from `typeferry-go/`. Redis, auth helpers, full TypeScript-client
+event delivery. The Redis adapter passes all three shared envelope fixtures
+and a two-server delivery test against a disposable Redis 7.4 container.
+`go test ./...`, `go test -race ./...`, and `go vet ./...` passed from
+`typeferry-go/`. Redis presence stats, auth helpers, full TypeScript-client
 lifecycle, and complete feature-parity criteria remain unverified. CI has not
 run yet.
