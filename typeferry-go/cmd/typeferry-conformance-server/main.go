@@ -12,6 +12,7 @@ import (
 	"github.com/leonardoventurini/typeferry/typeferry-go/httptransport"
 	"github.com/leonardoventurini/typeferry/typeferry-go/protocol"
 	"github.com/leonardoventurini/typeferry/typeferry-go/runtime"
+	"github.com/leonardoventurini/typeferry/typeferry-go/websocket"
 )
 
 func main() {
@@ -29,6 +30,15 @@ func main() {
 	register(server, "whoami", func(_ context.Context, client *runtime.Client, _ ejson.Value) (ejson.Value, error) {
 		return ejson.String(client.UserID()), nil
 	}, runtime.MethodOptions{Protected: true})
+	if err := server.AddEvent("ping.tick", runtime.EventOptions{}); err != nil {
+		log.Fatal(err)
+	}
+	register(server, "emit_ping", func(ctx context.Context, _ *runtime.Client, params ejson.Value) (ejson.Value, error) {
+		channel, _ := params.Lookup("channel")
+		name, _ := channel.Text()
+		value, _ := params.Lookup("params")
+		return ejson.Bool(true), server.EmitEvent(ctx, "ping.tick", name, value)
+	}, runtime.MethodOptions{})
 	if err := server.SetAuth(func(_ context.Context, _ *runtime.Client, input ejson.Value) (ejson.Value, error) {
 		token, _ := input.Lookup("token")
 		text, _ := token.Text()
@@ -48,6 +58,9 @@ func main() {
 	}
 	mux := http.NewServeMux()
 	mux.Handle(protocol.HTTPPath, httptransport.New(server, httptransport.Options{DisableRateLimit: true}))
+	ws := websocket.New(server, websocket.Options{})
+	defer ws.Close()
+	mux.Handle(protocol.WebSocketPath, ws)
 	fmt.Fprintf(os.Stderr, "TYPEFERRY_PORT=%d\n", listener.Addr().(*net.TCPAddr).Port)
 	if err := http.Serve(listener, mux); err != nil {
 		log.Fatal(err)

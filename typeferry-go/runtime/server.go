@@ -66,13 +66,15 @@ type Client struct {
 	headers       map[string]string
 	remoteAddress string
 	userAgent     string
+	socket        Socket
+	meta          ejson.Value
 }
 
 func NewClient(id string) *Client {
 	if id == "" {
 		id = newID()
 	}
-	return &Client{id: id, context: ejson.Null(), headers: make(map[string]string)}
+	return &Client{id: id, context: ejson.Null(), meta: ejson.Object(), headers: make(map[string]string)}
 }
 
 func (client *Client) ID() string { return client.id }
@@ -158,6 +160,30 @@ func (client *Client) UserAgent() string {
 	return client.userAgent
 }
 
+func (client *Client) SetSocket(socket Socket) {
+	client.mu.Lock()
+	defer client.mu.Unlock()
+	client.socket = socket
+}
+
+func (client *Client) Socket() Socket {
+	client.mu.RLock()
+	defer client.mu.RUnlock()
+	return client.socket
+}
+
+func (client *Client) SetMeta(value ejson.Value) {
+	client.mu.Lock()
+	defer client.mu.Unlock()
+	client.meta = value
+}
+
+func (client *Client) Meta() ejson.Value {
+	client.mu.RLock()
+	defer client.mu.RUnlock()
+	return client.meta
+}
+
 type Handler func(context.Context, *Client, ejson.Value) (ejson.Value, error)
 type Middleware func(context.Context, *Client, ejson.Value) (ejson.Value, error)
 type Validator func(ejson.Value) (ejson.Value, []ValidationIssue)
@@ -207,15 +233,30 @@ type MethodExecution struct {
 // Server is safe for concurrent registration and calls. Transports own their
 // listeners; constructing a Server never binds a socket.
 type Server struct {
-	mu        sync.RWMutex
-	methods   map[string]*method
-	auth      Authenticator
-	listeners []func(MethodExecution)
-	codec     *ejson.Codec
+	mu                   sync.RWMutex
+	methods              map[string]*method
+	auth                 Authenticator
+	listeners            []func(MethodExecution)
+	codec                *ejson.Codec
+	events               map[string]*event
+	clients              map[string]*Client
+	rooms                map[string]map[*Client]struct{}
+	clientRooms          map[*Client]map[string]struct{}
+	channelAuthorization func(*Client, string) bool
+	closed               bool
 }
 
 func NewServer() *Server {
-	return &Server{methods: make(map[string]*method), codec: ejson.NewCodec()}
+	server := &Server{
+		methods:     make(map[string]*method),
+		codec:       ejson.NewCodec(),
+		events:      make(map[string]*event),
+		clients:     make(map[string]*Client),
+		rooms:       make(map[string]map[*Client]struct{}),
+		clientRooms: make(map[*Client]map[string]struct{}),
+	}
+	server.installDefaultMethods()
+	return server
 }
 
 func (server *Server) Codec() *ejson.Codec { return server.codec }
@@ -252,15 +293,7 @@ func (server *Server) SetAuth(auth Authenticator, login Handler) error {
 }
 
 func (server *Server) Authenticate(ctx context.Context, client *Client, input ejson.Value) error {
-	server.mu.RLock()
-	auth := server.auth
-	server.mu.RUnlock()
-	if auth == nil {
-		client.SetAuthenticated(false)
-		client.SetContext(ejson.Null())
-		return nil
-	}
-	identity, err := auth(ctx, client, input)
+	identity, err := server.AuthenticateValue(ctx, client, input)
 	if err != nil {
 		client.SetAuthenticated(false)
 		client.SetContext(ejson.Null())
@@ -277,6 +310,18 @@ func (server *Server) Authenticate(ctx context.Context, client *Client, input ej
 		client.SetContext(ejson.Null())
 	}
 	return nil
+}
+
+// AuthenticateValue runs application auth without mutating the client. A
+// transport can enforce its timeout before committing the returned identity.
+func (server *Server) AuthenticateValue(ctx context.Context, client *Client, input ejson.Value) (ejson.Value, error) {
+	server.mu.RLock()
+	auth := server.auth
+	server.mu.RUnlock()
+	if auth == nil {
+		return ejson.Null(), nil
+	}
+	return auth(ctx, client, input)
 }
 
 func (server *Server) OnMethodExecution(listener func(MethodExecution)) {

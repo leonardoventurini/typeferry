@@ -1,0 +1,297 @@
+package runtime
+
+import (
+	"context"
+	"errors"
+	"fmt"
+
+	"github.com/leonardoventurini/typeferry/typeferry-go/ejson"
+	"github.com/leonardoventurini/typeferry/typeferry-go/protocol"
+)
+
+// Socket is the narrow runtime-facing part of a WebSocket connection.
+// Implementations must serialize writes and make Close idempotent.
+type Socket interface {
+	SendText(context.Context, string) error
+	Close() error
+}
+
+type EventOptions struct {
+	Protected         bool
+	User              bool
+	Cluster           bool
+	ExcludeOriginator bool
+	ShouldSubscribe   func(*Client, string, string) bool
+}
+
+type event struct {
+	name    string
+	options EventOptions
+}
+
+func (server *Server) AddEvent(name string, options EventOptions) error {
+	if name == "" {
+		return errors.New("event name is required")
+	}
+	server.mu.Lock()
+	defer server.mu.Unlock()
+	server.events[name] = &event{name: name, options: options}
+	return nil
+}
+
+func (server *Server) SetChannelAuthorization(check func(*Client, string) bool) {
+	server.mu.Lock()
+	defer server.mu.Unlock()
+	server.channelAuthorization = check
+}
+
+// AddClient atomically replaces a live client with the same UUID. The old
+// socket closes after releasing the server lock, so stale close callbacks
+// cannot remove the replacement.
+func (server *Server) AddClient(client *Client) {
+	server.mu.Lock()
+	previous := server.clients[client.ID()]
+	server.clients[client.ID()] = client
+	if previous != nil && previous != client {
+		server.leaveAllLocked(previous)
+	}
+	server.mu.Unlock()
+	if previous != nil && previous != client {
+		if socket := previous.Socket(); socket != nil {
+			_ = socket.Close()
+		}
+	}
+}
+
+func (server *Server) DeleteClient(client *Client) bool {
+	server.mu.Lock()
+	defer server.mu.Unlock()
+	server.leaveAllLocked(client)
+	if server.clients[client.ID()] != client {
+		return false
+	}
+	delete(server.clients, client.ID())
+	return true
+}
+
+func (server *Server) Client(id string) *Client {
+	server.mu.RLock()
+	defer server.mu.RUnlock()
+	return server.clients[id]
+}
+
+func (server *Server) ClientsForUser(userID string) []*Client {
+	server.mu.RLock()
+	defer server.mu.RUnlock()
+	var result []*Client
+	for _, client := range server.clients {
+		if client.UserID() == userID {
+			result = append(result, client)
+		}
+	}
+	return result
+}
+
+func (server *Server) DisconnectUser(userID string) {
+	for _, client := range server.ClientsForUser(userID) {
+		if socket := client.Socket(); socket != nil {
+			_ = socket.Close()
+		}
+	}
+}
+
+func (server *Server) Close() error {
+	server.mu.Lock()
+	if server.closed {
+		server.mu.Unlock()
+		return nil
+	}
+	server.closed = true
+	clients := make([]*Client, 0, len(server.clients))
+	for _, client := range server.clients {
+		clients = append(clients, client)
+	}
+	server.clients = make(map[string]*Client)
+	server.rooms = make(map[string]map[*Client]struct{})
+	server.clientRooms = make(map[*Client]map[string]struct{})
+	server.mu.Unlock()
+	var failures []error
+	for _, client := range clients {
+		if socket := client.Socket(); socket != nil {
+			if err := socket.Close(); err != nil {
+				failures = append(failures, err)
+			}
+		}
+	}
+	return errors.Join(failures...)
+}
+
+func (server *Server) joinLocked(client *Client, room string) {
+	if server.rooms[room] == nil {
+		server.rooms[room] = make(map[*Client]struct{})
+	}
+	server.rooms[room][client] = struct{}{}
+	if server.clientRooms[client] == nil {
+		server.clientRooms[client] = make(map[string]struct{})
+	}
+	server.clientRooms[client][room] = struct{}{}
+}
+
+func (server *Server) leaveLocked(client *Client, room string) {
+	delete(server.rooms[room], client)
+	if len(server.rooms[room]) == 0 {
+		delete(server.rooms, room)
+	}
+	delete(server.clientRooms[client], room)
+	if len(server.clientRooms[client]) == 0 {
+		delete(server.clientRooms, client)
+	}
+}
+
+func (server *Server) leaveAllLocked(client *Client) {
+	for room := range server.clientRooms[client] {
+		server.leaveLocked(client, room)
+	}
+}
+
+func roomName(channel, eventName string) string {
+	return "typeferry:" + channel + ":" + eventName
+}
+
+func eventNames(params ejson.Value) []string {
+	value, ok := params.Lookup("events")
+	if !ok || value.Kind() != ejson.KindArray {
+		return nil
+	}
+	var result []string
+	for _, item := range value.Items() {
+		if name, ok := item.Text(); ok {
+			result = append(result, name)
+		}
+	}
+	return result
+}
+
+func eventChannel(params ejson.Value) string {
+	value, ok := params.Lookup("channel")
+	if !ok {
+		return protocol.NoChannel
+	}
+	name, ok := value.Text()
+	if !ok || name == "" {
+		return protocol.NoChannel
+	}
+	return name
+}
+
+func (server *Server) subscriptionResult(client *Client, params ejson.Value, subscribe bool) ejson.Value {
+	channel := eventChannel(params)
+	names := eventNames(params)
+	fields := make([]ejson.Field, 0, len(names))
+	for _, name := range names {
+		server.mu.RLock()
+		entry := server.events[name]
+		channelAuthorization := server.channelAuthorization
+		server.mu.RUnlock()
+		allowed := entry != nil
+		if subscribe {
+			allowed = allowed && client.Socket() != nil
+			if allowed && channelAuthorization != nil {
+				allowed = channelAuthorization(client, channel)
+			}
+			if allowed && (entry.options.Protected || entry.options.User) && !client.Authenticated() {
+				allowed = false
+			}
+			if allowed && entry.options.User && channel != client.UserID() {
+				allowed = false
+			}
+			if allowed && entry.options.ShouldSubscribe != nil {
+				allowed = entry.options.ShouldSubscribe(client, name, channel)
+			}
+		}
+		if client.Socket() != nil {
+			server.mu.Lock()
+			if subscribe && allowed {
+				server.joinLocked(client, roomName(channel, name))
+			}
+			if !subscribe {
+				server.leaveLocked(client, roomName(channel, name))
+			}
+			server.mu.Unlock()
+		}
+		fields = append(fields, ejson.Field{Key: name, Value: ejson.Bool(allowed)})
+	}
+	return ejson.Object(fields...)
+}
+
+func (server *Server) installDefaultMethods() {
+	_ = server.AddMethod(protocol.MethodOn, func(_ context.Context, client *Client, params ejson.Value) (ejson.Value, error) {
+		return server.subscriptionResult(client, params, true), nil
+	}, MethodOptions{})
+	_ = server.AddMethod(protocol.MethodOff, func(_ context.Context, client *Client, params ejson.Value) (ejson.Value, error) {
+		return server.subscriptionResult(client, params, false), nil
+	}, MethodOptions{})
+	_ = server.AddMethod(protocol.MethodLogout, func(_ context.Context, client *Client, _ ejson.Value) (ejson.Value, error) {
+		client.SetAuthenticated(false)
+		client.SetContext(ejson.Null())
+		return ejson.Bool(true), nil
+	}, MethodOptions{Protected: true})
+}
+
+// EmitEvent sends one event frame to each current subscriber. A later Redis
+// adapter may propagate cluster events, but local delivery is always bounded
+// by the room snapshot taken under the server lock.
+func (server *Server) EmitEvent(ctx context.Context, name, channel string, params ejson.Value) error {
+	server.mu.RLock()
+	entry := server.events[name]
+	if entry == nil {
+		server.mu.RUnlock()
+		return fmt.Errorf("event %q is not registered", name)
+	}
+	room := roomName(channel, name)
+	clients := make([]*Client, 0, len(server.rooms[room]))
+	for client := range server.rooms[room] {
+		clients = append(clients, client)
+	}
+	server.mu.RUnlock()
+	fields := []ejson.Field{
+		{Key: "t", Value: ejson.String(protocol.MessageEvent)},
+		{Key: "uuid", Value: ejson.String(newID())},
+		{Key: "event", Value: ejson.String(name)},
+		{Key: "channel", Value: ejson.String(channel)},
+		{Key: "params", Value: params},
+	}
+	frame, err := server.codec.Stringify(ejson.Object(fields...), false)
+	if err != nil {
+		return err
+	}
+	exclude := ""
+	if entry.options.ExcludeOriginator {
+		value, _ := params.Lookup("uuid")
+		exclude, _ = value.Text()
+	}
+	var failures []error
+	for _, client := range clients {
+		if client.ID() == exclude {
+			continue
+		}
+		if socket := client.Socket(); socket != nil {
+			if err := socket.SendText(ctx, frame); err != nil {
+				failures = append(failures, err)
+			}
+		}
+	}
+	return errors.Join(failures...)
+}
+
+func (server *Server) RoomSize(channel, eventName string) int {
+	server.mu.RLock()
+	defer server.mu.RUnlock()
+	return len(server.rooms[roomName(channel, eventName)])
+}
+
+func (server *Server) HasAuth() bool {
+	server.mu.RLock()
+	defer server.mu.RUnlock()
+	return server.auth != nil
+}

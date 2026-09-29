@@ -163,9 +163,11 @@ An implementation-only revert does not require a protocol or data migration.
 ## Verification results
 
 The Go EJSON unit passes all 15 shared fixtures and focused canonical, invalid
-tag, and regex tests with `go test ./...`, `go test -race ./...`, and
-`go vet ./...` from `typeferry-go/`. The Go HTTP adapter passes all nine
-shared HTTP fixtures and two real TypeScript `ClientHttp` interoperability
-checks. WebSocket, Redis, auth helpers, full TypeScript-client lifecycle,
-and complete feature-parity criteria remain unverified. `npm run typecheck`
-also passed from `typeferry-ts/`; CI has not run yet.
+tag, and regex tests. The Go HTTP adapter passes all nine shared HTTP fixtures
+and two real TypeScript `ClientHttp` interoperability checks. The WebSocket
+adapter passes all nine shared frame fixtures, an actual HTTP upgrade and origin
+gate, and two unchanged TypeScript client checks for RPC, authentication, and
+event delivery. `go test ./...`, `go test -race ./...`, and `go vet ./...`
+passed from `typeferry-go/`. Redis, auth helpers, full TypeScript-client
+lifecycle, and complete feature-parity criteria remain unverified. CI has not
+run yet.
