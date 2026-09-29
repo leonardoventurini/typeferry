@@ -88,11 +88,12 @@ deadlines, shutdown, response headers, and errors cross explicit typed
 boundaries. Do not copy a language-specific DSL or make fixtures into special
 cases.
 
-Go's `net/http` server shutdown does not wait for upgraded WebSocket
-connections, so the WebSocket adapter must own and close its connections
-explicitly. Database or application persistence is not a TypeFerry core
-responsibility. Choose and pin transport/auth dependencies only during
-implementation, after API review and security/version checks.
+Go's [`net/http` server shutdown](https://pkg.go.dev/net/http#Server.Shutdown)
+does not wait for upgraded WebSocket connections, so the WebSocket adapter
+must own and close its connections explicitly. Database or application
+persistence is not a TypeFerry core responsibility. Choose and pin transport
+and auth dependencies only during implementation, after API review and
+security/version checks.
 
 ## Test strategy, designed before implementation
 
