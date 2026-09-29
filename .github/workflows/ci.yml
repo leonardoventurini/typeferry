@@ -6,6 +6,7 @@ on:
     paths:
       - "typeferry-ts/**"
       - "typeferry-rb/**"
+      - "typeferry-go/**"
       - "docs/conformance/**"
       - "PROTOCOL.md"
       - ".github/workflows/ci.yml"
@@ -14,6 +15,7 @@ on:
     paths:
       - "typeferry-ts/**"
       - "typeferry-rb/**"
+      - "typeferry-go/**"
       - "docs/conformance/**"
       - "PROTOCOL.md"
       - ".github/workflows/ci.yml"
@@ -27,6 +29,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  ci-go:
+    name: CI (typeferry-go)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: typeferry-go
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: typeferry-go/go.mod
+          cache-dependency-path: typeferry-go/go.mod
+
+      - name: Verify Go server
+        run: |
+          test -z "$(gofmt -l .)"
+          go test ./...
+          go test -race ./...
+          go vet ./...
+
   ci-ruby:
     name: CI (typeferry-rb)
     runs-on: ubuntu-24.04
@@ -105,6 +129,11 @@ jobs:
           node-version: 24.19.0
           cache: npm
           cache-dependency-path: typeferry-ts/package-lock.json
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: typeferry-go/go.mod
+          cache-dependency-path: typeferry-go/go.mod
 
       - name: Pin npm
         run: npm install --global npm@11.17.0
