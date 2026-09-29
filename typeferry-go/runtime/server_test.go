@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -38,6 +39,42 @@ func TestValidationPrecedesMiddlewareAndHandler(t *testing.T) {
 	}
 	if invoked {
 		t.Fatal("validation invoked middleware or handler")
+	}
+}
+
+func TestConcurrentCachedCallsShareInFlightResult(t *testing.T) {
+	server := NewServer()
+	started := make(chan struct{})
+	release := make(chan struct{})
+	calls := 0
+	if err := server.AddMethod("slow", func(context.Context, *Client, ejson.Value) (ejson.Value, error) {
+		calls++
+		close(started)
+		<-release
+		return ejson.Int(7), nil
+	}, MethodOptions{Cache: true}); err != nil {
+		t.Fatal(err)
+	}
+	var group sync.WaitGroup
+	for range 2 {
+		group.Add(1)
+		go func() {
+			defer group.Done()
+			value, err := server.Call(context.Background(), "slow", ejson.Int(1), nil)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			if number, _ := value.Integer(); number != 7 {
+				t.Errorf("result = %d", number)
+			}
+		}()
+	}
+	<-started
+	close(release)
+	group.Wait()
+	if calls != 1 {
+		t.Fatalf("handler called %d times", calls)
 	}
 }
 

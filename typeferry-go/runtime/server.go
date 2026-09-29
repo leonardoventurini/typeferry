@@ -200,7 +200,9 @@ type MethodOptions struct {
 
 type cacheEntry struct {
 	value   ejson.Value
+	err     error
 	created time.Time
+	ready   chan struct{}
 }
 
 type method struct {
@@ -208,7 +210,7 @@ type method struct {
 	handler Handler
 	options MethodOptions
 	mu      sync.Mutex
-	cache   map[string]cacheEntry
+	cache   map[string]*cacheEntry
 }
 
 type Execution struct {
@@ -278,7 +280,7 @@ func (server *Server) AddMethod(name string, handler Handler, options MethodOpti
 	}
 	server.mu.Lock()
 	defer server.mu.Unlock()
-	server.methods[name] = &method{name: name, handler: handler, options: options, cache: make(map[string]cacheEntry)}
+	server.methods[name] = &method{name: name, handler: handler, options: options, cache: make(map[string]*cacheEntry)}
 	return nil
 }
 
@@ -392,6 +394,7 @@ func (server *Server) Call(ctx context.Context, name string, params ejson.Value,
 	}
 
 	key := ""
+	var pending *cacheEntry
 	if entry.options.Cache {
 		var err error
 		key, err = server.codec.Stringify(transformed, false)
@@ -400,21 +403,34 @@ func (server *Server) Call(ctx context.Context, name string, params ejson.Value,
 		}
 		entry.mu.Lock()
 		cached, found := entry.cache[key]
-		entry.mu.Unlock()
 		if found && time.Since(cached.created) < entry.options.MaxAge {
+			entry.mu.Unlock()
+			select {
+			case <-cached.ready:
+			case <-ctx.Done():
+				return ejson.Null(), ctx.Err()
+			}
+			if cached.err != nil {
+				return ejson.Null(), cached.err
+			}
 			emit(cached.value)
 			return cached.value, nil
 		}
+		pending = &cacheEntry{created: time.Now(), ready: make(chan struct{})}
+		entry.cache[key] = pending
+		entry.mu.Unlock()
 	}
 
 	result, err := entry.handler(ctx, client, transformed)
+	if pending != nil {
+		entry.mu.Lock()
+		pending.value = result
+		pending.err = err
+		close(pending.ready)
+		entry.mu.Unlock()
+	}
 	if err != nil {
 		return ejson.Null(), err
-	}
-	if entry.options.Cache {
-		entry.mu.Lock()
-		entry.cache[key] = cacheEntry{value: result, created: time.Now()}
-		entry.mu.Unlock()
 	}
 	emit(result)
 	return result, nil

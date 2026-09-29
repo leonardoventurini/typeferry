@@ -164,10 +164,10 @@ An implementation-only revert does not require a protocol or data migration.
 
 | Contract area | Go evidence | Remaining gate |
 |---|---|---|
-| EJSON, custom tags, canonical output | 15 shared fixtures, focused codec tests | Bounded fuzz/property run |
+| EJSON, custom tags, canonical output | 15 shared fixtures, focused codec tests, bounded fuzz/property run | Final full-suite CI |
 | HTTP method/auth/error transport | Nine shared fixtures, TypeScript `ClientHttp` calls | Final full-suite CI |
 | WebSocket RPC, auth, events, lifecycle | Nine shared fixtures, real TypeScript calls and reconnect, origin/timeout/rate/shutdown tests | Full-suite CI |
-| Method metadata, validation, cache, middleware | Runtime tests and `authoring.Group` tests | Final API review |
+| Method metadata, validation, cache, middleware | Runtime and `authoring.Group` tests, including concurrent cache sharing | Final API review |
 | Redis cluster fanout and presence | Three shared envelopes, disposable two-server Redis integration | Full-suite CI |
 | JWT, sessions, cookies, device, Google OAuth | Focused token/replay and offline Google validation tests | Final API review |
 
@@ -190,3 +190,5 @@ Redis server/client/user presence and aggregate stats pass a disposable
 Redis cross-instance test under the Go race detector. Full TypeScript-client
 lifecycle and complete feature-parity criteria remain unverified. CI has not
 run yet.
+Bounded Go fuzz runs completed 25,835 EJSON cases and 73,634 WebSocket frame
+cases without a panic or round-trip mismatch.
