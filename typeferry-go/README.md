@@ -4,8 +4,9 @@ The Go server implementation is in progress. `ejson` implements ordered
 TypeFerry values, `runtime` handles typed methods and local events, and
 `httptransport` and `websocket` mount `POST /__h` and `/typeferry-ws` on an
 application-owned `net/http` server. `redistransport` propagates cluster events
-through an optional Redis connection. Auth helpers and Redis presence stats
-are still in progress.
+through an optional Redis connection. `auth` provides signed access tokens,
+rotating in-memory refresh sessions, cookies, and device metadata. Google OAuth
+and Redis presence stats are still in progress.
 
 ```go
 codec := ejson.NewCodec()

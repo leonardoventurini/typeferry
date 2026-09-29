@@ -1,0 +1,17 @@
+package auth
+
+import "testing"
+
+func TestParseDeviceInfo(t *testing.T) {
+	examples := []struct{ agent, os, browser, kind string }{
+		{"Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) Version/17.4 Mobile Safari/604.1", "iOS 17.4", "Mobile Safari 17.4", "mobile"},
+		{"Mozilla/5.0 (Macintosh; Intel Mac OS X 14_2) Chrome/120.0", "macOS 14.2", "Chrome 120.0", "desktop"},
+		{"Mozilla/5.0 (Windows NT 10.0) Firefox/122.0", "Windows 10.0", "Firefox 122.0", "desktop"},
+	}
+	for _, example := range examples {
+		result := ParseDeviceInfo(map[string]string{"user-agent": example.agent, "x-forwarded-for": "192.0.2.1"}, "198.51.100.2")
+		if result.OS != example.os || result.Browser != example.browser || result.DeviceType != example.kind || result.IP != "192.0.2.1" {
+			t.Fatalf("device = %#v", result)
+		}
+	}
+}
