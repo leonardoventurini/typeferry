@@ -83,10 +83,16 @@ The framework-independent client works in browsers and Node.js, while React is
 an adapter over that client rather than a separate runtime. The same React
 application can also be packaged for iOS through the optional Capacitor tools.
 
-For services that cross language boundaries, Python, Rust, and Ruby server
+For services that cross language boundaries, Python, Rust, Ruby, and Go server
 implementations target the same documented wire protocol and shared
 conformance fixtures. TypeScript remains the reference and only currently
 published package.
+
+The [Go server candidate](typeferry-go/README.md) provides EJSON, typed RPC and
+events, HTTP/WebSocket attachment, Redis propagation and authentication helpers
+for an application-owned `net/http` host. It passes local shared-fixture,
+race and real TypeScript-client checks. Public API approval and remote CI remain
+open; [Go publication is disabled](RELEASING.md#go-candidate-review).
 
 ### When it is a good fit
 
