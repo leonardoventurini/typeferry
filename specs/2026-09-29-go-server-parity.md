@@ -316,3 +316,32 @@ admission versus concurrent calls, then runtime cache panic completion and the
 actual-socket/TypeScript cases. Reverting this candidate unit restores the
 measured serial-dispatch and cleanup gaps; no protocol/data rollback is needed.
 No package publication, push or active SolidScript production role changed.
+
+## Parsed numeric spelling for application coercion (2026-09-30)
+
+Application coercion can distinguish an integer JSON literal from an exponent
+literal even when both have the same floating-point approximation. The previous
+Go parser discarded that spelling after its `int64` conversion failed. Retain
+parsed finite-number spelling in the immutable value and expose typed
+`NumberText() (string, bool)` access. Constructed values provide an appropriate
+numeric spelling; tagged and nonfinite values have no finite-number text.
+
+This additive candidate API does not change `Number()`, `Kind`, wire encoding,
+cache keys, numeric normalization or protocol constants. Consumers can apply
+language-specific coercion to the original number text without altering the
+TypeFerry transport contract. Publication/API review remains pending.
+
+Executed checks: the new test failed at missing access before implementation;
+procedurally generated positive/negative integers at five exponents beyond
+`int64` retain their complete spelling through array/object cloning. Decimal,
+exponent and signed-zero spellings are retained. Constructed integers work;
+nonfinite and nonnumeric values report no text. Explicit comparisons confirm
+ordinary wire output equals the existing float approximation encoder.
+`go test ./...`, `go test -race ./...` and `go vet ./...` passed with a disposable
+Redis service, including the shared fixtures and transport/lifecycle suites.
+The shared TypeScript client HTTP/WebSocket interoperability gate passed all
+seven checks. After retaining integer signed-zero spelling, focused EJSON
+race/vet checks passed too. Full release/browser/MongoDB/Python/Rust
+checks are not rerun here; full parity and downstream cutover remain pending.
+Review the value accessor, parser retention and clone/encoding checks. Reverting
+this candidate unit removes the accessor without a protocol/data rollback.

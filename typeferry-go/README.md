@@ -30,6 +30,10 @@ encoded, err := codec.Stringify(payload, false)
 Object field order is retained in ordinary encoding. Pass `true` to
 `Stringify` when the protocol explicitly requests canonical sorted keys.
 Custom types must be registered on a `Codec` before parsing their tag.
+`Value.NumberText()` retains the spelling of parsed finite numbers for
+application coercion, including integer literals larger than `int64`.
+`Value.Number()` still returns a `float64` approximation; ordinary and canonical
+wire encoding and method-cache keys retain their existing normalization.
 The HTTP and WebSocket adapters pass their shared fixtures and call through
 the unchanged TypeScript client. Call `Close` on the WebSocket handler during
 shutdown because `net/http.Server.Shutdown` does not own upgraded sockets.

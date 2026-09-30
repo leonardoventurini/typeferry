@@ -76,14 +76,18 @@ func (codec *Codec) readValue(decoder *json.Decoder) (Value, error) {
 	case json.Number:
 		if !strings.ContainsAny(string(item), ".eE") {
 			if integer, err := item.Int64(); err == nil {
-				return Int(integer), nil
+				value := Int(integer)
+				value.numberText = string(item)
+				return value, nil
 			}
 		}
 		number, err := item.Float64()
 		if err != nil || math.IsInf(number, 0) {
 			return Value{}, fmt.Errorf("invalid EJSON number %s", item)
 		}
-		return Float(number), nil
+		value := Float(number)
+		value.numberText = string(item)
+		return value, nil
 	case json.Delim:
 		switch item {
 		case '[':

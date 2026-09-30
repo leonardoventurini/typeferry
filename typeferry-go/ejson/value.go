@@ -3,6 +3,8 @@ package ejson
 import (
 	"math"
 	"slices"
+	"strconv"
+	"strings"
 )
 
 // Kind identifies one value in TypeFerry's lossless wire domain.
@@ -33,16 +35,17 @@ type Field struct {
 // Constructors copy mutable input, so a parsed value does not borrow a caller's
 // slice or byte buffer.
 type Value struct {
-	kind   Kind
-	bool   bool
-	int    int64
-	float  float64
-	text   string
-	flags  string
-	items  []Value
-	fields []Field
-	bytes  []byte
-	inner  *Value
+	kind       Kind
+	bool       bool
+	int        int64
+	float      float64
+	numberText string
+	text       string
+	flags      string
+	items      []Value
+	fields     []Field
+	bytes      []byte
+	inner      *Value
 }
 
 func Null() Value                   { return Value{kind: KindNull} }
@@ -129,4 +132,25 @@ func (value Value) Number() (float64, bool) {
 
 func (value Value) IsNaN() bool {
 	return value.kind == KindFloat && math.IsNaN(value.float)
+}
+
+// NumberText retains the original spelling of parsed finite JSON numbers for
+// application coercion, including integer literals larger than int64. Number
+// still supplies a float64 approximation, and Stringify still uses the existing
+// wire/cache-key normalization. Constructed values return their numeric spelling.
+func (value Value) NumberText() (string, bool) {
+	if value.numberText != "" {
+		return value.numberText, true
+	}
+	if value.kind == KindInt {
+		return strconv.FormatInt(value.int, 10), true
+	}
+	if value.kind != KindFloat || math.IsNaN(value.float) || math.IsInf(value.float, 0) {
+		return "", false
+	}
+	text := strconv.FormatFloat(value.float, 'g', -1, 64)
+	if !strings.ContainsAny(text, ".e") {
+		text += ".0"
+	}
+	return text, true
 }
