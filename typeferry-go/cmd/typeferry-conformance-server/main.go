@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net"
 	"net/http"
 	"os"
 	"sync"
+	"sync/atomic"
 
 	"github.com/leonardoventurini/typeferry/typeferry-go/ejson"
 	"github.com/leonardoventurini/typeferry/typeferry-go/httptransport"
@@ -28,6 +30,7 @@ func main() {
 	register(server, "echo", func(_ context.Context, _ *runtime.Client, params ejson.Value) (ejson.Value, error) {
 		return params, nil
 	}, runtime.MethodOptions{})
+	registerMethodContract(server)
 	register(server, "whoami", func(_ context.Context, client *runtime.Client, _ ejson.Value) (ejson.Value, error) {
 		return ejson.String(client.UserID()), nil
 	}, runtime.MethodOptions{Protected: true})
@@ -109,6 +112,66 @@ func main() {
 	if err := http.Serve(listener, mux); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// These declarations exercise runtime options through both real client
+// transports. They do not recognize fixture names or bypass the normal codec,
+// validation, middleware, cache, event or authorization paths.
+func registerMethodContract(server *runtime.Server) {
+	register(server, "public_error", func(context.Context, *runtime.Client, ejson.Value) (ejson.Value, error) {
+		return ejson.Null(), runtime.PublicError("application rejected this input")
+	}, runtime.MethodOptions{})
+	register(server, "internal_error", func(context.Context, *runtime.Client, ejson.Value) (ejson.Value, error) {
+		return ejson.Null(), errors.New("private failure detail must stay internal")
+	}, runtime.MethodOptions{})
+	register(server, "validated", func(_ context.Context, _ *runtime.Client, params ejson.Value) (ejson.Value, error) {
+		return params, nil
+	}, runtime.MethodOptions{
+		Validate: func(params ejson.Value) (ejson.Value, []runtime.ValidationIssue) {
+			value, _ := params.Lookup("amount")
+			amount, number := value.Number()
+			if !number || amount <= 0 {
+				return ejson.Null(), []runtime.ValidationIssue{{Path: []string{"amount"}, Message: "positive number required"}}
+			}
+			return ejson.Object(ejson.Field{Key: "amount", Value: value}), nil
+		},
+		Middleware: []runtime.Middleware{func(_ context.Context, _ *runtime.Client, params ejson.Value) (ejson.Value, error) {
+			value, _ := params.Lookup("amount")
+			amount, _ := value.Number()
+			return ejson.Object(ejson.Field{Key: "amount", Value: ejson.Float(amount * 2)}, ejson.Field{Key: "validated", Value: ejson.Bool(true)}), nil
+		}},
+	})
+	var count atomic.Int64
+	register(server, "cached_counter", func(_ context.Context, _ *runtime.Client, params ejson.Value) (ejson.Value, error) {
+		return ejson.Object(ejson.Field{Key: "count", Value: ejson.Int(count.Add(1))}, ejson.Field{Key: "params", Value: params}), nil
+	}, runtime.MethodOptions{Cache: true})
+	for _, declaration := range []struct {
+		name    string
+		options runtime.EventOptions
+	}{
+		{"protected.tick", runtime.EventOptions{Protected: true}},
+		{"user.tick", runtime.EventOptions{User: true}},
+		{"excluded.tick", runtime.EventOptions{ExcludeOriginator: true}},
+	} {
+		if err := server.AddEvent(declaration.name, declaration.options); err != nil {
+			log.Fatal(err)
+		}
+	}
+	register(server, "emit_event", func(ctx context.Context, _ *runtime.Client, params ejson.Value) (ejson.Value, error) {
+		event, _ := params.Lookup("event")
+		name, _ := event.Text()
+		channel, _ := params.Lookup("channel")
+		room, _ := channel.Text()
+		value, _ := params.Lookup("params")
+		return ejson.Bool(true), server.EmitEvent(ctx, name, room, value)
+	}, runtime.MethodOptions{})
+	register(server, "room_size", func(_ context.Context, _ *runtime.Client, params ejson.Value) (ejson.Value, error) {
+		event, _ := params.Lookup("event")
+		name, _ := event.Text()
+		channel, _ := params.Lookup("channel")
+		room, _ := channel.Text()
+		return ejson.Int(int64(server.RoomSize(room, name))), nil
+	}, runtime.MethodOptions{})
 }
 
 func register(server *runtime.Server, name string, handler runtime.Handler, options runtime.MethodOptions) {

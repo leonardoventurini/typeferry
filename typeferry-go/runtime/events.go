@@ -82,6 +82,9 @@ func (server *Server) AddEvent(name string, options EventOptions) error {
 	}
 	server.mu.Lock()
 	defer server.mu.Unlock()
+	if server.closed {
+		return ErrClosed
+	}
 	server.events[name] = &event{name: name, options: options}
 	return nil
 }
@@ -98,6 +101,14 @@ func (server *Server) SetChannelAuthorization(check func(*Client, string) bool) 
 func (server *Server) AddClient(client *Client) {
 	server.presenceMu.Lock()
 	server.mu.Lock()
+	if server.closed {
+		server.mu.Unlock()
+		server.presenceMu.Unlock()
+		if socket := client.Socket(); socket != nil {
+			_ = socket.Close()
+		}
+		return
+	}
 	previous := server.clients[client.ID()]
 	server.clients[client.ID()] = client
 	if previous != nil && previous != client {
@@ -175,30 +186,45 @@ func (server *Server) DisconnectUser(userID string) {
 	}
 }
 
+// Close freezes admission, removes presence and retires current sockets.
+// Concurrent callers join the same retirement and retain its errors. Already
+// admitted methods belong to their transport/caller lifetime; close those
+// owners before releasing any backing application services. Socket Close must
+// be idempotent and must not recursively call this owning runtime's Close.
 func (server *Server) Close() error {
-	server.mu.Lock()
-	if server.closed {
+	server.closeOnce.Do(func() {
+		server.presenceMu.Lock()
+		server.mu.Lock()
+		server.closed = true
+		clients := make([]*Client, 0, len(server.clients))
+		for _, client := range server.clients {
+			clients = append(clients, client)
+		}
+		server.clients = make(map[string]*Client)
+		server.rooms = make(map[string]map[*Client]struct{})
+		server.clientRooms = make(map[*Client]map[string]struct{})
+		tracker := server.presenceTracker
+		server.presenceTracker = nil
 		server.mu.Unlock()
-		return nil
-	}
-	server.closed = true
-	clients := make([]*Client, 0, len(server.clients))
-	for _, client := range server.clients {
-		clients = append(clients, client)
-	}
-	server.clients = make(map[string]*Client)
-	server.rooms = make(map[string]map[*Client]struct{})
-	server.clientRooms = make(map[*Client]map[string]struct{})
-	server.mu.Unlock()
-	var failures []error
-	for _, client := range clients {
-		if socket := client.Socket(); socket != nil {
-			if err := socket.Close(); err != nil {
-				failures = append(failures, err)
+		if tracker != nil {
+			for _, client := range clients {
+				tracker.RemoveClient(client)
 			}
 		}
-	}
-	return errors.Join(failures...)
+		server.presenceMu.Unlock()
+		// A socket's close callback may remove its client. Release both
+		// runtime locks first so that removal can complete without recursion.
+		var failures []error
+		for _, client := range clients {
+			if socket := client.Socket(); socket != nil {
+				if err := socket.Close(); err != nil {
+					failures = append(failures, err)
+				}
+			}
+		}
+		server.closeErr = errors.Join(failures...)
+	})
+	return server.closeErr
 }
 
 func (server *Server) joinLocked(client *Client, room string) {
@@ -286,6 +312,9 @@ func (server *Server) subscriptionResult(client *Client, params ejson.Value, sub
 		}
 		if client.Socket() != nil {
 			server.mu.Lock()
+			if server.closed || server.clients[client.ID()] != client {
+				allowed = false
+			}
 			if subscribe && allowed {
 				server.joinLocked(client, roomName(channel, name))
 			}
@@ -319,6 +348,10 @@ func (server *Server) installDefaultMethods() {
 // by the room snapshot taken under the server lock.
 func (server *Server) EmitEvent(ctx context.Context, name, channel string, params ejson.Value) error {
 	server.mu.RLock()
+	if server.closed {
+		server.mu.RUnlock()
+		return ErrClosed
+	}
 	entry := server.events[name]
 	if entry == nil {
 		server.mu.RUnlock()
@@ -356,6 +389,10 @@ func (server *Server) EmitEvent(ctx context.Context, name, channel string, param
 // PropagateEvent delivers a cluster frame locally without publishing it again.
 func (server *Server) PropagateEvent(ctx context.Context, name, channel, frame, exclude string) error {
 	server.mu.RLock()
+	if server.closed {
+		server.mu.RUnlock()
+		return ErrClosed
+	}
 	clients := make([]*Client, 0, len(server.rooms[roomName(channel, name)]))
 	for client := range server.rooms[roomName(channel, name)] {
 		clients = append(clients, client)

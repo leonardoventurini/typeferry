@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Client } from '../../client'
 import { ClientEvents } from '../../utils'
 import { type GoConformanceServer, startGoConformanceServer } from './go-server'
+import { goMethodContract } from './go-contract'
 
 describe('TypeScript WebSocket client ↔ Go server', () => {
   let fixture: GoConformanceServer
@@ -25,6 +26,14 @@ describe('TypeScript WebSocket client ↔ Go server', () => {
     })
   }
 
+  goMethodContract(async () => {
+    const client = await newClient()
+    return {
+      call: (method, params) => client.call(method, params, { httpFallback: false }),
+      close: () => client.close(),
+    }
+  })
+
   it('calls methods and reports authorization errors', async () => {
     const client = await newClient()
     try {
@@ -32,6 +41,49 @@ describe('TypeScript WebSocket client ↔ Go server', () => {
       await expect(client.call('whoami')).rejects.toBeDefined()
     } finally {
       await client.close()
+    }
+  })
+
+  it('enforces protected and user event subscriptions with the current identity', async () => {
+    const anonymous = await newClient()
+    const authenticated = await newClient('good-token')
+    const subscribe = (client: Client, channel: string) => client.call('rpc:on', {
+      channel, events: ['protected.tick', 'user.tick', 'missing.tick'],
+    }, { httpFallback: false })
+    try {
+      expect(await subscribe(anonymous, 'u1')).toEqual({ 'protected.tick': false, 'user.tick': false, 'missing.tick': false })
+      expect(await subscribe(authenticated, 'u1')).toEqual({ 'protected.tick': true, 'user.tick': true, 'missing.tick': false })
+      expect(await subscribe(authenticated, 'u2')).toEqual({ 'protected.tick': true, 'user.tick': false, 'missing.tick': false })
+      await authenticated.call('rpc:logout')
+      expect(await subscribe(authenticated, 'u1')).toEqual({ 'protected.tick': false, 'user.tick': false, 'missing.tick': false })
+    } finally {
+      await Promise.all([anonymous.close(), authenticated.close()])
+    }
+  })
+
+  it('excludes the originator and releases subscription rooms on disconnect', async () => {
+    const originator = await newClient()
+    const observer = await newClient()
+    const channelName = `excluded-${originator.uuid}`
+    try {
+      const originatingChannel = originator.channel(channelName)!
+      const observingChannel = observer.channel(channelName)!
+      let echoes = 0
+      originatingChannel.on('excluded.tick', () => { echoes += 1 })
+      await originatingChannel.subscribe('excluded.tick')
+      await observingChannel.subscribe('excluded.tick')
+      const received = new Promise(resolve => observingChannel.once('excluded.tick', resolve))
+      const params = { uuid: originator.uuid, n: 9 }
+      await originator.call('emit_event', { event: 'excluded.tick', channel: channelName, params })
+      await expect(received).resolves.toEqual(params)
+      expect(echoes).toBe(0)
+      expect(await originator.call('room_size', { event: 'excluded.tick', channel: channelName })).toBe(2)
+      await observer.close()
+      await expect.poll(() => originator.call('room_size', { event: 'excluded.tick', channel: channelName })).toBe(1)
+      await originatingChannel.unsubscribe('excluded.tick')
+      expect(await originator.call('room_size', { event: 'excluded.tick', channel: channelName })).toBe(0)
+    } finally {
+      await Promise.all([originator.close(), observer.close()])
     }
   })
 

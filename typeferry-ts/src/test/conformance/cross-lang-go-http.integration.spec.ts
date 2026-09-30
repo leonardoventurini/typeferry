@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { Client } from '../../client'
 import { ClientHttp } from '../../client/client-http'
 import { type GoConformanceServer, startGoConformanceServer } from './go-server'
+import { goMethodContract } from './go-contract'
 
 describe('TypeScript HTTP client ↔ Go server', () => {
   let fixture: GoConformanceServer
@@ -32,6 +33,11 @@ describe('TypeScript HTTP client ↔ Go server', () => {
       void http.request({ method, params }, resolve, reject)
     })
   }
+
+  goMethodContract(async () => {
+    const http = clientHttp()
+    return { call: (method, params) => call(http, method, params), close: async () => undefined }
+  })
 
   it('calls methods through the real TypeScript HTTP client', async () => {
     expect(await call(clientHttp(), 'add', { a: 2, b: 3 })).toBe(5)

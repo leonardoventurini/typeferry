@@ -77,7 +77,11 @@ func TestRedisCrossInstanceDelivery(t *testing.T) {
 	if err != nil || stats.UserCount != 1 || len(stats.Users) != 1 || stats.Users[0] != "user" {
 		t.Fatalf("authenticated presence = %#v, %v", stats, err)
 	}
-	second.DeleteClient(client)
+	// Runtime retirement must remove shared presence even when transports
+	// have not delivered their final per-client disconnect callback yet.
+	if err := second.Close(); err != nil {
+		t.Fatal(err)
+	}
 	stats, err = secondRedis.Stats(ctx)
 	if err != nil || stats.ClientCount != 0 || stats.UserCount != 0 {
 		t.Fatalf("presence after disconnect = %#v, %v", stats, err)

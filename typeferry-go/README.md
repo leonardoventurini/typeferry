@@ -45,6 +45,13 @@ their context and return, and must not call the owning handler's `Close` from
 inside their own work. Application admission limits still belong to the host.
 Panics become internal failures without exposing their values; cached handler
 panics complete the shared result instead of retaining an unfinished entry.
+Runtime `Server.Close` stops new calls, authentication, registrations and event
+publication, clears client rooms/presence and closes current sockets. Concurrent
+closers join the same result; late clients are closed and late subscription
+checks cannot restore retired rooms. `runtime.ErrClosed` identifies rejected
+work. Already admitted callbacks belong to their transport/caller lifetime:
+close and join those owners before releasing application resources. A socket
+close callback must not recursively close its owning runtime.
 Cluster events use the shared `events` pub/sub envelope. `redistransport.Connect`
 waits for subscription readiness; close the returned client on shutdown.
 

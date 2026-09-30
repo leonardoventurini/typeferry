@@ -19,6 +19,11 @@ import (
 const defaultCacheAge = time.Minute
 const RedactedMethodTelemetry = "[REDACTED]"
 
+// ErrClosed rejects new work after the runtime begins retiring. Transports
+// must stop admission and join their callbacks before releasing application
+// resources; Close itself owns client sockets and presence, not method jobs.
+var ErrClosed = errors.New("TypeFerry server is closed")
+
 // PublicError exposes its message to the calling client.
 type PublicError string
 
@@ -250,6 +255,8 @@ type Server struct {
 	eventPublisher       EventPublisher
 	presenceTracker      PresenceTracker
 	closed               bool
+	closeOnce            sync.Once
+	closeErr             error
 }
 
 func NewServer() *Server {
@@ -280,6 +287,9 @@ func (server *Server) AddMethod(name string, handler Handler, options MethodOpti
 	}
 	server.mu.Lock()
 	defer server.mu.Unlock()
+	if server.closed {
+		return ErrClosed
+	}
 	server.methods[name] = &method{name: name, handler: handler, options: options, cache: make(map[string]*cacheEntry)}
 	return nil
 }
@@ -296,6 +306,10 @@ func (server *Server) SetAuth(auth Authenticator, login Handler) error {
 		return errors.New("auth and login handlers are required")
 	}
 	server.mu.Lock()
+	if server.closed {
+		server.mu.Unlock()
+		return ErrClosed
+	}
 	server.auth = auth
 	server.mu.Unlock()
 	return server.AddMethod(protocol.MethodLogin, login, MethodOptions{})
@@ -325,6 +339,10 @@ func (server *Server) Authenticate(ctx context.Context, client *Client, input ej
 // transport can enforce its timeout before committing the returned identity.
 func (server *Server) AuthenticateValue(ctx context.Context, client *Client, input ejson.Value) (ejson.Value, error) {
 	server.mu.RLock()
+	if server.closed {
+		server.mu.RUnlock()
+		return ejson.Null(), ErrClosed
+	}
 	auth := server.auth
 	server.mu.RUnlock()
 	if auth == nil {
@@ -344,6 +362,10 @@ func (server *Server) Call(ctx context.Context, name string, params ejson.Value,
 		client = NewClient("")
 	}
 	server.mu.RLock()
+	if server.closed {
+		server.mu.RUnlock()
+		return ejson.Null(), ErrClosed
+	}
 	entry := server.methods[name]
 	listeners := append([]func(MethodExecution){}, server.listeners...)
 	server.mu.RUnlock()

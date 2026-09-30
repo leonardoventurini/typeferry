@@ -61,19 +61,21 @@ surface has not run against the TypeScript client in CI.
 | Protocol section | Go implementation and test evidence | Gate still open |
 |---|---|---|
 | 2.1 HTTP envelope, headers, origins, limits | `httptransport/http_test.go` shared fixtures and boundary tests; TypeScript `cross-lang-go-http.integration.spec.ts` | Upstream CI |
-| 2.2 WebSocket query, handshake, lifecycle, heartbeat | `websocket/fixtures_test.go`, `handler_test.go`, `handler_lifecycle_test.go`, frame fuzz; TypeScript `cross-lang-go-ws.integration.spec.ts` | Broader TypeScript lifecycle matrix and CI |
+| 2.2 WebSocket query, handshake, lifecycle, heartbeat | `websocket/fixtures_test.go`, `handler_test.go`, `handler_lifecycle_test.go`, frame fuzz; TypeScript `cross-lang-go-ws.integration.spec.ts` | Upstream CI |
 | 2.3 Redis events | `redistransport/fixtures_test.go` and disposable two-server `client_integration_test.go` | Upstream Redis CI |
 | 3–4 EJSON and Presentation values | `ejson/ejson_test.go`, shared fixtures, bounded fuzz | Upstream CI |
-| 5 message envelopes and void RPC | WebSocket shared fixtures and real TypeScript calls | Broader TypeScript error/reconnect cases |
+| 5 message envelopes and void RPC | WebSocket shared fixtures and real TypeScript calls | Upstream CI |
 | 6 methods, protection, cache, validation, middleware, telemetry | `runtime/server_test.go` including concurrent cached calls | Public API review and CI |
 | 7 default methods | `runtime/events_test.go` covers subscriptions and `rpc:off`; `runtime/server_test.go` covers protected logout and conditional login; TypeScript Go WebSocket interop calls both. `list:methods` remains reserved by the protocol. | Upstream CI |
 | 8 JWT, cookies, OAuth, session lifecycle | `auth/auth_test.go`, `cookies_test.go`, `device_test.go`, `google_test.go` | Public API review and CI |
-| 9 public versus internal errors | HTTP and WebSocket shared fixtures, runtime validation tests | Broader cross-language negative cases |
-| 10 rooms, channels, event exclusion | `runtime/events_test.go` and Redis cross-instance test | Broader TypeScript subscription lifecycle |
+| 9 public versus internal errors | HTTP and WebSocket shared fixtures, runtime validation tests | Upstream CI |
+| 10 rooms, channels, event exclusion | `runtime/events_test.go` and Redis cross-instance test | Upstream CI |
 | 11 typed authoring and cache keys | `authoring/group_test.go`, `runtime/server_test.go` | Public API review |
 
-The matrix identifies broader TypeScript lifecycle and negative cases to add
-before claiming full parity. The optional MongoDB live-view extension
+The real TypeScript matrix now covers values, validation/middleware, caching,
+public/internal errors, protected and user subscriptions, originator exclusion,
+disconnect cleanup and reconnect. Upstream CI and public API review remain
+required before claiming accepted parity. The optional MongoDB live-view extension
 is outside the agreed shared server scope.
 
 ## Scope and contracts
@@ -345,3 +347,53 @@ race/vet checks passed too. Full release/browser/MongoDB/Python/Rust
 checks are not rerun here; full parity and downstream cutover remain pending.
 Review the value accessor, parser retention and clone/encoding checks. Reverting
 this candidate unit removes the accessor without a protocol/data rollback.
+
+
+### Runtime retirement and expanded real-client contracts
+
+Four focused regressions initially fail: closed runtimes accept new clients and
+callbacks, a pending authorization result recreates rooms after shutdown,
+concurrent closers return before socket retirement, and shared presence remains
+registered. Runtime close now atomically stops admission under its existing
+locks, clears clients/rooms and removes tracker entries before closing sockets
+outside those locks. Concurrent closers join the same result and retain socket
+errors. Valid new calls/authentication/registration/event publication return the
+typed `runtime.ErrClosed`; late clients close immediately. Subscription commits
+recheck both lifetime and current connection identity after authorization.
+
+Already admitted method/authentication work remains owned by its transport or
+caller. Runtime close does not cancel independent application jobs or join a
+callback that could itself be closing the runtime. Application shutdown must
+close/join transport owners before retiring backing services, as documented.
+Socket close callbacks must not recursively invoke their owning runtime close.
+
+The normal Go conformance server exposes ordinary method declarations for error,
+validation/middleware and cached-counter behavior plus protected/user/excluded
+events. Tests initially fail at these absent declarations. Both real TypeScript
+transports then pass the shared value and method contract, with cache key order
+preserved. The WebSocket client additionally verifies current-identity admission,
+originator exclusion and room release after disconnect/unsubscribe. The focused
+files pass 25 cases; no browser client implementation or protocol changes occur.
+
+Executed verification:
+
+- Full `go test ./...`, `go test -race ./...` and `go vet ./...` pass with a
+  disposable Redis service. Runtime close also removes real Redis client/user
+  presence before final transport disconnect callbacks. The focused race suite
+  reruns after strengthening assertions for the typed closed error.
+- TypeScript lint, typecheck, build and package dry-run pass on the exact
+  Node 24.19.0/npm 11.17.0 toolchain. All 1,656 unit cases pass. The initial
+  full test command stops at unavailable MongoDB setup; a disposable replica
+  set then enables all 76 integration and ten browser cases to pass. Three
+  opt-in Ruby interoperability cases remain skipped. An initial temporary
+  database name is rejected by the existing safety guard; the corrected test
+  namespace passes. No application or pre-existing database is modified.
+- The 25 focused real-client cases pass. Core dependency inspection includes
+  only Go standard packages plus `ejson`, `protocol` and `runtime`; optional
+  transport/auth/Redis adapters do not enter core imports.
+- Owned Redis/MongoDB containers are removed after verification. Final diff and
+  formatting checks pass. Package inspection produces no publication.
+
+Downstream pin verification follows the upstream commit. Upstream CI, public
+API/release review and production cutover remain separate acceptance gates;
+the Go candidate is unpublished.
