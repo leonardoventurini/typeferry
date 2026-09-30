@@ -10,3 +10,9 @@
   transport behavior changes.
 - Keep public APIs typed and document non-obvious ownership, cancellation,
   and shutdown contracts.
+
+- WebSocket method callbacks run concurrently. Preserve frame-order parsing and
+  rate admission, while correlating responses by RPC ID. Callback contexts must
+  be honored; handler shutdown joins callbacks and owned connection work before
+  the application closes its backing services. Do not call the owning handler's
+  Close from a callback it must join.

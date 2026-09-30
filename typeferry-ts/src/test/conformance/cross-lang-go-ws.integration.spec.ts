@@ -1,40 +1,21 @@
-import { type ChildProcess, spawn } from 'node:child_process'
-import path from 'node:path'
 import WS from 'ws'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { Client } from '../../client'
 import { ClientEvents } from '../../utils'
-
-const GO_DIR = path.resolve(__dirname, '../../../../typeferry-go')
+import { type GoConformanceServer, startGoConformanceServer } from './go-server'
 
 describe('TypeScript WebSocket client ↔ Go server', () => {
-  let process: ChildProcess
+  let fixture: GoConformanceServer
   let port: number
 
   beforeAll(async () => {
     ;(globalThis as unknown as { WebSocket: typeof WS }).WebSocket = WS
-    process = spawn('go', ['run', './cmd/typeferry-conformance-server'], {
-      cwd: GO_DIR,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    })
-    port = await new Promise<number>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error('Go server startup timed out')), 30_000)
-      let output = ''
-      process.stderr?.on('data', chunk => {
-        output += chunk.toString('utf8')
-        const match = output.match(/TYPEFERRY_PORT=(\d+)/)
-        if (match) {
-          clearTimeout(timeout)
-          resolve(Number.parseInt(match[1]!, 10))
-        }
-      })
-      process.once('error', reject)
-      process.once('exit', code => reject(new Error(`Go server exited with ${code}`)))
-    })
+    fixture = await startGoConformanceServer()
+    port = fixture.port
   }, 35_000)
 
-  afterAll(() => process?.kill('SIGTERM'))
+  afterAll(async () => { await fixture?.close() })
 
   async function newClient(token?: string): Promise<Client> {
     return await new Promise<Client>((resolve, reject) => {
@@ -64,6 +45,21 @@ describe('TypeScript WebSocket client ↔ Go server', () => {
       await client.call('emit_ping', { channel: 'room-go', params: { n: 7 } })
       await expect(received).resolves.toEqual({ n: 7 })
       await channel.unsubscribe('ping.tick')
+    } finally {
+      await client.close()
+    }
+  })
+
+  it('releases a pending call through the same WebSocket', async () => {
+    const client = await newClient()
+    try {
+      const key = `wait-${client.uuid}`
+      const pending = client.call('wait_for_release', { key }, { httpFallback: false, timeout: 2000 })
+      void pending.catch(() => undefined)
+      // Registration and delivery are asynchronous. Retry only until the keyed
+      // latch is admitted; a serial server cannot process this release at all.
+      await expect.poll(() => client.call('release_wait', { key }, { httpFallback: false, timeout: 2000 }), { timeout: 2000 }).toBe(true)
+      await expect(pending).resolves.toBe('released')
     } finally {
       await client.close()
     }

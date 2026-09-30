@@ -1,41 +1,19 @@
-import { type ChildProcess, spawn } from 'node:child_process'
-import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import type { Client } from '../../client'
 import { ClientHttp } from '../../client/client-http'
-
-const REPO_ROOT = path.resolve(__dirname, '../../../..')
-const GO_DIR = path.join(REPO_ROOT, 'typeferry-go')
+import { type GoConformanceServer, startGoConformanceServer } from './go-server'
 
 describe('TypeScript HTTP client ↔ Go server', () => {
-  let process: ChildProcess
+  let fixture: GoConformanceServer
   let port: number
 
   beforeAll(async () => {
-    process = spawn('go', ['run', './cmd/typeferry-conformance-server'], {
-      cwd: GO_DIR,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    })
-    port = await new Promise<number>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error('Go server startup timed out')), 30_000)
-      let output = ''
-      process.stderr?.on('data', chunk => {
-        output += chunk.toString('utf8')
-        const match = output.match(/TYPEFERRY_PORT=(\d+)/)
-        if (match) {
-          clearTimeout(timeout)
-          resolve(Number.parseInt(match[1]!, 10))
-        }
-      })
-      process.once('error', reject)
-      process.once('exit', code => reject(new Error(`Go server exited with ${code}`)))
-    })
+    fixture = await startGoConformanceServer()
+    port = fixture.port
   }, 35_000)
 
-  afterAll(() => {
-    process?.kill('SIGTERM')
-  })
+  afterAll(async () => { await fixture?.close() })
 
   function clientHttp(token?: string): ClientHttp {
     const client = {

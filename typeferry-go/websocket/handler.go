@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 	"sync"
@@ -24,12 +25,15 @@ type Options struct {
 }
 
 type Handler struct {
-	server  *runtime.Server
-	options Options
-	origins map[string]struct{}
-	mu      sync.Mutex
-	sockets map[*connectionSocket]struct{}
-	closed  bool
+	server    *runtime.Server
+	options   Options
+	origins   map[string]struct{}
+	mu        sync.Mutex
+	sockets   map[*connectionSocket]struct{}
+	closed    bool
+	active    sync.WaitGroup
+	closeOnce sync.Once
+	closeErr  error
 }
 
 func New(server *runtime.Server, options Options) *Handler {
@@ -59,12 +63,15 @@ func (handler *Handler) ServeHTTP(response http.ResponseWriter, request *http.Re
 		}
 	}
 	handler.mu.Lock()
-	closed := handler.closed
-	handler.mu.Unlock()
-	if closed {
+	if handler.closed {
+		handler.mu.Unlock()
 		http.Error(response, "Service Unavailable", http.StatusServiceUnavailable)
 		return
 	}
+	handler.active.Add(1)
+	handler.mu.Unlock()
+	defer handler.active.Done()
+
 	connection, err := websocket.Accept(response, request, &websocket.AcceptOptions{InsecureSkipVerify: true})
 	if err != nil {
 		return
@@ -74,7 +81,8 @@ func (handler *Handler) ServeHTTP(response http.ResponseWriter, request *http.Re
 		limit = 1 << 20
 	}
 	connection.SetReadLimit(limit)
-	socket := &connectionSocket{connection: connection}
+	ctx, cancel := context.WithCancel(request.Context())
+	socket := &connectionSocket{connection: connection, cancel: cancel}
 	handler.mu.Lock()
 	if handler.closed {
 		handler.mu.Unlock()
@@ -110,20 +118,59 @@ func (handler *Handler) ServeHTTP(response http.ResponseWriter, request *http.Re
 	}
 	dispatcher.SetHandshake(Handshake{Path: request.URL.Path, Headers: headers, Query: query})
 	dispatcher.Client().SetRequestMetadata(headers, request.RemoteAddr, request.UserAgent())
-	defer dispatcher.Close()
-	if err := dispatcher.Open(request.Context()); err != nil {
+	frames := make(chan string, 1)
+	readDone := make(chan struct{})
+	go func() {
+		defer close(readDone)
+		defer socket.Close()
+		for {
+			kind, data, err := connection.Read(ctx)
+			if err != nil {
+				return
+			}
+			if kind == websocket.MessageText {
+				select {
+				case frames <- string(data):
+				case <-ctx.Done():
+					return
+				}
+			}
+		}
+	}()
+	var calls sync.WaitGroup
+	var pingDone chan struct{}
+	defer func() {
+		_ = socket.Close()
+		calls.Wait()
+		<-readDone
+		if pingDone != nil {
+			<-pingDone
+		}
+		dispatcher.Close()
+	}()
+	if err := dispatcher.Open(ctx); err != nil || ctx.Err() != nil {
 		return
 	}
-	ctx, cancel := context.WithCancel(request.Context())
-	defer cancel()
-	go handler.pingLoop(ctx, dispatcher)
+	pingDone = make(chan struct{})
+	go func() {
+		defer close(pingDone)
+		handler.pingLoop(ctx, dispatcher)
+	}()
 	for {
-		kind, data, err := connection.Read(ctx)
-		if err != nil {
+		select {
+		case text := <-frames:
+			if ctx.Err() != nil {
+				return
+			}
+			if work := dispatcher.prepare(ctx, text); work != nil {
+				if ctx.Err() != nil {
+					return
+				}
+				calls.Add(1)
+				go func() { defer calls.Done(); work() }()
+			}
+		case <-ctx.Done():
 			return
-		}
-		if kind == websocket.MessageText {
-			dispatcher.Receive(ctx, string(data))
 		}
 	}
 }
@@ -148,24 +195,35 @@ func (handler *Handler) pingLoop(ctx context.Context, dispatcher *Dispatcher) {
 	}
 }
 
-// Close terminates upgraded sockets, which net/http.Server.Shutdown does not own.
+// Close stops admission, cancels every upgraded connection and joins its
+// authentication, active methods, reader and heartbeat before returning.
+// Concurrent closers join the same retirement. Application callbacks must
+// observe context cancellation and return; call Close outside those callbacks.
 func (handler *Handler) Close() error {
-	handler.mu.Lock()
-	handler.closed = true
-	sockets := make([]*connectionSocket, 0, len(handler.sockets))
-	for socket := range handler.sockets {
-		sockets = append(sockets, socket)
-	}
-	handler.mu.Unlock()
-	for _, socket := range sockets {
-		_ = socket.Close()
-	}
-	return nil
+	handler.closeOnce.Do(func() {
+		handler.mu.Lock()
+		handler.closed = true
+		sockets := make([]*connectionSocket, 0, len(handler.sockets))
+		for socket := range handler.sockets {
+			sockets = append(sockets, socket)
+		}
+		handler.mu.Unlock()
+
+		for _, socket := range sockets {
+			handler.closeErr = errors.Join(handler.closeErr, socket.Close())
+		}
+		// Add happens under the same admission lock before upgrade; an upgrade
+		// already in progress also observes closed and retires before this join.
+		handler.active.Wait()
+	})
+	return handler.closeErr
 }
 
 type connectionSocket struct {
 	connection *websocket.Conn
 	once       sync.Once
+	cancel     context.CancelFunc
+	closeErr   error
 }
 
 func (socket *connectionSocket) SendText(ctx context.Context, message string) error {
@@ -173,7 +231,9 @@ func (socket *connectionSocket) SendText(ctx context.Context, message string) er
 }
 
 func (socket *connectionSocket) Close() error {
-	var err error
-	socket.once.Do(func() { err = socket.connection.CloseNow() })
-	return err
+	socket.once.Do(func() {
+		socket.cancel()
+		socket.closeErr = socket.connection.CloseNow()
+	})
+	return socket.closeErr
 }

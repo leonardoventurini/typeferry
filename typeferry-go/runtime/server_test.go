@@ -236,3 +236,25 @@ func TestSensitiveMethodRedactsTelemetryIncludingCacheHits(t *testing.T) {
 		}
 	}
 }
+
+func TestAuthenticationPanicReturnsAnInternalFailure(t *testing.T) {
+	server := NewServer()
+	if err := server.SetAuth(func(context.Context, *Client, ejson.Value) (ejson.Value, error) {
+		panic("private authentication detail")
+	}, func(context.Context, *Client, ejson.Value) (ejson.Value, error) {
+		return ejson.Bool(true), nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	client := NewClient("")
+	var public PublicError
+
+	if err := server.Authenticate(context.Background(), client, ejson.Object()); err == nil {
+		t.Fatal("authentication panic did not return a failure")
+	} else if errors.As(err, &public) {
+		t.Fatalf("authentication panic became public: %v", err)
+	}
+	if client.Authenticated() || client.Context().Kind() != ejson.KindNull {
+		t.Fatal("authentication panic retained authority")
+	}
+}

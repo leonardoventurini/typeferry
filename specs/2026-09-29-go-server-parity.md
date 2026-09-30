@@ -3,13 +3,24 @@ status: implementing
 project: typeferry
 project-root: /Users/leonardo/Repositories/typeferry
 created: 2026-09-29
-updated: 2026-09-29
+updated: 2026-09-30
 owner: server runtimes
 decision:
 supersedes:
 superseded-by:
 implementation:
-  commits: []
+  commits:
+    - 5391560
+    - 17288f4
+    - 535c134
+    - e9cca82
+    - f15ef00
+    - 33e965d
+    - ace93fa
+    - af8912b
+    - 83581ae
+    - 1375551
+    - 212a851
   pull-request:
 ---
 
@@ -30,8 +41,9 @@ but the library must contain no SolidScript policy or test-path dependency.
   authoring semantics. `docs/conformance/fixtures/` supplies executable wire
   cases. `typeferry-ts/src/test/conformance/` runs real client/server checks.
 - `typeferry-rb/lib/typeferry/`, `typeferry-py/src/typeferry/`, and
-  `typeferry-rs/crates/` show the maintained server feature set. No Go package
-  or Go conformance server exists in the current checkout.
+  `typeferry-rs/crates/` show the maintained server feature set. The initial
+  inventory preceded the Go package and conformance server; both now exist
+  under `typeferry-go/`.
 - Root `AGENTS.md` makes `PROTOCOL.md` authoritative. The former conflicting
   fixture-precedence sentence in `docs/conformance/README.md` was reconciled
   in the first implementation unit. Any future discrepancy still requires
@@ -49,7 +61,7 @@ surface has not run against the TypeScript client in CI.
 | Protocol section | Go implementation and test evidence | Gate still open |
 |---|---|---|
 | 2.1 HTTP envelope, headers, origins, limits | `httptransport/http_test.go` shared fixtures and boundary tests; TypeScript `cross-lang-go-http.integration.spec.ts` | Upstream CI |
-| 2.2 WebSocket query, handshake, lifecycle, heartbeat | `websocket/fixtures_test.go`, `handler_test.go`, frame fuzz; TypeScript `cross-lang-go-ws.integration.spec.ts` | Broader TypeScript lifecycle matrix and CI |
+| 2.2 WebSocket query, handshake, lifecycle, heartbeat | `websocket/fixtures_test.go`, `handler_test.go`, `handler_lifecycle_test.go`, frame fuzz; TypeScript `cross-lang-go-ws.integration.spec.ts` | Broader TypeScript lifecycle matrix and CI |
 | 2.3 Redis events | `redistransport/fixtures_test.go` and disposable two-server `client_integration_test.go` | Upstream Redis CI |
 | 3–4 EJSON and Presentation values | `ejson/ejson_test.go`, shared fixtures, bounded fuzz | Upstream CI |
 | 5 message envelopes and void RPC | WebSocket shared fixtures and real TypeScript calls | Broader TypeScript error/reconnect cases |
@@ -224,3 +236,83 @@ that logout is protected and clears client identity, login appears only after
 `SetAuth`, and reserved `list:methods` stays absent. A real TypeScript client
 then called login and logout over the Go WebSocket server and observed protected
 access disappear. The four-case cross-language WebSocket file passed.
+
+### Concurrent WebSocket work and joined retirement (2026-09-30)
+
+The actual Go WebSocket adapter ran `Dispatcher.Receive` serially inside its read
+loop. A long method therefore prevented a following RPC cancellation/release
+and heartbeat response. Closing an upgraded descriptor did not cancel the
+request context or join method/authentication work. These gaps were measured
+before implementation by failing actual-socket tests. The TypeScript reference
+invokes asynchronous RPC work without awaiting it in the message callback;
+Go now retains that concurrency with unchanged response IDs and envelopes.
+
+```text
+owned reader -> ordered parsing/rate admission -> concurrent RPC tasks
+                      |                                |
+                 ping/pong                       context cancellation
+                      |                                |
+close admission -> close all sockets -> join tasks/auth/readers/heartbeat
+                                      -> remove clients -> return Close
+```
+
+A connection context exists before authentication. Socket closure, peer EOF,
+replacement or heartbeat retirement cancels that context. Handler admission
+registers before upgrade, so shutdown joins even an upgrade not yet present in
+the socket registry. Every concurrent Close joins the same retirement. The
+reader has bounded pending input; callbacks run concurrently under the existing
+host-configured rate/admission policy. No new quota or method deadline is
+invented. Authentication retains its five-second decision deadline; its tracked
+callback cleanup is joined when retiring the connection, and late identities
+cannot be committed after retirement begins.
+
+The official [HTTP shutdown contract](https://pkg.go.dev/net/http#Server.Shutdown)
+excludes hijacked connections; [context cancellation](https://pkg.go.dev/context#CancelFunc)
+also does not join work. The adapter owns both joins. Application Go callbacks
+must observe context cancellation and return; Go cannot forcibly terminate one.
+They must not call the owning Close from inside work that Close must join.
+This unit strengthens cleanup of the existing candidate APIs without changing
+public signatures, dependencies or wire constants. Final API review remains
+required before release/consumer cutover.
+
+Concurrent task panics must remain internal errors, while void calls remain
+silent. Authentication panics fail closed. Transport recovery alone exposed a
+second root cause: a cached handler panic left its result unfinished, blocking
+another caller of the same key. The runtime now converts handler/authenticator
+panics to internal errors before completing cache state. The transport also
+recovers validation/middleware/telemetry task failures without exposing their
+panic values. The new cached-panic test failed before the runtime correction.
+
+Acceptance criteria and executed verification:
+
+- **Concurrent wire behavior:** actual sockets run held RPC and void work,
+  respond to ping, then process a release RPC through that same socket. The
+  unchanged TypeScript client also releases an in-flight call, with HTTP
+  fallback disabled so another transport cannot disguise serial dispatch.
+- **Joined retirement:** socket tests hold callback cleanup after cancellation,
+  prove two closers remain waiting, release cleanup, then verify both closers
+  return and no runtime clients remain. Peer disconnect cancels active RPC and
+  authentication. A held actual hijack proves shutdown rejects new admission
+  with 503 and waits for the previously admitted upgrade before returning.
+- **Failure containment:** RPC/void cached panics, live subsequent calls,
+  authentication panics and direct runtime auth authority are checked. Cached
+  callers all obtain internal errors from one invocation; the process stays
+  alive and void failures emit no response.
+- **Gates:** `go test ./... -count=1`, `go test -race ./... -count=1` and
+  `go vet ./...` passed with a disposable Redis connection, including cluster
+  delivery/presence. After the final direct-auth test, runtime race/vet passed.
+  The TypeScript Go HTTP/WebSocket interoperability files passed seven checks;
+  package lint/typecheck also passed. The shared helper compiles and directly
+  owns each fixture executable, joins exit and removes its build directory.
+  Only repository-owned tests are invoked. Temporary Redis and fixture builds
+  were cleaned up. The complete npm release/browser/MongoDB/Python/Rust suite
+  was not rerun for these Go changes and test-only TypeScript fixture changes.
+  Upstream CI, broader parity/API/release review and downstream full acceptance
+  remain pending; these checks do not certify the full requested migration.
+
+SCS discovery was complete with no degraded stages/reason; actual sources were
+read before editing. Review admission/cancellation/join ownership, ordered frame
+admission versus concurrent calls, then runtime cache panic completion and the
+actual-socket/TypeScript cases. Reverting this candidate unit restores the
+measured serial-dispatch and cleanup gaps; no protocol/data rollback is needed.
+No package publication, push or active SolidScript production role changed.

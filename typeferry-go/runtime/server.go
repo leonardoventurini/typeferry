@@ -330,7 +330,7 @@ func (server *Server) AuthenticateValue(ctx context.Context, client *Client, inp
 	if auth == nil {
 		return ejson.Null(), nil
 	}
-	return auth(ctx, client, input)
+	return invoke(Handler(auth), ctx, client, input)
 }
 
 func (server *Server) OnMethodExecution(listener func(MethodExecution)) {
@@ -421,7 +421,7 @@ func (server *Server) Call(ctx context.Context, name string, params ejson.Value,
 		entry.mu.Unlock()
 	}
 
-	result, err := entry.handler(ctx, client, transformed)
+	result, err := invoke(entry.handler, ctx, client, transformed)
 	if pending != nil {
 		entry.mu.Lock()
 		pending.value = result
@@ -434,6 +434,19 @@ func (server *Server) Call(ctx context.Context, name string, params ejson.Value,
 	}
 	emit(result)
 	return result, nil
+}
+
+// invoke converts an application panic to an internal failure before Call
+// completes its cache entry. Transport-only recovery would leave a cached
+// result pending forever and strand other callers sharing the same key.
+func invoke(handler Handler, ctx context.Context, client *Client, params ejson.Value) (result ejson.Value, err error) {
+	defer func() {
+		if recover() != nil {
+			result = ejson.Null()
+			err = errors.New("TypeFerry callback panicked")
+		}
+	}()
+	return handler(ctx, client, params)
 }
 
 func newID() string {

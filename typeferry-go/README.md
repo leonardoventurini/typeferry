@@ -33,6 +33,14 @@ Custom types must be registered on a `Codec` before parsing their tag.
 The HTTP and WebSocket adapters pass their shared fixtures and call through
 the unchanged TypeScript client. Call `Close` on the WebSocket handler during
 shutdown because `net/http.Server.Shutdown` does not own upgraded sockets.
+The handler stops admission, cancels connection contexts and joins active RPCs, handshake
+callbacks, readers and heartbeat work. Every concurrent closer joins that same
+retirement. Methods run concurrently; RPC IDs correlate their completion order.
+Frame parsing and rate admission remain in read order. Callbacks must observe
+their context and return, and must not call the owning handler's `Close` from
+inside their own work. Application admission limits still belong to the host.
+Panics become internal failures without exposing their values; cached handler
+panics complete the shared result instead of retaining an unfinished entry.
 Cluster events use the shared `events` pub/sub envelope. `redistransport.Connect`
 waits for subscription readiness; close the returned client on shutdown.
 

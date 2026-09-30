@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"sync"
 
 	"github.com/leonardoventurini/typeferry/typeferry-go/ejson"
 	"github.com/leonardoventurini/typeferry/typeferry-go/httptransport"
@@ -51,6 +52,49 @@ func main() {
 	}); err != nil {
 		log.Fatal(err)
 	}
+
+	// Controllable work proves concurrent transport dispatch without timing a
+	// sleep. Each test names its own latch; cancellation releases abandoned work.
+	var waitingMu sync.Mutex
+	waiting := make(map[string]chan struct{})
+	register(server, "wait_for_release", func(ctx context.Context, _ *runtime.Client, params ejson.Value) (ejson.Value, error) {
+		keyValue, _ := params.Lookup("key")
+		key, _ := keyValue.Text()
+		waitingMu.Lock()
+		if _, found := waiting[key]; found {
+			waitingMu.Unlock()
+			return ejson.Null(), runtime.PublicError("wait key already active")
+		}
+		release := make(chan struct{})
+		waiting[key] = release
+		waitingMu.Unlock()
+		defer func() {
+			waitingMu.Lock()
+			delete(waiting, key)
+			waitingMu.Unlock()
+		}()
+		select {
+		case <-release:
+			return ejson.String("released"), nil
+		case <-ctx.Done():
+			return ejson.Null(), ctx.Err()
+		}
+	}, runtime.MethodOptions{})
+	register(server, "release_wait", func(_ context.Context, _ *runtime.Client, params ejson.Value) (ejson.Value, error) {
+		keyValue, _ := params.Lookup("key")
+		key, _ := keyValue.Text()
+		waitingMu.Lock()
+		defer waitingMu.Unlock()
+		release, found := waiting[key]
+		if found {
+			select {
+			case <-release:
+			default:
+				close(release)
+			}
+		}
+		return ejson.Bool(found), nil
+	}, runtime.MethodOptions{})
 
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
