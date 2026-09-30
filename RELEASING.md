@@ -1,6 +1,6 @@
 # TypeFerry Release Status
 
-The TypeScript implementation is configured for operator-controlled publication to the public npm registry. Python, Rust, and Ruby publication remains disabled until their registry identities and workflows are approved separately.
+The TypeScript implementation is configured for operator-controlled publication to the public npm registry. Python, Rust, Ruby, and Go publication remains disabled until their registry identities and workflows are approved separately.
 
 ## Registry Identities
 
@@ -10,6 +10,35 @@ The TypeScript implementation is configured for operator-controlled publication 
 | Python         | `typeferry-py`                |  `0.2.0` | Temporary identity; publication disabled |
 | Rust           | `typeferry` and `typeferry-*` |  `0.2.0` | Workspace publication disabled           |
 | Ruby           | `typeferry-rb`                |  `0.1.0` | Temporary identity; publication disabled |
+| Go             | `github.com/leonardoventurini/typeferry/typeferry-go` | Untagged | Locally validated candidate; publication disabled |
+
+## Go candidate review
+
+The candidate implements the shared server protocol and interoperates with the
+unchanged TypeScript client. Its [parity specification](specs/2026-09-29-go-server-parity.md)
+records full Go unit/race/vet and Redis verification, 25 focused client cases,
+and the complete TypeScript package checks. Remote CI and explicit public API
+approval remain required before accepting or tagging the Go module. No Go tag,
+registry upload or automated Go publication workflow has been created.
+
+Review the import path above and the package boundaries in this order:
+
+1. `ejson` ordered values, custom codecs and numeric spelling; `protocol` envelopes.
+2. `runtime` typed registration, context, methods/events, presence and close ownership.
+3. `httptransport` and `websocket` application-owned `net/http` attachment.
+4. Optional `redistransport` cluster delivery and `auth` JWT/session/cookie/OAuth helpers.
+5. `authoring.Group` declaration helpers and the runnable `examples/server` integration.
+
+Core imports do not require the optional adapters. WebSocket callbacks must
+honor cancellation; transport retirement joins them before application services
+close. Runtime retirement rejects new work and clears presence but keeps already
+admitted application callbacks under their caller's lifetime.
+
+Go uses pinned `github.com/coder/websocket` and `github.com/redis/go-redis/v9`
+adapter dependencies. MongoDB live views, a Go client and extra OAuth providers
+are outside the accepted shared server scope.
+
+## TypeScript candidate
 
 TypeFerry is published publicly on npm at `0.11.0`. The repository prepares
 `0.12.0` as an unpublished candidate adding generic iOS simulator discovery,

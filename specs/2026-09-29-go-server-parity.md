@@ -1,5 +1,5 @@
 ---
-status: implementing
+status: validating
 project: typeferry
 project-root: /Users/leonardo/Repositories/typeferry
 created: 2026-09-29
