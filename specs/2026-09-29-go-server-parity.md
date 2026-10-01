@@ -410,3 +410,22 @@ remaining acceptance decision. Those contracts are now approved. Remote CI
 must still pass before accepted parity is recorded. Registry publication and
 release tags remain outside this specification; pushing the approved source
 does not publish the unrelated TypeScript package candidate.
+
+### CI audit prerequisite repair
+
+The first approved upstream CI run passed Go (including Redis/race/vet), Ruby
+and TypeScript-to-Ruby interoperability. The TypeScript job stopped at its
+existing security audit, before any Go interoperability cases ran. Its lockfile
+retained newly flagged transitive `brace-expansion` 5.0.9 and `undici` 7.29.0.
+Named npm updates within the existing override ranges change only those two
+entries to 5.0.12 and 7.30.0. The manifest, Go module, client source and protocol
+remain unchanged. The dependencies originate in lint and jsdom tooling.
+
+The exact Node 24.19.0/npm 11.17.0 local gate now passes immutable installation,
+zero-vulnerability audit, lint, typecheck, all 1,656 unit cases, build, package
+dry-run and archive verification (565 allowed files). Remote TypeScript
+integration/browser acceptance still requires a successful replacement CI run.
+No new configuration tests or registry publication were added.
+
+Primary patch references: [brace-expansion advisory](https://github.com/advisories/GHSA-q2hr-2g5m-vwhr)
+and [Undici 7.30.0 release](https://github.com/nodejs/undici/releases/tag/v7.30.0).
