@@ -10,7 +10,7 @@ The TypeScript implementation is configured for operator-controlled publication 
 | Python         | `typeferry-py`                |  `0.2.0` | Temporary identity; publication disabled |
 | Rust           | `typeferry` and `typeferry-*` |  `0.2.0` | Workspace publication disabled           |
 | Ruby           | `typeferry-rb`                |  `0.1.0` | Temporary identity; publication disabled |
-| Go             | `github.com/leonardoventurini/typeferry/typeferry-go` | Untagged | Locally validated candidate; publication disabled |
+| Go             | `github.com/leonardoventurini/typeferry/typeferry-go` | Untagged | Approved API; local and remote parity passed; no release tag |
 
 ## Go candidate review
 
@@ -18,8 +18,10 @@ The candidate implements the shared server protocol and interoperates with the
 unchanged TypeScript client. Its [parity specification](specs/2026-09-29-go-server-parity.md)
 records full Go unit/race/vet and Redis verification, 25 focused client cases,
 and the complete TypeScript package checks. The user approved the public Go API,
-import path and pinned adapter dependencies on 2026-09-30. Remote CI remains
-required before accepting the module. No Go tag,
+import path and pinned adapter dependencies on 2026-09-30. All four jobs in
+[CI run 36806767551](https://github.com/leonardoventurini/typeferry/actions/runs/36806767551)
+pass on `32480dd`, including Go/Redis race/vet and real TypeScript client
+interoperability. The server parity implementation is accepted. No Go tag,
 registry upload or automated Go publication workflow has been created.
 
 Review the import path above and the package boundaries in this order:

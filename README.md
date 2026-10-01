@@ -91,8 +91,8 @@ published package.
 The [Go server candidate](typeferry-go/README.md) provides EJSON, typed RPC and
 events, HTTP/WebSocket attachment, Redis propagation and authentication helpers
 for an application-owned `net/http` host. It passes local shared-fixture,
-race and real TypeScript-client checks. Its public API is approved; remote CI
-acceptance remains open. [Go publication is disabled](RELEASING.md#go-candidate-review).
+race and real TypeScript-client checks locally and in CI. Its public API is
+approved. [Go release tags remain uncreated](RELEASING.md#go-candidate-review).
 
 ### When it is a good fit
 

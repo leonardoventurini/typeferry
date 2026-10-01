@@ -1,5 +1,5 @@
 ---
-status: validating
+status: shipped
 project: typeferry
 project-root: /Users/leonardo/Repositories/typeferry
 created: 2026-09-29
@@ -24,6 +24,9 @@ implementation:
     - 3875145
     - 6958afd
     - 353e6d8
+    - 6d1965a
+    - ecf4d6a
+    - 32480dd
   pull-request:
 ---
 
@@ -57,11 +60,15 @@ but the library must contain no SolidScript policy or test-path dependency.
 
 ## Protocol-to-test matrix
 
+All gates in the matrix below are closed: public API/dependency approval was
+granted on 2026-09-30 and upstream CI run 36806767551 passes. The original gate
+column is retained as the review checklist; final acceptance is recorded below.
+
 This maps maintained protocol sections to executable Go evidence. "Focused"
 means the behavior has a direct test but the complete cross-language feature
 surface has not run against the TypeScript client in CI.
 
-| Protocol section | Go implementation and test evidence | Gate still open |
+| Protocol section | Go implementation and test evidence | Original acceptance gate (now passed) |
 |---|---|---|
 | 2.1 HTTP envelope, headers, origins, limits | `httptransport/http_test.go` shared fixtures and boundary tests; TypeScript `cross-lang-go-http.integration.spec.ts` | Upstream CI |
 | 2.2 WebSocket query, handshake, lifecycle, heartbeat | `websocket/fixtures_test.go`, `handler_test.go`, `handler_lifecycle_test.go`, frame fuzz; TypeScript `cross-lang-go-ws.integration.spec.ts` | Upstream CI |
@@ -77,9 +84,8 @@ surface has not run against the TypeScript client in CI.
 
 The real TypeScript matrix now covers values, validation/middleware, caching,
 public/internal errors, protected and user subscriptions, originator exclusion,
-disconnect cleanup and reconnect. Upstream CI and public API review remain
-required before claiming accepted parity. Public API and dependency approval
-was granted on 2026-09-30; the CI gate remains open. The optional MongoDB live-view extension
+disconnect cleanup and reconnect. Upstream CI and public API/dependency review
+have passed. Approval was granted on 2026-09-30. The optional MongoDB live-view extension
 is outside the agreed shared server scope.
 
 ## Scope and contracts
@@ -203,6 +209,9 @@ package unpublished and keep SolidScript on its current TypeFerry revision.
 An implementation-only revert does not require a protocol or data migration.
 
 ## Verification results
+
+This initial implementation checkpoint records the gaps at that time. Later
+sections and final upstream acceptance below close the listed review/CI gates.
 
 | Contract area | Go evidence | Remaining gate |
 |---|---|---|
@@ -429,3 +438,22 @@ No new configuration tests or registry publication were added.
 
 Primary patch references: [brace-expansion advisory](https://github.com/advisories/GHSA-q2hr-2g5m-vwhr)
 and [Undici 7.30.0 release](https://github.com/nodejs/undici/releases/tag/v7.30.0).
+
+### Final upstream acceptance
+
+[CI run 36806767551](https://github.com/leonardoventurini/typeferry/actions/runs/36806767551)
+passes on `32480dd`: Go shared fixtures, Redis integration, unit/race/vet;
+Ruby verification; TypeScript-to-Ruby compatibility; and the complete
+TypeScript audit, lint, typecheck, unit/integration/browser/build/package gate.
+The integration job executes the real HTTP/WebSocket Go client journeys.
+These results close the earlier API and CI gaps without changing the protocol.
+
+All six acceptance criteria pass: unchanged client behavior, shared fixture
+parity, typed server features, negative admission, concurrent lifecycle safety,
+and optional adapter boundaries. The application-owned example compiles in the
+Go gate. Earlier bounded fuzz evidence remains recorded above. Public Go API,
+import path and adapter dependencies are explicitly approved.
+
+The implementation and documentation are committed and pushed. No Go tag or
+registry publication is required by this specification. SolidScript production
+acceptance remains owned by its separate migration specification.
