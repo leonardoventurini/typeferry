@@ -457,3 +457,11 @@ import path and adapter dependencies are explicitly approved.
 The implementation and documentation are committed and pushed. No Go tag or
 registry publication is required by this specification. SolidScript production
 acceptance remains owned by its separate migration specification.
+
+Remote suite counts are 1,652 unit cases passed with four macOS-native template
+cases skipped on Linux; 71 integration cases passed with five opt-in
+Python/Rust and three opt-in Ruby cases skipped; and ten browser cases passed.
+Both Go client files execute (ten HTTP and fifteen WebSocket cases). The Ruby
+interop job separately executes and passes those three Ruby cases. All 1,656
+unit cases passed locally on macOS. The unrelated opt-in Python/Rust CI skip
+does not establish their acceptance and does not skip any Go parity case.
