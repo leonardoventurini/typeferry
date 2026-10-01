@@ -17,8 +17,9 @@ The TypeScript implementation is configured for operator-controlled publication 
 The candidate implements the shared server protocol and interoperates with the
 unchanged TypeScript client. Its [parity specification](specs/2026-09-29-go-server-parity.md)
 records full Go unit/race/vet and Redis verification, 25 focused client cases,
-and the complete TypeScript package checks. Remote CI and explicit public API
-approval remain required before accepting or tagging the Go module. No Go tag,
+and the complete TypeScript package checks. The user approved the public Go API,
+import path and pinned adapter dependencies on 2026-09-30. Remote CI remains
+required before accepting the module. No Go tag,
 registry upload or automated Go publication workflow has been created.
 
 Review the import path above and the package boundaries in this order:

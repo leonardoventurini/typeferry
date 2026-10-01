@@ -1,7 +1,7 @@
 # TypeFerry Go
 
-The Go server is a locally validated, unpublished candidate awaiting public API
-approval and remote CI. `ejson` implements ordered
+The Go server is a locally validated, unpublished candidate with an approved
+public API, awaiting remote CI acceptance. `ejson` implements ordered
 TypeFerry values, `runtime` handles typed methods and local events, and
 `httptransport` and `websocket` mount `POST /__h` and `/typeferry-ws` on an
 application-owned `net/http` server. `redistransport` propagates cluster events

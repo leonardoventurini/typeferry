@@ -78,7 +78,8 @@ surface has not run against the TypeScript client in CI.
 The real TypeScript matrix now covers values, validation/middleware, caching,
 public/internal errors, protected and user subscriptions, originator exclusion,
 disconnect cleanup and reconnect. Upstream CI and public API review remain
-required before claiming accepted parity. The optional MongoDB live-view extension
+required before claiming accepted parity. Public API and dependency approval
+was granted on 2026-09-30; the CI gate remains open. The optional MongoDB live-view extension
 is outside the agreed shared server scope.
 
 ## Scope and contracts
@@ -400,3 +401,12 @@ Executed verification:
 Downstream pin verification follows the upstream commit. Upstream CI, public
 API/release review and production cutover remain separate acceptance gates;
 the Go candidate is unpublished.
+
+### Public API approval
+
+On 2026-09-30 the user explicitly approved proceeding after the handoff named
+the public Go API, import path and pinned WebSocket/Redis dependencies as the
+remaining acceptance decision. Those contracts are now approved. Remote CI
+must still pass before accepted parity is recorded. Registry publication and
+release tags remain outside this specification; pushing the approved source
+does not publish the unrelated TypeScript package candidate.
