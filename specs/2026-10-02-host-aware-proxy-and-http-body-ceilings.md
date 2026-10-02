@@ -1,10 +1,10 @@
 ---
-status: validating
+status: shipped
 created: 2026-10-02
 updated: 2026-10-02
 owner: TypeScript application tooling and HTTP transport
 implementation:
-  commits: []
+  commits: [62cb276e038daf750501a1738fbcd9064ab5f94a]
 ---
 
 # Host-aware development proxy and route-specific HTTP body ceilings
@@ -62,9 +62,11 @@ Consumers can return to the previous immutable npm release. Production consumers
 must remove use of new options before downgrading; no persisted data changes.
 The registry reports `0.12.0` as published. Initial new regression tests failed
 against the prior implementation as expected. Focused tests subsequently passed.
-Publication currently cannot proceed because `npm whoami` returns E401; no
-credentials were read or changed. The candidate is `typeferry@0.13.0`; publication and registry consumer verification
-remain operator-owned residual work until authentication is restored.
+The operator published `typeferry@0.13.0` after restoring authentication. The
+registry reports the exact implementation commit as `gitHead`; all 565 files in
+its downloaded tarball match the locally packed verified checkout byte for byte.
+The guarded publication recipe refused a duplicate upload when the version was
+already available, so the existing immutable release was retained.
 
 ## Verification results
 
@@ -90,4 +92,8 @@ remain operator-owned residual work until authentication is restored.
 - Emitted declarations and ESM contain both public APIs. Temporary release-gate
   MongoDB/Redis containers were removed by the gate; existing services were left
   untouched. No downstream checkout tests were invoked by TypeFerry tooling.
-- npm publication: blocked by E401 from `npm whoami`. No upload attempted.
+- npm publication: passed. Public `typeferry@0.13.0` has `gitHead`
+  `62cb276e038daf750501a1738fbcd9064ab5f94a`. Both new public declarations are
+  present and all registry tarball contents match the verified source build.
+  Downloaded archive SHA-256:
+  `0325f3c7df6310f95fd6a84401150147ab78fba626e78b6745c13fed784efb12`.

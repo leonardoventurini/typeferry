@@ -6,7 +6,7 @@ The TypeScript implementation is configured for operator-controlled publication 
 
 | Implementation | Registry identity             |  Version | Status                                   |
 | -------------- | ----------------------------- | -------: | ---------------------------------------- |
-| TypeScript     | `typeferry`                   | `0.13.0` | Unpublished candidate                    |
+| TypeScript     | `typeferry`                   | `0.13.0` | Published                    |
 | Python         | `typeferry-py`                |  `0.2.0` | Temporary identity; publication disabled |
 | Rust           | `typeferry` and `typeferry-*` |  `0.2.0` | Workspace publication disabled           |
 | Ruby           | `typeferry-rb`                |  `0.1.0` | Temporary identity; publication disabled |
@@ -41,29 +41,30 @@ Go uses pinned `github.com/coder/websocket` and `github.com/redis/go-redis/v9`
 adapter dependencies. MongoDB live views, a Go client and extra OAuth providers
 are outside the accepted shared server scope.
 
-## TypeScript candidate
+## TypeScript release
 
-TypeFerry is published publicly on npm at `0.12.0` (confirmed against the
-registry on 2026-10-02). The repository prepares `0.13.0` as an unpublished
-candidate adding exact hostname allowlists for development proxies and
+TypeFerry is published publicly on npm at `0.13.0` (verified against the
+registry on 2026-10-02). This release adds exact hostname allowlists for development proxies and
 route-specific HTTP body ceilings selected before chunked request buffering.
 These are additive TypeScript application/transport APIs; the wire protocol and
 other language implementations are unchanged. See the
 [implementation specification](specs/2026-10-02-host-aware-proxy-and-http-body-ceilings.md).
 
-Published npm release: `typeferry@0.12.0`.
+Published npm release: `typeferry@0.13.0`.
 
-The `0.13.0` candidate passed `just verify-npm-release`: immutable install,
+The `0.13.0` release passed `just verify-npm-release`: immutable install,
 lint/typecheck, 1,660 unit cases, 77 integration cases, 10 browser cases, build,
 packed consumer smoke and archive validation (565 allowed files). Three explicit
 opt-in Ruby interoperability cases were skipped. Separate audit reported zero
 vulnerabilities. Final focused transport/proxy regressions passed after cleanup.
 No dependency or cross-language protocol behavior changed.
 
-Publication follows the user-authorized operator workflow below after complete
-verification. The current operator session fails `npm whoami` with E401, so
-publication remains blocked until the operator authenticates. No registry
-credentials or production environment values have been changed.
+The public registry records `gitHead`
+`62cb276e038daf750501a1738fbcd9064ab5f94a`. All 565 downloaded registry tarball
+files match the locally packed verified source build byte for byte, including
+both new declaration APIs. Publication was performed by the operator. A
+subsequent guarded publish attempt refused the already-published immutable
+version; no duplicate upload or version change was attempted.
 
 The repository template consumes the public release through `^0.8.0`; its
 lockfile resolves the package tarball from the npm registry.
