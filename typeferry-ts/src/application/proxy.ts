@@ -13,20 +13,42 @@ const COOKIE_DOMAIN_ATTRIBUTE_PATTERN = /;\s*Domain=[^;]*/giu;
 const COOKIE_PATH_ATTRIBUTE_PATTERN = /;\s*Path=[^;]*/iu;
 const COOKIE_SECURE_ATTRIBUTE_PATTERN = /;\s*Secure/giu;
 
+/**
+ * Matches complete path segments and, when configured, the browser-facing Host.
+ * Omitting Host retains unrestricted routes but cannot select a restricted route.
+ */
 export function findDevelopmentProxyRoute(
   url: string | undefined,
   routes: readonly ResolvedDevelopmentProxyRoute[],
+  hostHeader?: string,
 ): ResolvedDevelopmentProxyRoute | null {
   if (url === undefined) return null;
 
   const pathname = url.split("?", 1)[0];
+  const hostname = parseDevelopmentHostname(hostHeader);
+
   return (
     routes.find(
       (route) =>
-        pathname === route.pathPrefix ||
-        pathname?.startsWith(`${route.pathPrefix}/`) === true,
+        (route.hostnames === undefined ||
+          (hostname !== null && route.hostnames.includes(hostname))) &&
+        (pathname === route.pathPrefix ||
+          pathname?.startsWith(`${route.pathPrefix}/`) === true),
     ) ?? null
   );
+}
+
+/**
+ * Parses only an HTTP authority, rejecting paths and credentials rather than
+ * allowing URL normalization to turn an invalid Host into a trusted hostname.
+ */
+function parseDevelopmentHostname(hostHeader: string | undefined): string | null {
+  if (!hostHeader || /[\s/@?#\\]/u.test(hostHeader)) return null;
+  try {
+    return new URL(`http://${hostHeader}`).hostname.toLowerCase().replace(/\.$/u, "");
+  } catch {
+    return null;
+  }
 }
 
 export function createTypeFerryDevProxy(
@@ -37,7 +59,11 @@ export function createTypeFerryDevProxy(
     name: "typeferry-development-proxy",
     configureServer(server) {
       server.middlewares.use((request, response, next) => {
-        const route = findDevelopmentProxyRoute(request.url, routes);
+        const route = findDevelopmentProxyRoute(
+          request.url,
+          routes,
+          request.headers.host,
+        );
         if (route === null) {
           next();
           return;

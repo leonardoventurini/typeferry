@@ -1,4 +1,4 @@
-import type { IncomingMessage, RequestListener } from 'node:http'
+import { request as createHttpRequest, type IncomingMessage, type RequestListener } from 'node:http'
 import { createConnection, type Socket } from 'node:net'
 import { setTimeout as delay } from 'node:timers/promises'
 
@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { EJSON } from '../../ejson'
 import type { TypeFerryResponse } from '../request-types'
-import { Server } from '../server'
+import { Server, type RequestBodySizeLimit } from '../server'
 import { PublicError, ServerEvents } from '../../utils'
 
 const LOCAL_HOST = '127.0.0.1'
@@ -18,6 +18,7 @@ const SHUTDOWN_BOUND_MS = 1_000
 async function createServer(
   options: {
     maxRequestBodySize?: number
+    requestBodySizeLimits?: readonly RequestBodySizeLimit[]
     origins?: string[]
     requestListener?: RequestListener
   } = {},
@@ -327,6 +328,97 @@ describe('NodeHonoTransport', () => {
     expect(response.status).toBe(413)
 
     await server.close()
+  })
+
+  it('bounds chunked bodies before buffering the larger global allowance', async () => {
+    const server = await createServer({
+      maxRequestBodySize: 1024 * 1024,
+      requestBodySizeLimits: [
+        { pathPrefix: '/upload', maxSize: 64 },
+        { pathPrefix: '/upload/private', maxSize: 32 },
+      ],
+    })
+    const handler = vi.fn(async (body: string) => body.length)
+    server.app.post('*', async c => c.json(await handler(await c.req.text())))
+
+    try {
+      for (const pathname of ['/upload', '/upload/image', '/upload/private', '/%75pload/image']) {
+        const requestOptions: RequestInit & { duplex: 'half' } = {
+          method: 'POST',
+          body: new ReadableStream({ start(controller) {
+            controller.enqueue(new Uint8Array(65))
+            controller.close()
+          } }),
+          // Node requires duplex for a genuinely chunked request without Content-Length.
+          duplex: 'half',
+        }
+        const response = await fetch(`http://${LOCAL_HOST}:${server.port}${pathname}`, requestOptions)
+        expect(response.status).toBe(413)
+      }
+      expect(handler).not.toHaveBeenCalled()
+      for (const [pathname, bytes] of [['/upload/private', 33], ['/upload', 65]] as const) {
+        const response = await fetch(`http://${LOCAL_HOST}:${server.port}${pathname}`, {
+          method: 'POST', body: 'x'.repeat(bytes),
+        })
+        expect(response.status).toBe(413)
+      }
+      const allowed = await fetch(`http://${LOCAL_HOST}:${server.port}/uploader`, {
+        method: 'POST', body: 'x'.repeat(65),
+      })
+      expect(allowed.status).toBe(200)
+      expect(await allowed.json()).toBe(65)
+      const bounded = await fetch(`http://${LOCAL_HOST}:${server.port}/upload/private`, {
+        method: 'POST', body: 'x'.repeat(32),
+      })
+      expect(bounded.status).toBe(200)
+    } finally {
+      await server.close()
+    }
+  })
+
+  it('rejects an oversized chunked stream before the client finishes uploading', async () => {
+    const server = await createServer({
+      maxRequestBodySize: 1024 * 1024,
+      requestBodySizeLimits: [{ pathPrefix: '/upload', maxSize: 32 }],
+    })
+    server.app.post('/upload', c => c.text('accepted'))
+    try {
+      const status = await new Promise<number>((resolve, reject) => {
+        const outgoing = createHttpRequest({
+          hostname: LOCAL_HOST, port: server.port, path: '/upload', method: 'POST',
+        }, incoming => {
+          incoming.resume()
+          resolve(incoming.statusCode ?? 0)
+          outgoing.destroy()
+        })
+        outgoing.once('error', reject)
+        outgoing.setTimeout(2000, () => {
+          outgoing.destroy(new Error('Body limit waited for the oversized stream to end'))
+        })
+        outgoing.write('x'.repeat(33))
+        // Deliberately leave the chunked request open. The route cap must reject
+        // now, rather than buffering under the larger global cap until end.
+      })
+      expect(status).toBe(413)
+    } finally {
+      await server.close()
+    }
+  })
+
+  it('never lets a route override raise the global request-body ceiling', async () => {
+    const server = await createServer({
+      maxRequestBodySize: 32,
+      requestBodySizeLimits: [{ pathPrefix: '/upload', maxSize: 1024 }],
+    })
+    server.app.post('/upload', c => c.text('accepted'))
+    try {
+      const response = await fetch(`http://${LOCAL_HOST}:${server.port}/upload`, {
+        method: 'POST', body: 'x'.repeat(33),
+      })
+      expect(response.status).toBe(413)
+    } finally {
+      await server.close()
+    }
   })
 
   it('closes idempotently and emits one closed lifecycle event', async () => {

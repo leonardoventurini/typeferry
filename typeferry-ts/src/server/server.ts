@@ -67,6 +67,15 @@ export type RateLimit =
 /** Default request-body ceiling retained across the runtime migration. */
 export const DEFAULT_MAX_REQUEST_BODY_SIZE_BYTES = 128 * 1024 * 1024
 
+/**
+ * A segment-scoped HTTP body ceiling selected before any body buffering.
+ * Matching rules only lower the global ceiling; overlapping rules use the minimum.
+ */
+export interface RequestBodySizeLimit {
+  readonly pathPrefix: string
+  readonly maxSize: number
+}
+
 export type ServerOptions = {
   host?: string
   port?: number
@@ -85,6 +94,11 @@ export type ServerOptions = {
   rateLimit?: RateLimit
   /** Maximum request body accepted by the HTTP listener. */
   maxRequestBodySize?: number
+  /**
+   * Additional route ceilings evaluated by the first HTTP middleware, including
+   * requests without Content-Length. Prefixes match complete path segments.
+   */
+  requestBodySizeLimits?: readonly RequestBodySizeLimit[]
   shouldAllowChannelSubscribe?: ChannelChecker
 }
 
@@ -161,6 +175,7 @@ export class Server<
     allowedContextKeys = [],
     rateLimit = false,
     maxRequestBodySize = DEFAULT_MAX_REQUEST_BODY_SIZE_BYTES,
+    requestBodySizeLimits = [],
   }: ServerOptions = {}) {
     super(NO_CHANNEL)
 
@@ -187,6 +202,7 @@ export class Server<
       origins,
       this.rateLimit,
       this.maxRequestBodySize,
+      requestBodySizeLimits,
     )
     this.webSocketTransport = new WebSocketTransport(this, origins, ws)
     this.redisTransport = redis ? new RedisTransport(this, redis) : null

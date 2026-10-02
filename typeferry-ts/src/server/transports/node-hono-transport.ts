@@ -29,7 +29,7 @@ import { ClientNode } from '../client-node'
 import type { ClientNodeContext } from '../client-node'
 import { redactMethodTelemetry, type Method } from '../method'
 import type { TypeFerryRequest, TypeFerryResponse } from '../request-types'
-import type { RateLimit, Server } from '../server'
+import type { RateLimit, RequestBodySizeLimit, Server } from '../server'
 import { rateLimiter, type DisposableRateLimiter } from './hono-rate-limit'
 import {
   HttpTransportEvents,
@@ -53,11 +53,12 @@ export class NodeHonoTransport {
     origins: string[] | undefined,
     limit: RateLimit,
     maxRequestBodySize: number,
+    requestBodySizeLimits: readonly RequestBodySizeLimit[] = [],
   ) {
     this.server = server
     this.app = new Hono()
 
-    this.setupMiddleware(origins, limit, maxRequestBodySize)
+    this.setupMiddleware(origins, limit, maxRequestBodySize, requestBodySizeLimits)
     const honoListener = getRequestListener((request, env) =>
       this.handleFetch(request, env as HttpBindings),
     )
@@ -137,13 +138,20 @@ export class NodeHonoTransport {
     origins: string[] | undefined,
     limit: RateLimit,
     maxRequestBodySize: number,
+    requestBodySizeLimits: readonly RequestBodySizeLimit[],
   ): void {
+    validateRequestBodyLimits(maxRequestBodySize, requestBodySizeLimits)
     this.app.use(
       '*',
-      bodyLimit({
-        maxSize: maxRequestBodySize,
-        onError: c => c.text('Request Entity Too Large', 413),
-      }),
+      (c, next) =>
+        bodyLimit({
+          maxSize: getRequestBodyLimit(
+            c.req.path,
+            maxRequestBodySize,
+            requestBodySizeLimits,
+          ),
+          onError: context => context.text('Request Entity Too Large', 413),
+        })(c, next),
     )
 
     if (origins?.length) {
@@ -482,4 +490,55 @@ export class NodeHonoTransport {
     })
     this.server.emit(HttpTransportEvents.HTTP_SERVER_CLOSED)
   }
+}
+
+/**
+ * Rejects invalid limits before the listener starts accepting requests.
+ */
+function validateRequestBodyLimits(
+  globalLimit: number,
+  limits: readonly RequestBodySizeLimit[],
+): void {
+  for (const limit of [globalLimit, ...limits.map(rule => rule.maxSize)]) {
+    if (!Number.isSafeInteger(limit) || limit < 1) {
+      throw new Error('Request body limits must be positive safe integers')
+    }
+  }
+  for (const { pathPrefix } of limits) {
+    if (
+      !pathPrefix.startsWith('/') ||
+      pathPrefix === '/' ||
+      pathPrefix.endsWith('/') ||
+      pathPrefix.includes('\0') ||
+      /[?#%\\\s]/u.test(pathPrefix)
+    ) {
+      throw new Error('Request body limit prefixes must be non-root paths without query, fragment, encoding or trailing slash')
+    }
+  }
+}
+
+/**
+ * Decode once because Hono route parameters decode encoded input. Otherwise
+ * percent-encoded equivalents could bypass a more restrictive prefix ceiling.
+ */
+function getRequestBodyLimit(
+  path: string,
+  globalLimit: number,
+  limits: readonly RequestBodySizeLimit[],
+): number {
+  let decodedPath: string
+  try {
+    decodedPath = decodeURIComponent(path)
+  } catch {
+    // Malformed encodings should not receive a more permissive buffering limit.
+    return Math.min(globalLimit, ...limits.map(rule => rule.maxSize))
+  }
+  return limits.reduce(
+    (limit, rule) =>
+      decodedPath === rule.pathPrefix ||
+      decodedPath.startsWith(`${rule.pathPrefix}/`)
+        ? Math.min(limit, rule.maxSize)
+        : limit,
+    globalLimit,
+  )
 }

@@ -209,6 +209,11 @@ export default defineConfig({
     proxyRoutes: [
       { pathPrefix: "/api" },
       { pathPrefix: "/assets", preserveHostHeader: true },
+      {
+        pathPrefix: "/blog",
+        hostnames: ["showcase.localhost"],
+        preserveHostHeader: true,
+      },
     ],
   },
   build: {
@@ -238,7 +243,11 @@ validation rejects unknown fields, invalid ports, empty strings, and
 non-positive timeouts. Application proxy prefixes must be non-root paths
 without queries, fragments, or trailing slashes. They default to the backend
 host header and no cookie rewriting; `preserveHostHeader` and
-`rewriteLocalhostCookies` opt into the corresponding behavior. Server external
+`rewriteLocalhostCookies` opt into the corresponding behavior. Optional
+`hostnames` restricts an application route to exact hostnames (case-insensitive,
+without ports); other hostnames continue through the ordinary Vite middleware.
+Host allowlists do not rewrite the outgoing Host header, so domain-sensitive
+backend routes should also set `preserveHostHeader: true`. Server external
 lists additionally reject duplicates and non-package specifiers. The
 `DEVELOP_ENV_FILE` environment variable overrides
 the default development environment file only when the configuration does not
@@ -365,3 +374,30 @@ they import directly.
 The [application template](../../template/README.md) is the canonical runnable
 example. The [toolchain architecture](../architecture/application-framework-toolchain.md)
 explains ownership and implementation boundaries in greater depth.
+
+## Route-specific HTTP body ceilings
+
+`ServerOptions.maxRequestBodySize` remains the global ceiling. Applications
+with a large upload route can set smaller ceilings for sensitive application
+surfaces using `requestBodySizeLimits`:
+
+```ts
+const server = new Server({
+  maxRequestBodySize: 1024 * 1024 * 1024,
+  requestBodySizeLimits: [
+    { pathPrefix: "/api/editor", maxSize: 1024 * 1024 },
+    { pathPrefix: "/api/editor/images", maxSize: 512 * 1024 },
+  ],
+});
+```
+
+The first HTTP middleware chooses the minimum of the global ceiling and every
+matching rule before the body is read. Segment boundaries prevent `/api/editor`
+from matching `/api/editorial`; percent-encoded equivalent paths cannot bypass
+the ceiling. Chunked bodies are bounded while read, rather than first buffering
+under the larger global limit. Route limits cannot raise the global ceiling.
+Prefixes must be non-root paths without query, fragment, percent encoding,
+whitespace, backslashes or trailing slashes; sizes must be positive safe integers.
+
+These ceilings do not authorize requests or validate file formats. Application
+middleware must authenticate and authorize before parsing or processing content.

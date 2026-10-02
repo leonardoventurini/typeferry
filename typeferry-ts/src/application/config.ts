@@ -16,12 +16,20 @@ export type ApplicationTestProjectConfiguration = TestProjectConfiguration;
 
 export interface DevelopmentProxyRoute {
   readonly pathPrefix: string;
+  /**
+   * Exact hostname allowlist; omitted routes match every development host.
+   */
+  readonly hostnames?: readonly string[] | undefined;
   readonly preserveHostHeader?: boolean | undefined;
   readonly rewriteLocalhostCookies?: boolean | undefined;
 }
 
 export interface ResolvedDevelopmentProxyRoute {
   readonly pathPrefix: string;
+  /**
+   * Exact hostname allowlist; omitted routes match every development host.
+   */
+  readonly hostnames?: readonly string[] | undefined;
   readonly preserveHostHeader: boolean;
   readonly rewriteLocalhostCookies: boolean;
 }
@@ -158,6 +166,8 @@ const proxyPathPrefixSchema = z.string().regex(/^\/(?!$)[^?#]*[^/]$/u, {
 const proxyRouteSchema = z
   .object({
     pathPrefix: proxyPathPrefixSchema,
+    hostnames: z.array(z.string().regex(/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/iu))
+      .min(1).optional(),
     preserveHostHeader: z.boolean().optional(),
     rewriteLocalhostCookies: z.boolean().optional(),
   })
@@ -334,6 +344,7 @@ export function resolveApplicationConfig(
         ...DEFAULT_APPLICATION_CONFIG.development.proxyRoutes,
         ...(config.development?.proxyRoutes ?? []).map((route) => ({
           pathPrefix: route.pathPrefix,
+          ...(route.hostnames ? { hostnames: route.hostnames.map(host => host.toLowerCase()) } : {}),
           preserveHostHeader: route.preserveHostHeader ?? false,
           rewriteLocalhostCookies: route.rewriteLocalhostCookies ?? false,
         })),
