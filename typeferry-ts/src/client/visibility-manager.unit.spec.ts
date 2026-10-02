@@ -1,27 +1,35 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ClientEvents } from '../utils'
+import EventEmitter2 from '../utils/event-emitter'
 import { VisibilityManager } from './visibility-manager'
 
 // eslint-disable-next-line @typescript-eslint/no-empty-function
 function noop(): void {}
 
 function createMockClient() {
-  return {
+  return Object.assign(new EventEmitter2(), {
     options: { debug: false, ws: {} },
+    context: {},
+    logger: { connection: vi.fn() },
     initialized: true,
     initializing: false,
     clientSocket: {
       socket: {
         readyState: WebSocket.OPEN,
         close: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
       } as Record<string, unknown>,
+      connecting: false,
+      get ready(): boolean {
+        return this.socket.readyState === WebSocket.OPEN
+      },
       connect: vi.fn(),
       retireConnection: vi.fn(),
     },
     close: vi.fn(),
-    emit: vi.fn(),
-  }
+  })
 }
 
 function createMockIdleTimer() {
@@ -56,6 +64,7 @@ describe('VisibilityManager', () => {
     globalThis.window = new EventTarget()
 
     mockClient = createMockClient()
+    vi.spyOn(mockClient, 'emit')
     vi.useFakeTimers()
   })
 
@@ -112,7 +121,7 @@ describe('VisibilityManager', () => {
     manager.destroy()
   })
 
-  it('should reconnect when hidden for more than 1 hour', () => {
+  it('should verify a socket after a long hide and replace it if silent', async () => {
     const manager = new VisibilityManager(mockClient as never, null)
 
     Object.defineProperty(document, 'visibilityState', {
@@ -130,7 +139,9 @@ describe('VisibilityManager', () => {
     })
     document.dispatchEvent(new Event('visibilitychange'))
 
-    expect(mockClient.clientSocket.connect).toHaveBeenCalled()
+    expect(mockClient.clientSocket.connect).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect(mockClient.clientSocket.connect).toHaveBeenCalledTimes(1)
 
     manager.destroy()
   })
@@ -322,7 +333,7 @@ describe('VisibilityManager', () => {
   })
 
   describe('heartbeat sleep detector', () => {
-    it('should detect sleep when gap exceeds threshold', async () => {
+    it('should replace a silent socket after a delayed heartbeat grace', async () => {
       const baseTime = Date.now()
       const dateNow = vi.spyOn(Date, 'now')
 
@@ -334,6 +345,8 @@ describe('VisibilityManager', () => {
       // jumps 90s ahead (JS event loop was frozen)
       dateNow.mockReturnValue(baseTime + 90_000)
       vi.advanceTimersByTime(30_000)
+      expect(mockClient.clientSocket.connect).not.toHaveBeenCalled()
+      await vi.advanceTimersByTimeAsync(30_000)
 
       await vi.waitFor(() => {
         expect(mockClient.clientSocket.connect).toHaveBeenCalled()
@@ -391,6 +404,7 @@ describe('VisibilityManager', () => {
 
       // Resolve the hook to allow reconnect to complete
       resolveHook()
+      await vi.advanceTimersByTimeAsync(0)
 
       await vi.waitFor(() => {
         expect(mockClient.clientSocket.connect).toHaveBeenCalled()
@@ -417,6 +431,10 @@ describe('VisibilityManager', () => {
       })
       manager.onBeforeReconnect = vi.fn(() => hookPromise)
 
+      // Start just after the previous tick so the next heartbeat precedes
+      // the bounded hook deadline.
+      vi.advanceTimersByTime(1)
+
       // Visibility fires first — starts async hook
       Object.defineProperty(document, 'visibilityState', {
         value: 'hidden',
@@ -431,10 +449,11 @@ describe('VisibilityManager', () => {
 
       // Heartbeat fires while hook is still running — dedup blocks it
       dateNow.mockReturnValue(baseTime + 90_000)
-      vi.advanceTimersByTime(30_000)
+      vi.advanceTimersByTime(29_999)
 
       // Resolve hook
       resolveHook()
+      await vi.advanceTimersByTimeAsync(0)
 
       await vi.waitFor(() => {
         expect(mockClient.clientSocket.connect).toHaveBeenCalled()

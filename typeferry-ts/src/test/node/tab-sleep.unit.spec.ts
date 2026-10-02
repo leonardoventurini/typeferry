@@ -174,15 +174,7 @@ describe('Visibility Handler Behavior', () => {
   const test = new TestUtility()
 
   it('should trigger reconnect when tab becomes visible and not initialized', async () => {
-    // Track if reconnect is called via VisibilityManager
-    let reconnectCalled = false
-    const originalReconnect = test.client.visibilityManager.reconnect.bind(
-      test.client.visibilityManager,
-    )
-    test.client.visibilityManager.reconnect = () => {
-      reconnectCalled = true
-      return originalReconnect()
-    }
+    const originalSocket = test.client.clientSocket.socket
 
     // Simulate uninitialized state (like after tab sleep)
     test.client.initialized = false
@@ -202,7 +194,7 @@ describe('Visibility Handler Behavior', () => {
     })
     document.dispatchEvent(new Event('visibilitychange'))
 
-    expect(reconnectCalled).toBe(true)
+    expect(test.client.clientSocket.socket).not.toBe(originalSocket)
 
     // Wait for reconnection
     await test.client.waitFor(ClientEvents.INITIALIZED, 5000)
@@ -252,16 +244,9 @@ describe('Visibility Handler Behavior', () => {
     vi.restoreAllMocks()
   })
 
-  it('should trigger reconnect when hidden for more than 1 hour even if socket is connected', async () => {
-    // Track if reconnect is called
-    let reconnectCalled = false
-    const originalReconnect = test.client.visibilityManager.reconnect.bind(
-      test.client.visibilityManager,
-    )
-    test.client.visibilityManager.reconnect = () => {
-      reconnectCalled = true
-      return originalReconnect()
-    }
+  it('should preserve a responsive socket after more than 1 hour hidden', async () => {
+    const originalSocket = test.client.clientSocket.socket
+    test.server.addMethod('wake:ready', () => true)
 
     // Ensure client is initialized and socket is connected
     expect(test.client.initialized).toBe(true)
@@ -289,14 +274,13 @@ describe('Visibility Handler Behavior', () => {
     })
     document.dispatchEvent(new Event('visibilitychange'))
 
-    // Should reconnect as safety measure after being hidden for > 1 hour
-    expect(reconnectCalled).toBe(true)
+    // Existing protocol traffic proves activity without replacing the socket.
+    expect(test.client.clientSocket.socket).toBe(originalSocket)
+    await expect(test.client.call('wake:ready')).resolves.toBe(true)
+    await sleep(10)
+    expect(test.client.clientSocket.socket).toBe(originalSocket)
 
-    // Restore mocks
     vi.restoreAllMocks()
-
-    // Wait for reconnection
-    await test.client.waitFor(ClientEvents.INITIALIZED, 5000)
   })
 
   it('should NOT reconnect when hidden briefly and initialized', async () => {

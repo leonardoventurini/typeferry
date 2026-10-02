@@ -30,6 +30,18 @@ Immediate connection replacement retires the active socket through
 and emits `WEBSOCKET_CLOSED` exactly once so connection-owned consumers can
 discard stale work before the next authenticated `INITIALIZED` boundary.
 
+Automatic browser wake recovery owns a cancellable lifecycle through the real
+`INITIALIZED` event, including subscription restoration. Hidden timer gaps are
+remembered until visibility returns. After the bounded refresh hook, an open,
+initialized socket has up to 30 seconds to deliver existing server traffic
+(the wire heartbeat interval is 25 seconds). Delivered traffic preserves the
+socket and pending RPCs; silence, transport failure or a changed token requires
+recovery. Existing backoff and competing connections are joined rather than
+replaced, provided their handshake uses the current token. This passive check
+can observe buffered traffic and does not change RPC acknowledgement timeouts.
+Close/destroy cancels recovery waits and prevents late asynchronous replacement.
+See [the browser wake recovery contract](../../specs/2026-10-02-browser-wake-recovery.md).
+
 ## Contract surfaces
 
 - `src/` may use internal organization suited to implementation.

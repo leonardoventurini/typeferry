@@ -69,6 +69,23 @@ version; no duplicate upload or version change was attempted.
 The repository template consumes the public release through `^0.8.0`; its
 lockfile resolves the package tarball from the npm registry.
 
+## TypeScript patch candidate
+
+`typeferry@0.13.1` is prepared for operator publication. It corrects browser
+wake recovery without changing public APIs, wire envelopes, dependencies or
+server authentication policy. Healthy sockets survive timer gaps when existing
+server traffic arrives during a bounded grace; overlapping wake events share
+one recovery through initialization. Changed tokens still require a matching
+handshake, and close cancels pending recovery work.
+
+See [the implementation and acceptance evidence](specs/2026-10-02-browser-wake-recovery.md).
+The complete `just verify-npm-release` gate passed: immutable install,
+lint/typecheck, 1,687 unit cases, 77 integration cases, 10 browser cases, build,
+packed consumer smoke and archive validation (565 allowed files). Three explicit
+opt-in Ruby interoperability cases were skipped. Audit reported zero
+vulnerabilities; the specification records existing non-blocking install warnings
+and local verification limits. The candidate has not been published.
+
 ## npm Release Gate
 
 Run from the repository root with Mise installed:
@@ -104,7 +121,7 @@ The recipe requires:
 Only after those checks does it execute `npm publish --access public`. The
 recipe does not bump versions, create Git tags, push commits, or store
 credentials. After npm confirms the upload, create the annotated Git tag
-`v0.13.0` and push the release commit and tag. No GitHub release is created.
+`v<version>` (for this patch, `v0.13.1`) and push the release commit and tag. No GitHub release is created.
 
 An npm version cannot be reused after publication. If a release is incorrect, deprecate it as appropriate, fix the repository, choose a higher semantic version, and rerun the gate.
 
