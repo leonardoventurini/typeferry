@@ -31,6 +31,7 @@ import { redactMethodTelemetry, type Method } from '../method'
 import type { TypeFerryRequest, TypeFerryResponse } from '../request-types'
 import type { RateLimit, RequestBodySizeLimit, Server } from '../server'
 import { rateLimiter, type DisposableRateLimiter } from './hono-rate-limit'
+import { streamingBodyLimit } from './hono-streaming-body-limit'
 import {
   HttpTransportEvents,
   SERVER_NOT_READY_RESPONSE,
@@ -58,7 +59,12 @@ export class NodeHonoTransport {
     this.server = server
     this.app = new Hono()
 
-    this.setupMiddleware(origins, limit, maxRequestBodySize, requestBodySizeLimits)
+    this.setupMiddleware(
+      origins,
+      limit,
+      maxRequestBodySize,
+      requestBodySizeLimits,
+    )
     const honoListener = getRequestListener((request, env) =>
       this.handleFetch(request, env as HttpBindings),
     )
@@ -84,6 +90,10 @@ export class NodeHonoTransport {
   ): void {
     const honoRequest = this.createRequestMirror(request)
     const observerRequest = this.createRequestMirror(request)
+    // A disconnect can precede the first authenticated body read. Keep the
+    // mirror's errored state available to readers without an unhandled event
+    // when no reader exists yet; Hono forwards response closure to its signal.
+    honoRequest.once('error', () => undefined)
     void honoListener(honoRequest, response)
     const requestListener = this.server.requestListener
     if (!requestListener) return
@@ -107,9 +117,13 @@ export class NodeHonoTransport {
       honoRequest.end()
       observerRequest.end()
     })
-    request.once('error', error => {
+    request.once('error', (error) => {
       honoRequest.destroy(error)
-      observerRequest.destroy(error)
+      // Metadata-only observers need not subscribe to errors. Preserve an
+      // explicit observer's error notification without crashing other requests.
+      observerRequest.destroy(
+        observerRequest.listenerCount('error') ? error : undefined,
+      )
     })
   }
 
@@ -141,18 +155,18 @@ export class NodeHonoTransport {
     requestBodySizeLimits: readonly RequestBodySizeLimit[],
   ): void {
     validateRequestBodyLimits(maxRequestBodySize, requestBodySizeLimits)
-    this.app.use(
-      '*',
-      (c, next) =>
-        bodyLimit({
-          maxSize: getRequestBodyLimit(
-            c.req.path,
-            maxRequestBodySize,
-            requestBodySizeLimits,
-          ),
-          onError: context => context.text('Request Entity Too Large', 413),
-        })(c, next),
-    )
+    this.app.use('*', (c, next) => {
+      const policy = getRequestBodyPolicy(
+        c.req.path,
+        maxRequestBodySize,
+        requestBodySizeLimits,
+      )
+      if (policy.streaming) return streamingBodyLimit(policy.maxSize)(c, next)
+      return bodyLimit({
+        maxSize: policy.maxSize,
+        onError: (context) => context.text('Request Entity Too Large', 413),
+      })(c, next)
+    })
 
     if (origins?.length) {
       this.app.use(
@@ -174,7 +188,7 @@ export class NodeHonoTransport {
       this.app.use('/__h', this.httpRateLimiter)
     }
 
-    this.app.post('/__h', c => this.handleRpc(c))
+    this.app.post('/__h', (c) => this.handleRpc(c))
   }
 
   // ---------------------------------------------------------------------------
@@ -476,7 +490,7 @@ export class NodeHonoTransport {
 
     http.closeAllConnections()
     await new Promise<void>((resolve, reject) => {
-      http.close(error => {
+      http.close((error) => {
         if (
           error &&
           (error as NodeJS.ErrnoException).code !== 'ERR_SERVER_NOT_RUNNING'
@@ -499,12 +513,19 @@ function validateRequestBodyLimits(
   globalLimit: number,
   limits: readonly RequestBodySizeLimit[],
 ): void {
-  for (const limit of [globalLimit, ...limits.map(rule => rule.maxSize)]) {
+  for (const limit of [globalLimit, ...limits.map((rule) => rule.maxSize)]) {
     if (!Number.isSafeInteger(limit) || limit < 1) {
       throw new Error('Request body limits must be positive safe integers')
     }
   }
-  for (const { pathPrefix } of limits) {
+  for (const { pathPrefix, bodyMode } of limits) {
+    if (
+      bodyMode !== undefined &&
+      bodyMode !== 'buffered' &&
+      bodyMode !== 'streaming'
+    ) {
+      throw new Error('Request body mode must be buffered or streaming')
+    }
     if (
       !pathPrefix.startsWith('/') ||
       pathPrefix === '/' ||
@@ -512,7 +533,9 @@ function validateRequestBodyLimits(
       pathPrefix.includes('\0') ||
       /[?#%\\\s]/u.test(pathPrefix)
     ) {
-      throw new Error('Request body limit prefixes must be non-root paths without query, fragment, encoding or trailing slash')
+      throw new Error(
+        'Request body limit prefixes must be non-root paths without query, fragment, encoding or trailing slash',
+      )
     }
   }
 }
@@ -521,24 +544,30 @@ function validateRequestBodyLimits(
  * Decode once because Hono route parameters decode encoded input. Otherwise
  * percent-encoded equivalents could bypass a more restrictive prefix ceiling.
  */
-function getRequestBodyLimit(
+function getRequestBodyPolicy(
   path: string,
   globalLimit: number,
   limits: readonly RequestBodySizeLimit[],
-): number {
+): { maxSize: number; streaming: boolean } {
   let decodedPath: string
   try {
     decodedPath = decodeURIComponent(path)
   } catch {
     // Malformed encodings should not receive a more permissive buffering limit.
-    return Math.min(globalLimit, ...limits.map(rule => rule.maxSize))
+    return {
+      maxSize: Math.min(globalLimit, ...limits.map((rule) => rule.maxSize)),
+      streaming: false,
+    }
   }
-  return limits.reduce(
-    (limit, rule) =>
+  const matching = limits.filter(
+    (rule) =>
       decodedPath === rule.pathPrefix ||
-      decodedPath.startsWith(`${rule.pathPrefix}/`)
-        ? Math.min(limit, rule.maxSize)
-        : limit,
-    globalLimit,
+      decodedPath.startsWith(`${rule.pathPrefix}/`),
   )
+  return {
+    maxSize: Math.min(globalLimit, ...matching.map((rule) => rule.maxSize)),
+    streaming:
+      matching.length > 0 &&
+      matching.every((rule) => rule.bodyMode === 'streaming'),
+  }
 }

@@ -74,6 +74,13 @@ export const DEFAULT_MAX_REQUEST_BODY_SIZE_BYTES = 128 * 1024 * 1024
 export interface RequestBodySizeLimit {
   readonly pathPrefix: string
   readonly maxSize: number
+  /**
+   * Buffered (the default) rejects chunked overflow before application handlers.
+   * Streaming passes bounded chunks to handlers, allowing early authentication;
+   * handlers must consume and validate EOF before committing upload side effects.
+   * Every matching rule must opt in; any buffered rule retains buffering.
+   */
+  readonly bodyMode?: 'buffered' | 'streaming'
 }
 
 export type ServerOptions = {
@@ -154,7 +161,7 @@ export class Server<
   }
 
   private setupHttpListening(): void {
-    this.httpTransport.http?.on('error', error => {
+    this.httpTransport.http?.on('error', (error) => {
       this.emit(Server.ERROR_EVENT, error)
     })
 
@@ -231,7 +238,7 @@ export class Server<
    * commonly use this as a low-cost guard before request handling.
    */
   isReady(): Promise<boolean> {
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       if (this.ready) {
         resolve(true)
         return
@@ -248,7 +255,10 @@ export class Server<
     return this.httpTransport.app
   }
 
-  setAuth<TParameters, TResult>({ auth, logIn }: AuthSetup<TParameters, TResult>) {
+  setAuth<TParameters, TResult>({
+    auth,
+    logIn,
+  }: AuthSetup<TParameters, TResult>) {
     this.isAuthEnabled = true
     this.auth = auth
     this.addMethod(Methods.RPC_LOGIN, logIn)
@@ -264,7 +274,7 @@ export class Server<
   }
 
   private async closeTransports(): Promise<boolean> {
-    this.allClients.forEach(node => node.close())
+    this.allClients.forEach((node) => node.close())
     this.allClients.clear()
     this.clientsByUserId.clear()
     this.methods.clear()

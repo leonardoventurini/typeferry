@@ -6,7 +6,7 @@ The TypeScript implementation is configured for operator-controlled publication 
 
 | Implementation | Registry identity             |  Version | Status                                   |
 | -------------- | ----------------------------- | -------: | ---------------------------------------- |
-| TypeScript     | `typeferry`                   | `0.13.0` | Published                    |
+| TypeScript     | `typeferry`                   | `0.13.1` | Published                    |
 | Python         | `typeferry-py`                |  `0.2.0` | Temporary identity; publication disabled |
 | Rust           | `typeferry` and `typeferry-*` |  `0.2.0` | Workspace publication disabled           |
 | Ruby           | `typeferry-rb`                |  `0.1.0` | Temporary identity; publication disabled |
@@ -69,9 +69,9 @@ version; no duplicate upload or version change was attempted.
 The repository template consumes the public release through `^0.8.0`; its
 lockfile resolves the package tarball from the npm registry.
 
-## TypeScript patch candidate
+## TypeScript patch release
 
-`typeferry@0.13.1` is prepared for operator publication. It corrects browser
+`typeferry@0.13.1` is published (registry verified on 2026-10-09). It corrects browser
 wake recovery without changing public APIs, wire envelopes, dependencies or
 server authentication policy. Healthy sockets survive timer gaps when existing
 server traffic arrives during a bounded grace; overlapping wake events share
@@ -84,7 +84,30 @@ lint/typecheck, 1,687 unit cases, 77 integration cases, 10 browser cases, build,
 packed consumer smoke and archive validation (565 allowed files). Three explicit
 opt-in Ruby interoperability cases were skipped. Audit reported zero
 vulnerabilities; the specification records existing non-blocking install warnings
-and local verification limits. The candidate has not been published.
+and local verification limits. The registry confirms this patch release is published.
+
+## TypeScript streaming candidate
+
+`typeferry@0.14.0` adds explicit `RequestBodySizeLimit.bodyMode: "streaming"`.
+Default/buffered routes preserve their rejection behavior. Streaming routes can
+reject unauthorized unfinished uploads, consume byte-limited chunks with
+backpressure and cancel native input. Request observers survive disconnects
+before authentication starts reading. No wire protocol or declared dependency
+range changes. The lock updates the existing source-map-js resolution to patched
+`1.2.2`; audit reports zero vulnerabilities.
+
+See the [approved contract and acceptance evidence](specs/2026-10-09-opt-in-streaming-http-bodies.md).
+The producer release gate passes 1,703 unit, 77 integration and 10 browser checks,
+with three explicit opt-in Ruby cases skipped, plus lint/types/build, a generic
+packed consumer and archive validation. The package contains 568 allowed files.
+No consumer tests or paths are included in producer release tooling.
+
+The user owns manual publication due to registry authentication. The agent must
+not publish this candidate. After the clean signed implementation is prepared,
+the operator runs the existing `just publish-npm` command from the repository
+root; its authentication, immutable-version and full verification guards remain.
+The downstream consumer upgrades its manifest/lock from the registry after
+publication. Registry tarball equivalence and final consumer adoption are pending.
 
 ## npm Release Gate
 

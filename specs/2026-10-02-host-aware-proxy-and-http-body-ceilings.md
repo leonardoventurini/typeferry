@@ -97,3 +97,11 @@ already available, so the existing immutable release was retained.
   present and all registry tarball contents match the verified source build.
   Downloaded archive SHA-256:
   `0325f3c7df6310f95fd6a84401150147ab78fba626e78b6745c13fed784efb12`.
+
+## Additive streaming extension
+
+The [opt-in streaming contract](2026-10-09-opt-in-streaming-http-bodies.md)
+adds an explicit route mode. The pre-handler rejection guarantees recorded here
+continue to apply to default/buffered routes; explicitly streaming routes instead
+apply byte ceilings while the authenticated handler consumes the body. Existing
+path selection, minimum limits and buffered defaults remain authoritative.

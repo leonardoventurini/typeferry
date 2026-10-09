@@ -401,3 +401,27 @@ whitespace, backslashes or trailing slashes; sizes must be positive safe integer
 
 These ceilings do not authorize requests or validate file formats. Application
 middleware must authenticate and authorize before parsing or processing content.
+
+### Opt-in streaming uploads
+
+Set `bodyMode: "streaming"` on a route ceiling to authenticate and consume chunks
+before the client finishes sending an upload:
+
+```ts
+requestBodySizeLimits: [
+  { pathPrefix: "/api/media", maxSize: 512 * 1024 * 1024, bodyMode: "streaming" },
+]
+```
+
+Omitted mode remains `"buffered"`. Every matching rule must explicitly select
+streaming; any buffered match retains pre-handler chunked overflow rejection.
+Malformed path encoding also retains buffered handling at the minimum cap.
+Streaming preserves the global/route minimum, rejects excessive Content-Length
+before routing, and rejects actual overflow with HTTP 413 while consuming bytes.
+Authentication can reject an unfinished request without buffering it first.
+
+Streaming handlers must consume and validate EOF before committing upload effects
+or reporting success. The transport applies byte limits and backpressure; routes
+own file validation, storage admission, disk budgets and idle/total deadlines.
+Request cancellation propagates through the raw request signal and body, including
+when an optional request observer is installed. See the [streaming contract](../../specs/2026-10-09-opt-in-streaming-http-bodies.md).
